@@ -39,7 +39,8 @@ measurement.
 Two well-conducted studies reach opposite conclusions. The agent has no prior
 stance, so `volition_self` is 0, the gate caps the index at 0.40, and the dissonance
 channel stays **silent**. The event is still reported, on the ungated indeterminacy
-channel, labelled `证据不确定性（非失调）`, and routed to `suspend_and_verify`.
+channel, labelled `证据不确定性（非失调）` (*"evidential indeterminacy — not
+dissonance"*), and routed to `suspend_and_verify`.
 
 This is the single most important example in the directory. A system that reported
 dissonance here would show high sensitivity on a meaningless construct.

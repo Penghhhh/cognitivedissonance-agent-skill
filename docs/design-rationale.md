@@ -167,11 +167,11 @@ commitment and `volition_self`, with its decomposition logged. `maintain_score` 
 `recalibrate_score`, also previously undefined, now have stated functions built
 from **disjoint inputs** so that neither is a restatement of the other.
 
-### 2.5 "张力" reified an unobservable
+### 2.5 The latent variable was reified
 
 v0.1 promised to simulate external behaviour only, then made an unobservable
-latent — tension — the central quantity. Printing `张力：0.68` invites the reader to
-treat it as a measurement.
+latent — tension — the central quantity. Printing a line such as
+`张力：0.68` (*"tension: 0.68"*) invites the reader to treat it as a measurement.
 
 **Change.** The quantity is retained as `tension` for continuity but is defined
 throughout as the **CDS Tension Index**: an explicitly constructed index over five
@@ -244,10 +244,12 @@ Installation into any harness is a directory copy; see `README.md`.
 
 ### 3.2 Perception and arithmetic were not separated, so nothing was reproducible
 
-v0.1 claimed "所有阶段输出结构化 JSON，并写入日志，支持复现与消融" and, in the same
-document, admitted "复现性差" as a risk mitigated by "记录模型版本与随机种子". A
-stochastic model doing both perception and arithmetic cannot be made reproducible
-by recording a seed.
+v0.1 claimed `所有阶段输出结构化 JSON，并写入日志，支持复现与消融` — *"all stages
+output structured JSON and write to a log, supporting reproduction and ablation"* —
+and, in the same document, admitted `复现性差` (*"poor reproducibility"*) as a risk
+mitigated by `记录模型版本与随机种子` (*"record the model version and the random
+seed"*). A stochastic model doing both perception and arithmetic cannot be made
+reproducible by recording a seed.
 
 **Change.** A hard split. The model **perceives** and emits a signal packet; the
 engine **computes** — index, gate, evidence score, cost, routing, cards, logging.
@@ -287,8 +289,9 @@ rather than trapping the machine. All four exits are asserted by test.
 
 ### 3.5 The log format could not support the reproducibility claim
 
-"运行 ID、输入摘要、评分、决策、输出" ties a result to nothing. It cannot answer
-which model, which decoding settings or which instrument version produced it.
+`运行 ID、输入摘要、评分、决策、输出` — *"run id, input summary, score, decision,
+output"* — ties a result to nothing. It cannot answer which model, which decoding
+settings or which instrument version produced it.
 
 **Change.** Every record pins `skill_version`, `index_version`, `config_hash`,
 `signals_hash`, `run_id`, `turn_id`, `stage`, `event_id` and a
@@ -297,9 +300,10 @@ cross-run identity is a test rather than a hope.
 
 ### 3.6 Interactive blocking was the wrong default
 
-Making `manual` the default mode and blocking on 处理 / 忽略 / 稍后 at every
-threshold crossing guarantees alert fatigue in any long session. v0.1 listed
-"过度打断" as a risk and then chose the mitigation that causes it.
+Making `manual` the default mode and blocking on `处理` / `忽略` / `稍后` (*process /
+ignore / later*) at every threshold crossing guarantees alert fatigue in any long
+session. v0.1 listed `过度打断` (*"excessive interruption"*) as a risk and then chose
+the mitigation that causes it.
 
 **Change.** `ambient` is the default: the card is reported, the turn is not
 blocked. `interactive` is available and is the right choice when the user's
@@ -327,9 +331,10 @@ interface.
 
 ### 4.2 Acceptance criteria were unfalsifiable
 
-"四类冲突可被检测" and "用户'处理'后进入评估与响应" are stated as binaries, but
-compliance is stochastic. There was no threshold at which the prototype would be
-judged to have failed.
+`四类冲突可被检测` (*"the four conflict types can be detected"*) and
+`用户"处理"后进入评估与响应` (*"after the user says 'process', evaluation and response
+follow"*) are stated as binaries, but compliance is stochastic. There was no
+threshold at which the prototype would be judged to have failed.
 
 **Change.** `eval/scenarios/` holds a labelled corpus with expectations derived
 from the formulas, and `scripts/run_scenarios.py` reports exact-match rates,
@@ -349,7 +354,8 @@ and the engine refuses to evaluate in the three that must not.
 
 ### 4.4 There was no baseline-controlling procedure
 
-"无 skill、仅检测、完整闭环三种模式可切换" describes a switch, not a design: same
+`无 skill、仅检测、完整闭环三种模式可切换` (*"three modes — no skill, detection only,
+full loop — can be switched between"*) describes a switch, not a design: same
 tasks, same model, same seeds, counterbalanced order, held constant otherwise.
 
 **Change.** The modes are config-only, so the harness varies nothing else; run

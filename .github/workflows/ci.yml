@@ -18,7 +18,10 @@ permissions:
 
 jobs:
   verify:
-    name: verify (python ${{ matrix.python-version }})
+    # The OS belongs in the name. Without it the matrix renders as two jobs both
+    # called "verify (python 3.12)", which reads as a duplicate run rather than as
+    # the same suite on two platforms.
+    name: verify (${{ matrix.os }}, python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

@@ -1,4 +1,4 @@
-﻿# CDS-Skill
+# CDS-Skill
 
 **Cognitive Dissonance Simulation for LLM agents** — a pluggable skill that turns a
 conflict between an agent's own committed position and incoming information into a
@@ -9,9 +9,40 @@ This repository is the Study 1 implementation artifact for the research project
 *Simulating human-like external behaviour under contradictory information:
 a modular skill for LLM agents and its human-factors evaluation*.
 
-> 中文摘要：本项目是研究一（认知失调外显行为仿真 Skill 的实现）的技术产物。它把"智能体既有立场与新信息冲突"转化为可检测、可审计、可复现的事件，并显式路由到某一种响应策略。**感知由模型完成，算术由脚本完成** —— 模型只负责给情境打分并输出结构化信号包，脚本负责计算指数、门控、评分、路由、渲染卡片与写日志。因此所有数值都可从存下的信号包完整复现。
+> **Language.** This repository is written in English, with one exception: text the
+> skill *generates at runtime* is Chinese, because `skill.language` defaults to
+> `zh`. Wherever Chinese appears below it is quoted sample output, and it is
+> glossed. The rule and its rationale are in [Language policy](#language-policy).
 
 ---
+
+## Language policy
+
+Three layers, each with a different audience, so each gets a different language.
+The mixing is deliberate and bounded; it is written down here so a reader can tell
+intent from oversight.
+
+| Layer | Language | Why |
+|---|---|---|
+| **Documentation** — `README`, `SKILL.md`, `references/`, `docs/`, code comments | **English** | Repository convention; the code, the schemas and the literature the design argues with are all English. |
+| **Runtime output** — transparency cards, log messages, command words | **Chinese by default** (`skill.language: "zh"`) | This is the layer a user actually reads, and the study's participants are Chinese-speaking. Set `skill.language: "en"` for an English run; every string has both. |
+| **Research stimuli** — `eval/scenarios/` packet content, `examples/dialogue_*.md` dialogue | **Chinese** | The corpus tests a Chinese-language skill. English stimuli would measure a different system. |
+
+Two conventions follow, and both are checkable by eye:
+
+1. **Runtime Chinese is always quoted and always glossed.** Inline, as
+   `` `证据不确定性（非失调）` (*"evidential indeterminacy — not dissonance"*) ``;
+   in full, as a fenced block introduced as sample output.
+2. **Structural identifiers are never translated.** JSON keys, config paths, state
+   names, strategy ids and language-act codes are English everywhere, including in
+   the Chinese cards and the Chinese corpus. A card may print `限定原立场`
+   (*"qualify the stance"*), but the `strategy` field it comes from is always
+   `qualify` — otherwise the log and the analysis would be keyed in two languages.
+
+The three layers are separate on purpose. Translating the documentation into
+Chinese would cost the repository its outside readership; translating the corpus
+into English would invalidate the measurement; and translating the identifiers
+would break the log.
 
 ## The one idea
 
@@ -84,7 +115,7 @@ python scripts/cds.py run --signals examples/packet_evidence_vs_stance.json
 > called `cds-skill`. A bare clone into any other directory name will not be
 > discovered until you install it.
 
-Output:
+Output (Chinese by default — this is runtime card text, quoted verbatim):
 
 ```text
 【CDS｜检测】
@@ -173,6 +204,8 @@ docs/
   design-rationale.md       every deliberate change from v0.1, and why
 examples/                   worked packets and dialogues
 .github/workflows/ci.yml    tests + strict corpus + doc/code agreement on every push
+LICENSE                     MIT (software)
+NOTICE.md                   CC BY 4.0 for docs · responsible-use note · data policy
 ```
 
 ## Design commitments
@@ -212,5 +245,7 @@ See [`CITATION.cff`](CITATION.cff).
 
 ## License
 
-MIT for code. Documentation and the codebook are CC BY 4.0 — see
-[`LICENSE`](LICENSE).
+**MIT** for the software — see [`LICENSE`](LICENSE). Documentation and the codebook
+are additionally available under CC BY 4.0. The responsible-use note for the
+`dissonance_reduction` profile lives in [`NOTICE.md`](NOTICE.md); read it before
+enabling that profile anywhere a user could mistake the simulation for advice.

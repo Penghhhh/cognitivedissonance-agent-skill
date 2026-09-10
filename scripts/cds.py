@@ -48,6 +48,7 @@ from cds_config import (  # noqa: E402
     load_schema,
     read_text,
     skill_version,
+    write_text,
 )
 from cds_evaluator import StageError, build_evaluation  # noqa: E402
 from cds_index import build_detection  # noqa: E402
@@ -87,9 +88,7 @@ def _read_json(path: str | Path) -> dict[str, Any]:
 def _write_json(path: str | Path | None, data: dict[str, Any]) -> None:
     if not path:
         return
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_text(path, json.dumps(data, indent=2, ensure_ascii=False))
 
 
 def _emit(payload: dict[str, Any], args: argparse.Namespace, card: str | None = None) -> None:

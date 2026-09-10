@@ -52,7 +52,7 @@ Interactive arms record the user's decision as data, so they use four calls:
 
 ```bash
 python scripts/cds.py --state s.json detect  --signals packet.json   --out detection.json
-python scripts/cds.py --state s.json command 处理
+python scripts/cds.py --state s.json command 处理     # 'process'
 python scripts/cds.py --state s.json evaluate --detection detection.json --signals packet.json --out evaluation.json
 python scripts/cds.py --state s.json respond  --evaluation evaluation.json
 ```
@@ -142,7 +142,8 @@ These hold regardless of strategy. They are emitted as machine-checkable codes i
 | `placebo` | identical cadence, content-free card, no shaping; real numbers still logged |
 
 `skill.interaction`: `ambient` (default, never blocks the turn) or `interactive`
-(pauses for 处理 / 忽略 / 稍后 / 详情). Interactive mode raises measured latency and
+(pauses for `处理` / `忽略` / `稍后` / `详情` — *process / ignore / later / details*;
+English synonyms are accepted too). Interactive mode raises measured latency and
 belongs in a secondary condition only.
 
 ## Reference files

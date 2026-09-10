@@ -9,7 +9,7 @@ python scripts/cds.py run      --signals packet.json            # ambient: full 
 python scripts/cds.py detect   --signals packet.json            # stage 1 only
 python scripts/cds.py evaluate --detection d.json --signals packet.json
 python scripts/cds.py respond  --evaluation e.json
-python scripts/cds.py command  处理                              # user decision / control word
+python scripts/cds.py command  处理                              # user decision: process
 python scripts/cds.py status
 python scripts/cds.py validate --signals packet.json
 python scripts/cds.py config
@@ -57,14 +57,19 @@ IDLE ──on──► MONITORING ◄──────────────�
      ▼           ▼                ▼                  ▼              │
  EVALUATING   AWAITING_USER   logged, back to    logged (real       │
      │           │             MONITORING        numbers kept)      │
-     │           ├─ 处理 ──► EVALUATING                             │
-     │           ├─ 忽略 ──► MONITORING ───────────────────────────┤
-     │           ├─ 稍后 ──► SUSPENDED ── expiring / novel / resume ┤
-     │           ├─ 详情 ──► AWAITING_USER (unchanged)              │
+     │           ├─ 处理 process ──► EVALUATING                    │
+     │           ├─ 忽略 ignore ──► MONITORING ────────────────────┤
+     │           ├─ 稍后 later ──► SUSPENDED ── expiry / novel / ──┤
+     │           │                              resume              │
+     │           ├─ 详情 details ──► AWAITING_USER (unchanged)      │
      │           └─ timeout ► MONITORING (outcome: no_decision) ────┤
      ▼                                                             │
  RESPONDING ──► outcome resolved | unresolved ──► MONITORING ──────┘
 ```
+
+Command words are Chinese by default because `skill.language` is `zh`; the English
+glosses above name the same commands, and `cds_state.COMMAND_SYNONYMS` accepts
+either. Set `skill.language: "en"` for an English run.
 
 Every exit is guaranteed. There is no state a run can be parked in:
 

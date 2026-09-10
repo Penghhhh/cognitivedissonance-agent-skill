@@ -289,7 +289,11 @@ def write_report(rows: list[dict[str, Any]], summary: dict[str, Any], base_confi
         "next_action_ok", "strategy_ok", "rule_ok", "config_hash",
     ]
     with RESULTS_PATH.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        # lineterminator="\n" overrides the csv module's RFC-4180 default of CRLF.
+        # Left at the default, results.csv would carry CRLF on every platform while
+        # the rest of the repository is LF, and .gitattributes normalises it away on
+        # commit — so the working tree and the index would disagree forever.
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         for row in rows:
             writer.writerow({key: row.get(key) for key in fieldnames})
@@ -356,7 +360,7 @@ def write_report(rows: list[dict[str, Any]], summary: dict[str, Any], base_confi
         lines.append("None.")
     lines.append("")
 
-    REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
+    REPORT_PATH.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
 def main(argv: list[str] | None = None) -> int:

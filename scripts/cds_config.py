@@ -59,6 +59,36 @@ def read_text(path: str | Path) -> str:
     return Path(path).read_text(encoding="utf-8-sig")
 
 
+def write_text(path: str | Path, text: str) -> None:
+    """Write UTF-8 text with LF line endings on every platform.
+
+    ``Path.write_text`` opens in text mode with universal-newline translation, so
+    on Windows it silently rewrites every ``\\n`` as ``\\r\\n``. That makes a run on
+    Windows produce byte-different artefacts from the identical run on Linux — the
+    log, the state file and the generated reports all diverge — which for an
+    artifact whose entire claim is reproducibility is a defect and not a
+    cosmetic detail. ``newline="\\n"`` means "translate nothing".
+
+    Uses ``utf-8`` rather than ``utf-8-sig`` on purpose: a BOM is accepted on read
+    but never emitted on write, so the repository cannot accumulate them.
+    """
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
+def open_text(path: str | Path, mode: str = "a"):
+    """Open a UTF-8 text handle that never translates line endings.
+
+    Used for the append-only JSONL log: a log written on Windows must be
+    byte-identical to one written on Linux for the same inputs.
+    """
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return target.open(mode, encoding="utf-8", newline="\n")
+
+
 def load_schema(name: str) -> dict[str, Any]:
     """Load a schema from ``schemas/`` by file stem or file name."""
     filename = name if name.endswith(".json") else f"{name}.schema.json"

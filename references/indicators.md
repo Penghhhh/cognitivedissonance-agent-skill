@@ -19,22 +19,27 @@ So: `response_plan.language_acts` is a **prediction**. The indicators below are 
 
 ## From construct to indicator
 
-| Theoretical construct | Indicator | Unit of coding |
-|---|---|---|
-| 矛盾觉察 conflict awareness | `mark_conflict` | clause flag |
-| 主动降调 lowered certainty | `certainty_downgrade` | count of hedges minus boosters |
-| 双向权衡 two-sided weighing | `counterevidence_mention` + `support_mention` | both present in one reply |
-| 条件化接受 conditional acceptance | `conditional_marker` | conditional clause attached to the claim |
-| 审慎再校准 recalibration | `explicit_stance_change` | explicit from→to statement |
-| 理由链完整性 reason chain | `reason_step_count` | ordered inferential steps |
-| 证据权重说明 evidential weighting | `source_quality_mention` | reference to method, sample or provenance |
-| 不确定性表达 uncertainty | `uncertainty_term` | count of uncertainty expressions |
-| 立场调整幅度 stance shift magnitude | `claim_strength_delta` | annotated 0–1 before/after |
-| 验证路径 verification path | `verification_action` | a named check a reader could perform |
-| 失调削减 denial | `source_discount` | negative source claim **without** a method-based reason |
-| 失调削减 trivialisation | `importance_denial` | concession followed by a relevance minimiser |
-| 失调削减 rationalisation | `consonant_addition` | new supporting consideration absent from the evidence |
-| 静默漂移 silent drift | `unacknowledged_softening` | claim weakened, no change acknowledged |
+The construct column keeps the Chinese term from the research proposal alongside its
+English gloss, because Study 1 has to report against the proposal's wording and the
+mapping would otherwise be unverifiable. Everything else in this repository is
+English; see the language policy in [`../README.md`](../README.md).
+
+| Construct (proposal wording) | Gloss | Indicator | Unit of coding |
+|---|---|---|---|
+| `矛盾觉察` | conflict awareness | `mark_conflict` | clause flag |
+| `主动降调` | lowered certainty | `certainty_downgrade` | count of hedges minus boosters |
+| `双向权衡` | two-sided weighing | `counterevidence_mention` + `support_mention` | both present in one reply |
+| `条件化接受` | conditional acceptance | `conditional_marker` | conditional clause attached to the claim |
+| `审慎再校准` | recalibration | `explicit_stance_change` | explicit from→to statement |
+| `理由链完整性` | reason chain | `reason_step_count` | ordered inferential steps |
+| `证据权重说明` | evidential weighting | `source_quality_mention` | reference to method, sample or provenance |
+| `不确定性表达` | uncertainty | `uncertainty_term` | count of uncertainty expressions |
+| `立场调整幅度` | stance shift magnitude | `claim_strength_delta` | annotated 0–1 before/after |
+| `验证路径` | verification path | `verification_action` | a named check a reader could perform |
+| `失调削减` | denial | `source_discount` | negative source claim **without** a method-based reason |
+| `失调削减` | trivialisation | `importance_denial` | concession followed by a relevance minimiser |
+| `失调削减` | rationalisation | `consonant_addition` | new supporting consideration absent from the evidence |
+| `静默漂移` | silent drift | `unacknowledged_softening` | claim weakened, no change acknowledged |
 
 ## Coding procedure for a reply
 

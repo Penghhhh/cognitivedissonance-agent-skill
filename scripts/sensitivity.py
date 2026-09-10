@@ -412,7 +412,7 @@ def main(argv: list[str] | None = None) -> int:
             for row in structural_rows
         ]
         lines.append("")
-        REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
+        REPORT_PATH.write_text("\n".join(lines), encoding="utf-8", newline="\n")
         print()
         print(f"wrote {REPORT_PATH}")
 

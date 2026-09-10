@@ -7,6 +7,13 @@ contain.
 
 ## The three cards
 
+Every block below is **verbatim engine output** for the packet in
+[`../examples/packet_evidence_vs_stance.json`](../examples/packet_evidence_vs_stance.json),
+in the default `skill.language: "zh"`. They are quoted here as sample output rather
+than translated, because the card is the artefact a user actually reads and its exact
+rendering is what Study 1 codes. Set `skill.numeric_cards: false` for the numeric-free
+variant; see the bottom of this file.
+
 ### Detection
 
 ```text
@@ -67,11 +74,11 @@ contain.
 
 ## Why the tolerance band is not decoration
 
-`评分可动范围：±0.06` states how far the ratings could move before the same packet
-lands on the other side of the threshold. Without it, `0.71 / 0.55` reads as a
-crisp decision, and the reader credits the boundary with a precision that unanchored
-human ratings cannot support — the codebook's own inter-rater target allows
-disagreement well beyond 0.06 on some dimensions.
+`评分可动范围：±0.06` (*"rating tolerance: ±0.06"*) states how far the ratings could
+move before the same packet lands on the other side of the threshold. Without it,
+`0.71 / 0.55` reads as a crisp decision, and the reader credits the boundary with a
+precision that unanchored human ratings cannot support — the codebook's own
+inter-rater target allows disagreement well beyond 0.06 on some dimensions.
 
 The band is the honest presentation of a soft boundary. Keep it on.
 
@@ -96,7 +103,7 @@ These hold for every card and are enforced in `cds_cards.py`:
 
 1. **The channel is always named.** A card never says "dissonance" when the
    indeterminacy channel fired. Evidence that contradicts itself is labelled
-   `证据不确定性（非失调）`.
+   `证据不确定性（非失调）` (*"evidential indeterminacy — not dissonance"*).
 2. **The branch is always named.** A `dissonance_reduction` card says so, so a
    denial strategy can never read as the system endorsing source-discounting.
 3. **The consistency gate is reported separately.** A self-contradicting answer
@@ -110,7 +117,8 @@ These hold for every card and are enforced in `cds_cards.py`:
 
 - **ambient** (default): append the card to the reply, or emit it as an event. Do
   not block the turn.
-- **interactive**: emit the detection card and wait for 处理 / 忽略 / 稍后 / 详情.
+- **interactive**: emit the detection card and wait for `处理` / `忽略` / `稍后` /
+  `详情` (*process / ignore / later / details*).
 
 Either way, the card is **never** pasted into the body of the reply. It is a
 separate artefact: mixing them duplicates it, breaks the Study 2 manipulation in

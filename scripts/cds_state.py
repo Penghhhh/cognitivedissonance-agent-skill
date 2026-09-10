@@ -28,6 +28,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from cds_config import write_text
+
 STATE_VERSION = "0.2.0"
 
 STATES = (
@@ -161,8 +163,7 @@ class StateMachine:
     def save(self) -> None:
         if not self.path:
             return
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(self.data, indent=2, ensure_ascii=False), encoding="utf-8")
+        write_text(self.path, json.dumps(self.data, indent=2, ensure_ascii=False))
 
     # ---- helpers ----------------------------------------------------------
 

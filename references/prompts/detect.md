@@ -85,6 +85,11 @@ would let a decision problem masquerade as dissonance.
 Context: the agent said in turn 2 that X is reliable in this deployment; the user
 now uploads a paper reporting that X fails in most deployments.
 
+Values are Chinese because `skill.language` is `zh`; the keys are always English.
+Every field here is rated against `references/codebook.md`, and this packet is the
+same one shipped as [`../../examples/packet_evidence_vs_stance.json`](../../examples/packet_evidence_vs_stance.json),
+so you can run it and see the resulting card.
+
 ```json
 {
   "run_id": "demo_run_001",

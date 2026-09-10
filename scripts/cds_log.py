@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from cds_config import REPO_ROOT, canonical_hash, skill_version
+from cds_config import REPO_ROOT, canonical_hash, open_text, skill_version
 
 _TS_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -87,8 +87,9 @@ def build_record(
 
 
 def append_record(path: Path, record: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
+    # open_text pins LF, so a log written on Windows is byte-identical to one
+    # written on Linux for the same inputs.
+    with open_text(path, "a") as handle:
         handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
 
 

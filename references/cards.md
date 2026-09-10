@@ -33,6 +33,31 @@ variant; see the bottom of this file.
 下一步：环境模式：不阻塞本轮回复，已自动进入评估。
 ```
 
+### Detection, when the volition gate fired
+
+A conflict against a stance the agent did not freely choose is **not** dissonance, so
+the gate caps the index. The card must not borrow the dissonance label for it, and it
+must not let the cap masquerade as the value the ratings produced. Both are printed:
+
+```text
+【CDS｜检测】
+状态：已检测到冲突，未计入失调（缺少自主选择的立场）
+张力指数：0.40 / 阈值 0.55（计分原始值 0.56，已封顶）
+评分可动范围：±0.06（同一输入在不同标注下可能跨越阈值）
+类型：证据—立场冲突
+门控：自主选择信号低于门槛，该冲突不计入失调，指数已封顶
+关键点：
+- 新证据与既有立场方向相反
+- 冲突具体且可核查
+- 既有立场承诺度较高
+下一步：已静默记录，不打扰用户。
+```
+
+Note what replaces what. The `通道` line is absent — claiming a channel would claim a
+construct the gate just declined — and the `门控` line carries the engine's own
+`gate.detail` verbatim, so the reason cannot drift from the prose. The arithmetic is
+still fully auditable: `0.56` was what the ratings produced, `0.40` is the cap.
+
 ### Evaluation
 
 ```text
@@ -104,11 +129,17 @@ These hold for every card and are enforced in `cds_cards.py`:
 1. **The channel is always named.** A card never says "dissonance" when the
    indeterminacy channel fired. Evidence that contradicts itself is labelled
    `证据不确定性（非失调）` (*"evidential indeterminacy — not dissonance"*).
-2. **The branch is always named.** A `dissonance_reduction` card says so, so a
+2. **A gated event is never reported as dissonance.** When the volition floor caps
+   the index, the card carries the `已检测到冲突，未计入失调` headline, the `门控` line
+   with the engine's reason, and the raw index beside the cap. Reporting the cap alone
+   would make a suppressed event indistinguishable from a genuinely quiet one, and the
+   gate's visible behaviour is what Study 1's Claim 1 is stated over. Asserted for both
+   languages and for `numeric_cards: false` in `tests/test_cards.py`.
+3. **The branch is always named.** A `dissonance_reduction` card says so, so a
    denial strategy can never read as the system endorsing source-discounting.
-3. **The consistency gate is reported separately.** A self-contradicting answer
+4. **The consistency gate is reported separately.** A self-contradicting answer
    produces a separate line and is never folded into the dissonance reading.
-4. **Placebo cards are content-free.** In the placebo arm the card carries no
+5. **Placebo cards are content-free.** In the placebo arm the card carries no
    conflict content at all, only the same cadence — the real numbers are still
    computed and logged for analysis, but no card text and no response shaping may
    be derived from them.
@@ -129,6 +160,7 @@ which the card is a controlled factor, and leaks the mechanism into the prose.
 | Symptom | Cause |
 |---|---|
 | No card when one was expected | The volition gate capped the event (check `volition_self`), or a `thresholds_by_type` override is in force |
+| A card reading `已检测到冲突，未计入失调` | Working as designed: the stance was assigned rather than freely chosen, so the event is capped and reported without a channel |
 | A "dissonance" card for evidence-vs-evidence | Should be impossible; the gate caps it. If seen, report it as a bug. |
 | Numbers differ between runs | Compare `config_hash` in the two log records first |
 | Card shows `R??` you cannot find in the config | The config changed mid-run; the log's `config_hash` will differ |

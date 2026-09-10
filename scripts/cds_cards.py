@@ -35,6 +35,8 @@ _LABELS: dict[str, dict[str, str]] = {
         "detect": "检测",
         "dissonance": "认知失调相关冲突张力",
         "indeterminacy": "证据不确定性（非失调）",
+        "gated": "已检测到冲突，未计入失调（缺少自主选择的立场）",
+        "gate": "门控",
         "state": "状态",
         "tension": "张力指数",
         "indeterminacy_value": "不确定度",
@@ -83,6 +85,8 @@ _LABELS: dict[str, dict[str, str]] = {
         "detect": "detection",
         "dissonance": "cognitive-dissonance-related conflict tension",
         "indeterminacy": "evidential indeterminacy (not dissonance)",
+        "gated": "conflict detected, not counted as dissonance (no freely chosen stance)",
+        "gate": "gate",
         "state": "state",
         "tension": "tension index",
         "indeterminacy_value": "indeterminacy",
@@ -223,7 +227,16 @@ def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: b
     conflict_type = event["conflict_type"]
     channel = tension["channel"]
 
-    if channel == "indeterminacy":
+    # The gate caps the index for a conflict that is not dissonance. The card must
+    # say so on its face: a reader who only sees "dissonance-related tension" over a
+    # capped 0.40 cannot tell a suppressed event from a sub-threshold one, and the
+    # card would then contradict the rule that every label is reported.
+    gate = event.get("gate") or {}
+    gated = bool(gate.get("applied"))
+
+    if gated:
+        headline = labels["gated"]
+    elif channel == "indeterminacy":
         headline = labels["indeterminacy"]
     else:
         headline = labels["dissonance"]
@@ -237,9 +250,17 @@ def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: b
                 f"{labels['threshold']} {tension['threshold_alert']:.2f}"
             )
         else:
+            # When the gate fired, the printed index is the cap rather than the
+            # arithmetic the ratings produced. Showing both keeps the cap auditable
+            # instead of letting it masquerade as the measured value.
+            raw_suffix = (
+                f"（计分原始值 {event['raw_index']:.2f}，已封顶）" if gated and language == "zh"
+                else f" (raw index {event['raw_index']:.2f}, capped)" if gated
+                else ""
+            )
             lines.append(
                 f"{labels['tension']}：{tension['tension']:.2f} / {labels['threshold']} "
-                f"{tension['threshold_alert']:.2f}"
+                f"{tension['threshold_alert']:.2f}{raw_suffix}"
             )
         lines.append(
             f"{labels['band']}：±{DISAGREEMENT_TOLERANCE:.2f}（同一输入在不同标注下可能跨越阈值）"
@@ -248,7 +269,10 @@ def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: b
         )
 
     lines.append(f"{labels['type']}：{_TYPE_LABELS.get(language, _TYPE_LABELS['zh']).get(conflict_type, conflict_type)}")
-    if channel == "dissonance":
+    if gated:
+        # The engine's own explanation, verbatim, so the reason cannot drift from prose.
+        lines.append(f"{labels['gate']}：{gate.get('detail')}")
+    elif channel == "dissonance":
         lines.append(f"{labels['channel']}：{labels['channel_dissonance']}")
     elif channel == "indeterminacy":
         lines.append(f"{labels['channel']}：{labels['channel_indeterminacy']}")

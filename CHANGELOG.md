@@ -4,6 +4,36 @@ All notable changes to this skill are recorded here. The version appears in
 `VERSION`, in every log record, and in the `skill_version` field of every emitted
 structure, so a result can always be traced to the implementation that produced it.
 
+## [Unreleased]
+
+### Fixed
+
+- **A gated event was labelled as dissonance on its own card.** `detect_card`
+  selected its headline between the `indeterminacy` and `dissonance` labels only, so
+  an event capped by the volition floor (`channel == "none"`) fell through to
+  "认知失调相关冲突张力" — while the `通道` line was suppressed at the same time, so
+  nothing on the card indicated that the gate had fired. The card now carries its own
+  `gated` headline, prints the engine's `gate.detail` verbatim in place of the channel
+  line, and reports the arithmetic it capped (`计分原始值 0.56，已封顶`) beside the
+  capped index. This mattered beyond presentation: `SKILL.md` requires that a gated
+  conflict *not* be reported as dissonance, and the gate's user-visible behaviour is
+  what Study 1's Claim 1 is stated over. Guarded by `tests/test_cards.py`, which
+  asserts that a gated card never carries the dissonance headline or the dissonance
+  channel text, in both languages and with `numeric_cards` off.
+- **The documented test count had drifted** (README said 127, the suite ran 136).
+  The count is now checked rather than asserted: `check_examples.py` counts the test
+  methods under `tests/` and fails if README.md's stated figure does not match, so
+  the claim cannot go stale unnoticed again. The count skips `tests/.scratch/` and
+  `__pycache__`, so leftover artefacts cannot change it. Verified both ways: exit 0
+  against the current README, exit 1 against a deliberately wrong figure.
+
+### Added
+
+- `tests/test_cards.py` — 13 tests over the detection card's labelling rules,
+  covering the gate, both channels, both languages, the `numeric_cards: false`
+  variant, the un-gated cases that must stay unchanged, and the documentation guards
+  above (the script-level count check and the `references/cards.md` label).
+
 ## [0.2.0] — 2026-09-10
 
 First implementation release. Supersedes the `CDS_skills_v0.1.md` design document;
@@ -36,7 +66,7 @@ every departure.
   structural alternatives (product vs mean volition; novelty vs v0.1 repetition).
 - **Bounded, timeout-protected state machine** (`scripts/cds_state.py`) with an
   event queue, an overflow policy, suspend expiry and resume-by-novelty.
-- **127 stdlib `unittest` tests**, including schema conformance of every emitted
+- **149 stdlib `unittest` tests**, including schema conformance of every emitted
   structure and determinism of event and record ids.
 - **Ablation arms** `off` / `detect_only` / `full` / `placebo`, differing only in
   config. The engine refuses to evaluate in the arms that must not.

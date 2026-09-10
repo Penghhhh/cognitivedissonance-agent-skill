@@ -17,6 +17,7 @@ Usage::
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +30,8 @@ for _stream in (sys.stdout, sys.stderr):
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = REPO_ROOT / "examples"
+TESTS = REPO_ROOT / "tests"
+README = REPO_ROOT / "README.md"
 
 # (packet, level, channel, strategy). `None` strategy means "routing does not run".
 # This mirrors the table at the top of examples/README.md.
@@ -68,6 +71,39 @@ def observe(packet: Path) -> tuple[str, str, str | None]:
     return tension["level"], tension["channel"], strategy
 
 
+def test_count():
+    """Number of test methods in ``tests/``, counted the way the README states it.
+
+    Skip ``.scratch`` and ``__pycache__``. ``context.scratch_dir`` writes
+    disposable copies into ``tests/.scratch/``, and a test that shells out to this
+    script makes ``tests/__pycache__`` a package directory; counting either would
+    make the figure depend on leftover artefacts rather than on the suite.
+    """
+    total = 0
+    for path in sorted(TESTS.glob("test_*.py")):
+        if any(part in {".scratch", "__pycache__"} for part in path.parts):
+            continue
+        total += len(re.findall(r"^\s+def test_", path.read_text(encoding="utf-8"), re.MULTILINE))
+    return total
+
+
+def check_documented_test_count() -> int:
+    """The README publishes a test count. It has drifted before; hold it to the code.
+
+    A number in prose is the easiest kind of claim to leave behind, and this
+    repository asks reviewers to reproduce its figures. Counting the tests here
+    makes the claim executable instead of aspirational.
+    """
+    text = README.read_text(encoding="utf-8")
+    actual = test_count()
+    if not re.search(rf"\b{actual}\b\s+stdlib\s+`?unittest`?\s+tests?", text):
+        print(f"FAIL README.md does not state the actual test count ({actual}).")
+        print("     Update the count in README.md, or add the missing tests.")
+        return 1
+    print(f"     README states the actual test count ({actual})")
+    return 0
+
+
 def main() -> int:
     failures = 0
     for name, want_level, want_channel, want_strategy in EXPECTED:
@@ -96,7 +132,8 @@ def main() -> int:
 
     print()
     print(f"{len(EXPECTED)} examples match the documented table in examples/README.md")
-    return 0
+    documented = check_documented_test_count()
+    return 1 if (failures or documented) else 0
 
 
 if __name__ == "__main__":

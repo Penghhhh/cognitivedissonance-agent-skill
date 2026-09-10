@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s50_mixed_adaptive_branch_qualify",
+  "family": "routing_mixed",
+  "description": "Mixed profile with a low commitment and cheap adjustment cost: reduction_tendency = 0.306, well below the 0.55 cutoff, so the adaptive branch is resolved and R04 qualifies the claim.",
+  "config_overrides": {
+    "skill": {
+      "profile": "mixed"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s50_mixed_adaptive_branch_qualify",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.7,
+      "rationale": "立场只是智能体的一个初步猜测，用户提供的数据与猜测方向相反。"
+    },
+    "stance": {
+      "id": "stance_s50",
+      "claim": "我猜这个接口的瓶颈在数据库",
+      "source": "prior_conversation",
+      "confidence": 0.5,
+      "commitment": 0.3,
+      "public_commitment": 0.2,
+      "volition": 0.7,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s50_a",
+        "claim": "火焰图显示瓶颈在序列化环节而非数据库",
+        "source": "user_uploaded_profile",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.45,
+        "credibility": 0.4,
+        "recency": 0.4,
+        "independence": 0.4,
+        "consistency": 0.45,
+        "quote": "序列化占了 63% 的采样，数据库相关调用不到 5%。"
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

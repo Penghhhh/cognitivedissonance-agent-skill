@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s53_mixed_reduction_branch_rationalize",
+  "family": "routing_mixed",
+  "description": "Mixed profile sitting just above the cutoff: reduction_tendency = 0.557, against 0.55. The reduction branch resolves and R10 rationalizes rather than revising.",
+  "config_overrides": {
+    "skill": {
+      "profile": "mixed"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s53_mixed_reduction_branch_rationalize",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.7,
+      "rationale": "立场称该策略长期有效，A/B 实验显示同一策略在核心指标上没有提升。"
+    },
+    "stance": {
+      "id": "stance_s53",
+      "claim": "这个策略长期看是有效的",
+      "source": "prior_conversation",
+      "confidence": 0.74,
+      "commitment": 0.55,
+      "public_commitment": 0.5,
+      "volition": 0.7,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s53_a",
+        "claim": "A/B 实验显示该策略在核心指标上没有显著提升",
+        "source": "user_uploaded_abtest",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.7,
+        "credibility": 0.65,
+        "recency": 0.7,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "treatment effect +0.3% (95% CI -1.1% to +1.7%), not significant."
+      }
+    ],
+    "user_pressure": 0.6,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "rationalize",
+    "strategy_set": ["rationalize"],
+    "fired_rule_prefix": "R10"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s32_adaptive_qualify_moderate_evidence",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile with mid-strength evidence (E=0.55) against a moderately committed stance. R04 must fire and narrow the claim rather than overturn it.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s32_adaptive_qualify_moderate_evidence",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.75,
+      "specificity": 0.7,
+      "rationale": "立场称该模型适用于所有语种，评测显示在低资源语种上表现明显下降。"
+    },
+    "stance": {
+      "id": "stance_s32",
+      "claim": "该模型适用于我们支持的全部语种",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.6,
+      "public_commitment": 0.55,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s32_a",
+        "claim": "评测显示该模型在低资源语种上准确率下降约 15 个百分点",
+        "source": "user_uploaded_eval",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.5,
+        "independence": 0.5,
+        "consistency": 0.5,
+        "quote": "accuracy drops by 15.2 points on the two low-resource languages."
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.25
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

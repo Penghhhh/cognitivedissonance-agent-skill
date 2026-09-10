@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s24_threshold_just_above_alert",
+  "family": "threshold_boundary",
+  "description": "The terms sum to 0.555, one step above the alert threshold, carried mostly by a strongly self-chosen stance. Evidence quality only supports qualifying the claim.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s24_threshold_just_above_alert",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.5,
+      "rationale": "立场称该接口可以保持向后兼容，变更说明中列出的一处行为变化与该承诺冲突。"
+    },
+    "stance": {
+      "id": "stance_s24",
+      "claim": "这次改版会保持接口向后兼容",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.6,
+      "public_commitment": 0.5,
+      "volition": 0.95,
+      "self_relevance": 0.5
+    },
+    "evidence": [
+      {
+        "id": "ev_s24_a",
+        "claim": "变更说明指出分页参数的默认值被修改",
+        "source": "user_uploaded_changelog",
+        "carries_conflict": true,
+        "novelty": 0.5,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.5,
+        "independence": 0.5,
+        "consistency": 0.5,
+        "quote": "the default value of `page_size` changed from 20 to 50."
+      }
+    ],
+    "user_pressure": 0.25,
+    "evidence_conflict_unresolved": 0.1
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

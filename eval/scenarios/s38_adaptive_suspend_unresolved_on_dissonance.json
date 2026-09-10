@@ -1,0 +1,67 @@
+{
+  "scenario_id": "s38_adaptive_suspend_unresolved_on_dissonance",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile in which the index is genuinely alert against the stance but the evidence items also contradict each other. R01 precedes every profile rule, so the event must suspend and verify on the dissonance channel.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s38_adaptive_suspend_unresolved_on_dissonance",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.8,
+      "rationale": "立场称该流程无需改动，两份现场报告都反对该立场，但对原因给出互相冲突的解释。"
+    },
+    "stance": {
+      "id": "stance_s38",
+      "claim": "这条流程目前不需要任何改动",
+      "source": "prior_conversation",
+      "confidence": 0.78,
+      "commitment": 0.75,
+      "public_commitment": 0.7,
+      "volition": 0.85,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s38_a",
+        "claim": "现场报告 A 认为问题出在流程本身",
+        "source": "user_uploaded_report_a",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.85,
+        "credibility": 0.75,
+        "recency": 0.8,
+        "independence": 0.75,
+        "consistency": 0.3,
+        "quote": "流程第 3 步缺少校验，这是我们这边出问题的直接原因。"
+      },
+      {
+        "id": "ev_s38_b",
+        "claim": "现场报告 B 认为流程没有问题，是执行者误用",
+        "source": "user_uploaded_report_b",
+        "carries_conflict": true,
+        "novelty": 0.75,
+        "relevance": 0.85,
+        "credibility": 0.75,
+        "recency": 0.8,
+        "independence": 0.8,
+        "consistency": 0.3,
+        "quote": "流程本身是对的，是操作的人没按步骤做。"
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.7
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "suspend_and_verify",
+    "strategy_set": ["suspend_and_verify"],
+    "fired_rule_prefix": "R01"
+  }
+}

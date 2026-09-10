@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s04_user_hint_vs_stance_timeline",
+  "family": "detection_clear",
+  "description": "A user hint about a hard deadline conflicts with the agent's plan-based estimate. Evidence is weak and commitment is high, so the adaptive profile should hold the plan with a caveat under mild pressure below the pressure flag.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s04_user_hint_vs_stance_timeline",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "user_hint_vs_stance",
+      "opposition": 0.7,
+      "specificity": 0.65,
+      "rationale": "立场称迁移可在两周内完成，用户提示下游团队只给一周窗口，时间估计不能同时成立。"
+    },
+    "stance": {
+      "id": "stance_s04",
+      "claim": "这次数据迁移可以在两周内完成",
+      "source": "prior_conversation",
+      "confidence": 0.72,
+      "commitment": 0.65,
+      "public_commitment": 0.6,
+      "volition": 0.75,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s04_a",
+        "claim": "下游团队给出的窗口只有一周",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.4,
+        "credibility": 0.3,
+        "recency": 0.4,
+        "independence": 0.3,
+        "consistency": 0.2,
+        "quote": "上线窗口就一周，之后再排要等到下个季度。"
+      }
+    ],
+    "user_pressure": 0.55,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "user_hint_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "maintain_with_caveat",
+    "strategy_set": ["maintain_with_caveat"],
+    "fired_rule_prefix": "R03"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s31_adaptive_maintain_unknown_objection",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile. A vague objection with almost no source support (E=0.22) meets a load-bearing stance (commitment 0.80). R03 must fire and the pressure stays below the flag.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s31_adaptive_maintain_unknown_objection",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.8,
+      "specificity": 0.7,
+      "rationale": "立场是该方案的核心前提，用户表示隐约记得有反例但说不出出处。"
+    },
+    "stance": {
+      "id": "stance_s31",
+      "claim": "该方案在现有数据规模下是最优选择",
+      "source": "prior_conversation",
+      "confidence": 0.82,
+      "commitment": 0.8,
+      "public_commitment": 0.7,
+      "volition": 0.85,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s31_a",
+        "claim": "用户称似乎见过反例但无法给出出处",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.25,
+        "credibility": 0.2,
+        "recency": 0.25,
+        "independence": 0.2,
+        "consistency": 0.2,
+        "quote": "我印象里有篇东西说这样不行，但我想不起来是哪篇了。"
+      }
+    ],
+    "user_pressure": 0.5,
+    "evidence_conflict_unresolved": 0.15
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "maintain_with_caveat",
+    "strategy_set": ["maintain_with_caveat"],
+    "fired_rule_prefix": "R03"
+  }
+}

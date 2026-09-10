@@ -1,0 +1,54 @@
+cff-version: 1.2.0
+message: "If you use this software or the codebook in academic work, please cite it as below."
+title: "CDS-Skill: a cognitive dissonance simulation skill for LLM agents"
+abstract: >-
+  A pluggable agent skill that turns a conflict between an agent's own committed
+  position and incoming information into a detectable, auditable and reproducible
+  event, then routes it to an explicit response strategy. Perception is performed
+  by the host language model and emitted as a structured signal packet; the index,
+  the dissonance gate, evidence scoring, strategy routing, card rendering and audit
+  logging are deterministic and dependency-free. The skill reports two channels --
+  dissonance, which requires a freely chosen and self-relevant stance, and
+  indeterminacy, which does not -- and offers both an epistemic-recalibration
+  repertoire and a human-typical dissonance-reduction repertoire.
+type: software
+version: "0.2.0"
+date-released: "2026-09-10"
+license:
+  - MIT
+  - CC-BY-4.0
+keywords:
+  - cognitive dissonance
+  - large language models
+  - LLM agents
+  - agent skills
+  - human factors
+  - behaviour simulation
+  - reproducibility
+repository-code: "https://github.com/Penghhhh/cognitivedissonance-agent-skill"
+url: "https://github.com/Penghhhh/cognitivedissonance-agent-skill"
+
+# ---------------------------------------------------------------------------
+# ACTION REQUIRED before publishing.
+#
+# `alias` is set to your GitHub handle, which is enough for the file to be
+# valid CFF and for the repository to be citable by URL. Replace the two TODO
+# values with your real name as you want it to appear in a citation, and add
+# your affiliation. If you have an ORCID iD, add it — it removes any ambiguity
+# between authors with similar names.
+#
+#   authors:
+#     - family-names: "YourFamilyName"
+#       given-names: "YourGivenName"
+#       alias: "Penghhhh"
+#       orcid: "https://orcid.org/0000-0000-0000-0000"
+#       affiliation: "Your institution"
+#
+# Once the associated paper exists, add a `preferred-citation` block pointing at
+# it, so that citing the software and citing the paper resolve to one record.
+# ---------------------------------------------------------------------------
+authors:
+  - family-names: "Peng"
+    given-names: "Hhhhh"
+    alias: "Penghhhh"
+    affiliation: "IOP"

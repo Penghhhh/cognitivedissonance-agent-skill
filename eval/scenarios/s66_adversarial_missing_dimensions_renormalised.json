@@ -1,0 +1,64 @@
+{
+  "scenario_id": "s66_adversarial_missing_dimensions_renormalised",
+  "family": "adversarial",
+  "description": "No carrying item rates independence and one item omits recency. Independence must be dropped and the remaining weights renormalised, giving E=0.7059 and recalibrate; treating the gap as zero would give 0.60 and qualify instead.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s66_adversarial_missing_dimensions_renormalised",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.8,
+      "specificity": 0.75,
+      "rationale": "立场称该实验已经结束，两份实验记录都显示同一实验仍在继续采集数据。"
+    },
+    "stance": {
+      "id": "stance_s66",
+      "claim": "这个实验已经结束了",
+      "source": "prior_conversation",
+      "confidence": 0.76,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s66_a",
+        "claim": "实验记录 A 显示该实验上周仍在采集数据",
+        "source": "tool_output_experiment_a",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.7,
+        "consistency": 0.6,
+        "quote": "last sample ingested 2024-05-18T09:12Z."
+      },
+      {
+        "id": "ev_s66_b",
+        "claim": "实验记录 B 中该实验状态仍标记为运行中",
+        "source": "tool_output_experiment_b",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "consistency": 0.6,
+        "quote": "status: running"
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.25
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s56_indeterminacy_memory_conflict_undecidable",
+  "family": "indeterminacy",
+  "description": "A remembered ownership claim is contradicted by records that point in two directions at once. The index stays silent (0.5455) while unresolved = 0.70 carries the event on the indeterminacy channel.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s56_indeterminacy_memory_conflict_undecidable",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "memory_vs_current",
+      "opposition": 0.55,
+      "specificity": 0.5,
+      "rationale": "记忆中该服务归甲团队维护，当前记录同时提到甲和乙，无法确定哪一方是维护者。"
+    },
+    "stance": {
+      "id": "stance_s56",
+      "claim": "这个服务由甲团队维护",
+      "source": "memory",
+      "confidence": 0.62,
+      "commitment": 0.5,
+      "public_commitment": 0.45,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s56_a",
+        "claim": "当前的维护记录同时把甲和乙列为负责人",
+        "source": "tool_output_registry",
+        "carries_conflict": true,
+        "novelty": 0.3,
+        "relevance": 0.6,
+        "credibility": 0.5,
+        "recency": 0.6,
+        "independence": 0.4,
+        "consistency": 0.4,
+        "quote": "owner: 甲; maintainer: 乙（字段值互相矛盾）。"
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.7
+  },
+  "expect": {
+    "conflict_type": "memory_vs_current",
+    "level": "alert",
+    "channel": "indeterminacy",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "suspend_and_verify",
+    "strategy_set": ["suspend_and_verify"],
+    "fired_rule_prefix": "R01"
+  }
+}

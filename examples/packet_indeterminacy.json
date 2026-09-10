@@ -1,0 +1,50 @@
+{
+  "run_id": "demo_run_indeterminacy_001",
+  "turn_id": 3,
+  "annotator": "gold",
+  "relation": {
+    "type": "evidence_vs_evidence",
+    "opposition": 1.0,
+    "specificity": 0.9,
+    "rationale": "两份同期研究对同一问题给出相反结论，且方法质量相当；智能体尚未就此事表态，因此不存在可被威胁的既有立场。"
+  },
+  "evidence": [
+    {
+      "id": "ev_001",
+      "claim": "多站点部署数据显示 X 在所有采样站点均稳定",
+      "source": "study_A",
+      "carries_conflict": true,
+      "novelty": 1.0,
+      "relevance": 0.90,
+      "credibility": 0.85,
+      "recency": 0.90,
+      "independence": 0.90,
+      "consistency": 0.10,
+      "quote": "X remained stable across all 14 sampled sites."
+    },
+    {
+      "id": "ev_002",
+      "claim": "同期另一组多站点数据显示 X 在所有采样站点均失效",
+      "source": "study_B",
+      "carries_conflict": true,
+      "novelty": 1.0,
+      "relevance": 0.90,
+      "credibility": 0.80,
+      "recency": 0.85,
+      "independence": 0.85,
+      "consistency": 0.10,
+      "quote": "X failed at every one of the 11 sites we instrumented."
+    }
+  ],
+  "user_pressure": 0.10,
+  "evidence_conflict_unresolved": 0.85,
+  "consistency_gate": {
+    "internal_contradiction": 0.0
+  },
+  "perception": {
+    "confidence": 0.85,
+    "ambiguities": [
+      "两项研究的采样站点是否重叠无法从材料判断"
+    ]
+  }
+}

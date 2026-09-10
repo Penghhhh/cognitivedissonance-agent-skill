@@ -1,0 +1,24 @@
+# Line-ending policy.
+#
+# Without this, a Windows clone writes CRLF into every text file and the first
+# commit normalises them inconsistently. The concrete failure it prevents:
+# `install.sh` checked out with CRLF fails on Linux and macOS with
+# `bash: ./install.sh: /usr/bin/env bash^M: bad interpreter`, which is a
+# confusing error for something that is purely a checkout artefact.
+#
+# `text=auto` lets Git detect text files and normalise to LF in the repository.
+
+* text=auto eol=lf
+
+# POSIX scripts must be LF. A CRLF shebang line is not a valid interpreter path.
+*.sh   text eol=lf
+
+# PowerShell is the one exception: Windows PowerShell 5.1 handles CRLF more
+# reliably, and these are Windows-facing entry points.
+*.ps1  text eol=crlf
+
+# Binary or generated content that must never be line-normalised.
+*.pyc  binary
+*.png  binary
+*.jpg  binary
+*.docx binary

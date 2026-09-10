@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s03_user_hint_vs_stance_expert_note",
+  "family": "detection_clear",
+  "description": "The user drops a domain hint that conflicts with the agent's own recommendation. The per-type alert threshold for user_hint_vs_stance is 0.60, and the index clears it.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s03_user_hint_vs_stance_expert_note",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "user_hint_vs_stance",
+      "opposition": 0.7,
+      "specificity": 0.6,
+      "rationale": "立场称该库适合生产部署，用户的现场经验指出同一库在生产环境频繁崩溃。"
+    },
+    "stance": {
+      "id": "stance_s03",
+      "claim": "这个库适合直接用于生产部署",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.6,
+      "public_commitment": 0.55,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s03_a",
+        "claim": "用户团队在同类生产环境中遇到该库的反复崩溃",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.7,
+        "credibility": 0.6,
+        "recency": 0.7,
+        "independence": 0.8,
+        "consistency": 0.6,
+        "quote": "我们上季度把它放到生产上，一周内崩了三次，最后回滚了。"
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "user_hint_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

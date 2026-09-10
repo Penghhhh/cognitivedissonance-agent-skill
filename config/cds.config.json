@@ -1,0 +1,161 @@
+{
+  "$schema": "./cds.config.schema.json",
+  "config_version": "0.2.0",
+
+  "skill": {
+    "enabled": true,
+    "mode": "full",
+    "interaction": "ambient",
+    "profile": "adaptive",
+    "language": "zh",
+    "numeric_cards": true
+  },
+
+  "index": {
+    "index_version": "cds-ti-0.2",
+    "weights": {
+      "opposition": 0.35,
+      "commitment": 0.25,
+      "volition_self": 0.20,
+      "specificity": 0.12,
+      "novelty": 0.08
+    },
+    "gates": {
+      "volition_floor": 0.30,
+      "non_dissonant_cap": 0.40
+    }
+  },
+
+  "thresholds": {
+    "low": 0.35,
+    "alert": 0.55,
+    "high": 0.75
+  },
+
+  "thresholds_by_type": {
+    "evidence_vs_evidence": 0.60,
+    "user_hint_vs_stance": 0.60
+  },
+
+  "channels": {
+    "dissonance": {
+      "enabled": true
+    },
+    "indeterminacy": {
+      "enabled": true,
+      "alert": 0.60,
+      "high": 0.80
+    }
+  },
+
+  "evaluator": {
+    "evidence_weights": {
+      "relevance": 0.25,
+      "credibility": 0.25,
+      "recency": 0.15,
+      "independence": 0.15,
+      "consistency": 0.20
+    },
+    "adjustment_cost_weights": {
+      "commitment": 0.45,
+      "public_commitment": 0.35,
+      "volition_self": 0.20
+    },
+    "pressure_flag_threshold": 0.60,
+    "strategy_rules": {
+      "rules": [
+        {
+          "id": "R01_unresolved_conflict",
+          "if": { "evidence_conflict_unresolved_gte": 0.60 },
+          "strategy": "suspend_and_verify"
+        },
+        {
+          "id": "R02_pressure_low_evidence",
+          "if": { "user_pressure_gte": 0.60, "e_score_lt": 0.45 },
+          "strategy": "hold_under_pressure"
+        },
+        {
+          "id": "R03_adaptive_weak_evidence",
+          "if": { "resolved_profile_in": ["adaptive"], "e_score_lt": 0.35, "commitment_gte": 0.60 },
+          "strategy": "maintain_with_caveat"
+        },
+        {
+          "id": "R04_adaptive_partial_evidence",
+          "if": { "resolved_profile_in": ["adaptive"], "e_score_lt": 0.65 },
+          "strategy": "qualify"
+        },
+        {
+          "id": "R05_adaptive_strong_evidence",
+          "if": { "resolved_profile_in": ["adaptive"], "e_score_gte": 0.65 },
+          "strategy": "recalibrate"
+        },
+        {
+          "id": "R06_reduction_weak_evidence",
+          "if": { "resolved_profile_in": ["dissonance_reduction"], "e_score_lt": 0.35 },
+          "strategy": "maintain_with_caveat"
+        },
+        {
+          "id": "R07_reduction_trivialize",
+          "if": { "resolved_profile_in": ["dissonance_reduction"], "e_score_lt": 0.65, "commitment_gte": 0.60 },
+          "strategy": "trivialize"
+        },
+        {
+          "id": "R08_reduction_partial_evidence",
+          "if": { "resolved_profile_in": ["dissonance_reduction"], "e_score_lt": 0.65 },
+          "strategy": "qualify"
+        },
+        {
+          "id": "R09_reduction_deny",
+          "if": { "resolved_profile_in": ["dissonance_reduction"], "commitment_gte": 0.75 },
+          "strategy": "deny_evidence"
+        },
+        {
+          "id": "R10_reduction_rationalize",
+          "if": { "resolved_profile_in": ["dissonance_reduction"], "commitment_gte": 0.55 },
+          "strategy": "rationalize"
+        },
+        {
+          "id": "R11_reduction_soft_revision",
+          "if": { "resolved_profile_in": ["dissonance_reduction"] },
+          "strategy": "reduce_commitment"
+        }
+      ],
+      "default": "qualify"
+    },
+    "mixed": {
+      "reduction_tendency_weights": {
+        "commitment": 0.40,
+        "adjustment_cost": 0.35,
+        "user_pressure": 0.25
+      },
+      "reduction_cutoff": 0.55
+    }
+  },
+
+  "consistency_gate": {
+    "enabled": true,
+    "severity_alert": 0.60,
+    "routes_to": "consistency_report"
+  },
+
+  "state": {
+    "max_open_events": 3,
+    "await_timeout_turns": 1,
+    "suspend_max_turns": 5,
+    "resume_novelty": 0.50
+  },
+
+  "transparency": {
+    "show_detection_card": true,
+    "show_evaluation_card": true,
+    "show_response_card": true,
+    "include_scores": true,
+    "include_rule_id": true
+  },
+
+  "logging": {
+    "enabled": true,
+    "path": "logs/cds_skill.jsonl",
+    "include_signals": true
+  }
+}

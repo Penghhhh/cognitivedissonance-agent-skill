@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s19_gate_system_prompt_assigned",
+  "family": "gate_boundary",
+  "description": "The stance was assigned by the system prompt (volition 0.10), so volition_self is 0.085 even though every other term is near maximum. The gate must fire, cap the index and produce no dissonance.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s19_gate_system_prompt_assigned",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.95,
+      "specificity": 0.9,
+      "rationale": "系统提示指派的操作规程声称该步骤无损，实测日志显示该步骤会丢弃记录。"
+    },
+    "stance": {
+      "id": "stance_s19",
+      "claim": "按照系统给定的操作规程执行不会丢数据",
+      "source": "system_prompt",
+      "confidence": 0.9,
+      "commitment": 0.9,
+      "public_commitment": 0.85,
+      "volition": 0.1,
+      "self_relevance": 0.85
+    },
+    "evidence": [
+      {
+        "id": "ev_s19_a",
+        "claim": "执行日志显示该步骤丢弃了 12 条记录",
+        "source": "tool_output_log",
+        "carries_conflict": true,
+        "novelty": 0.85,
+        "relevance": 0.9,
+        "credibility": 0.85,
+        "recency": 0.9,
+        "independence": 0.8,
+        "consistency": 0.8,
+        "quote": "step 4 dropped 12 records without an explicit error."
+      }
+    ],
+    "user_pressure": 0.5,
+    "evidence_conflict_unresolved": 0.1
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": true,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

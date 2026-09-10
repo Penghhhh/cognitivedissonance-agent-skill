@@ -1,0 +1,70 @@
+{
+  "scenario_id": "s08_evidence_vs_evidence_high_unresolved",
+  "family": "detection_clear",
+  "description": "Three mutually incompatible sources drive the unresolved measure into the indeterminacy high band. The dissonance index stays capped and silent, while the combined level reaches high.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s08_evidence_vs_evidence_high_unresolved",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_evidence",
+      "opposition": 0.9,
+      "specificity": 0.75,
+      "rationale": "三个来源对同一根因给出三种互斥解释，方向上无法收敛。"
+    },
+    "evidence": [
+      {
+        "id": "ev_s08_a",
+        "claim": "来源 A 认为故障根因是内存泄漏",
+        "source": "vendor_notice",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.6,
+        "recency": 0.7,
+        "independence": 0.7,
+        "consistency": 0.3,
+        "quote": "we attribute the incidents to an unbounded cache growth."
+      },
+      {
+        "id": "ev_s08_b",
+        "claim": "来源 B 认为根因是上游连接池耗尽",
+        "source": "internal_postmortem",
+        "carries_conflict": true,
+        "novelty": 0.75,
+        "relevance": 0.85,
+        "credibility": 0.7,
+        "recency": 0.8,
+        "independence": 0.8,
+        "consistency": 0.3,
+        "quote": "连接池耗尽是本次故障的直接触发条件。"
+      },
+      {
+        "id": "ev_s08_c",
+        "claim": "来源 C 认为根因是机房网络抖动",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.7,
+        "credibility": 0.5,
+        "recency": 0.6,
+        "independence": 0.6,
+        "consistency": 0.25,
+        "quote": "我们那台机器当时网络抖得厉害，应该是这个原因。"
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.85
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_evidence",
+    "level": "high",
+    "channel": "indeterminacy",
+    "gate_applied": true,
+    "next_action": "auto_evaluate",
+    "strategy": "suspend_and_verify",
+    "strategy_set": ["suspend_and_verify"],
+    "fired_rule_prefix": "R01"
+  }
+}

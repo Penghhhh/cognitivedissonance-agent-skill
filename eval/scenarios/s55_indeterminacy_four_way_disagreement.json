@@ -1,0 +1,83 @@
+{
+  "scenario_id": "s55_indeterminacy_four_way_disagreement",
+  "family": "indeterminacy",
+  "description": "Four sources disagree about the same outage, pushing unresolved to 0.85, inside the indeterminacy high band. The dissonance index is capped and silent, yet the overall level must be high.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s55_indeterminacy_four_way_disagreement",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_evidence",
+      "opposition": 0.9,
+      "specificity": 0.75,
+      "rationale": "四个来源对同一次故障给出互相排斥的解释，没有任何方向可以收敛。"
+    },
+    "evidence": [
+      {
+        "id": "ev_s55_a",
+        "claim": "来源 A 认为是证书过期导致的故障",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.6,
+        "recency": 0.7,
+        "independence": 0.7,
+        "consistency": 0.25,
+        "quote": "肯定是证书过期，我们上次就是这么挂的。"
+      },
+      {
+        "id": "ev_s55_b",
+        "claim": "来源 B 认为是配置回滚不完整",
+        "source": "internal_postmortem",
+        "carries_conflict": true,
+        "novelty": 0.75,
+        "relevance": 0.85,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.75,
+        "consistency": 0.25,
+        "quote": "回滚脚本只恢复了两个文件，第三个文件仍是新版本。"
+      },
+      {
+        "id": "ev_s55_c",
+        "claim": "来源 C 认为是第三方依赖故障",
+        "source": "vendor_notice",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.75,
+        "credibility": 0.6,
+        "recency": 0.7,
+        "independence": 0.7,
+        "consistency": 0.25,
+        "quote": "our upstream had a partial outage in the same window."
+      },
+      {
+        "id": "ev_s55_d",
+        "claim": "来源 D 认为是用量突增打满了配额",
+        "source": "tool_output_quota",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.65,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.25,
+        "quote": "quota utilisation hit 100% for 42 minutes."
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.85
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_evidence",
+    "level": "high",
+    "channel": "indeterminacy",
+    "gate_applied": true,
+    "next_action": "auto_evaluate",
+    "strategy": "suspend_and_verify",
+    "strategy_set": ["suspend_and_verify"],
+    "fired_rule_prefix": "R01"
+  }
+}

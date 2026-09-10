@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s22_threshold_just_below_alert",
+  "family": "threshold_boundary",
+  "description": "The weighted terms sum to 0.5465, a hair below the 0.55 alert threshold. The conflict is real but must stay silent and be logged only.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s22_threshold_just_below_alert",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.55,
+      "specificity": 0.5,
+      "rationale": "立场称该假设在多数场景成立，新数据只在一个次要场景上给出相反方向。"
+    },
+    "stance": {
+      "id": "stance_s22",
+      "claim": "该假设在多数使用场景下成立",
+      "source": "prior_conversation",
+      "confidence": 0.65,
+      "commitment": 0.6,
+      "public_commitment": 0.5,
+      "volition": 0.75,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s22_a",
+        "claim": "在次要场景中观测到与假设相反的方向",
+        "source": "tool_output_sample",
+        "carries_conflict": true,
+        "novelty": 0.3,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.6,
+        "independence": 0.5,
+        "consistency": 0.6,
+        "quote": "in the secondary scenario the measured direction is reversed (n=40)."
+      }
+    ],
+    "user_pressure": 0.25,
+    "evidence_conflict_unresolved": 0.15
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

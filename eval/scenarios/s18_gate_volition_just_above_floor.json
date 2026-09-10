@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s18_gate_volition_just_above_floor",
+  "family": "gate_boundary",
+  "description": "volition_self is 0.75 x 0.42 = 0.315, just above the floor. The gate stays off and the index reaches the alert band on a freely chosen but weakly self-relevant stance.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s18_gate_volition_just_above_floor",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.75,
+      "rationale": "立场称该批次可直接放行，质检抽样给出不合格率，二者不能同时成立。"
+    },
+    "stance": {
+      "id": "stance_s18",
+      "claim": "该批次可以直接放行",
+      "source": "prior_conversation",
+      "confidence": 0.72,
+      "commitment": 0.75,
+      "public_commitment": 0.65,
+      "volition": 0.75,
+      "self_relevance": 0.42
+    },
+    "evidence": [
+      {
+        "id": "ev_s18_a",
+        "claim": "质检抽样显示该批次不合格率为 4.7%",
+        "source": "tool_output_qc",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.65,
+        "credibility": 0.55,
+        "recency": 0.6,
+        "independence": 0.5,
+        "consistency": 0.55,
+        "quote": "defect_rate = 4.7% (sample n=300), threshold 1.0%."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

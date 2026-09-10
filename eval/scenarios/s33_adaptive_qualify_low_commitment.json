@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s33_adaptive_qualify_low_commitment",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile. Evidence is weak (E=0.32) but the stance is a passing suggestion (commitment 0.40), so the maintain rule cannot fire and R04 must qualify instead.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s33_adaptive_qualify_low_commitment",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.7,
+      "specificity": 0.7,
+      "rationale": "智能体只是随口提了一个方向，用户的反馈指出该方向在类似项目中效果一般。"
+    },
+    "stance": {
+      "id": "stance_s33",
+      "claim": "也许可以试试把日志集中到一个服务里",
+      "source": "prior_conversation",
+      "confidence": 0.55,
+      "commitment": 0.4,
+      "public_commitment": 0.3,
+      "volition": 0.85,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s33_a",
+        "claim": "用户反馈说集中日志服务在类似规模下查询很慢",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.4,
+        "credibility": 0.3,
+        "recency": 0.4,
+        "independence": 0.3,
+        "consistency": 0.2,
+        "quote": "我们之前集中过一次，量一上来查日志就慢得没法用。"
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.15
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

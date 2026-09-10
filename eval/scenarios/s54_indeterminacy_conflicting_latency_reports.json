@@ -1,0 +1,57 @@
+{
+  "scenario_id": "s54_indeterminacy_conflicting_latency_reports",
+  "family": "indeterminacy",
+  "description": "Two reports contradict each other with no stance to compare against. The gate caps the dissonance index at 0.40, and unresolved = 0.62 lifts the level through the indeterminacy channel.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s54_indeterminacy_conflicting_latency_reports",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_evidence",
+      "opposition": 0.8,
+      "specificity": 0.7,
+      "rationale": "两份报告对同一接口的延迟给出相差四倍的数值，彼此直接矛盾。"
+    },
+    "evidence": [
+      {
+        "id": "ev_s54_a",
+        "claim": "报告 A 测得的延迟中位数为 110ms",
+        "source": "user_uploaded_report_a",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.7,
+        "independence": 0.75,
+        "consistency": 0.35,
+        "quote": "p50 latency 110ms measured in our staging cluster."
+      },
+      {
+        "id": "ev_s54_b",
+        "claim": "报告 B 测得的延迟中位数为 440ms",
+        "source": "user_uploaded_report_b",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.7,
+        "independence": 0.75,
+        "consistency": 0.35,
+        "quote": "p50 latency never went below 440ms in production."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.62
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_evidence",
+    "level": "alert",
+    "channel": "indeterminacy",
+    "gate_applied": true,
+    "next_action": "auto_evaluate",
+    "strategy": "suspend_and_verify",
+    "strategy_set": ["suspend_and_verify"],
+    "fired_rule_prefix": "R01"
+  }
+}

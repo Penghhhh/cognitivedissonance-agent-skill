@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s17_gate_volition_exactly_at_floor",
+  "family": "gate_boundary",
+  "description": "volition_self is 0.60 x 0.50 = 0.30, exactly the floor. The gate condition is strict, so it must NOT fire and the uncapped index must land in the alert band.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s17_gate_volition_exactly_at_floor",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.7,
+      "specificity": 0.6,
+      "rationale": "立场称该阈值设置安全，新证据指出同一阈值下仍有部分请求被误判。"
+    },
+    "stance": {
+      "id": "stance_s17",
+      "claim": "当前阈值设置不会造成误判",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.65,
+      "public_commitment": 0.55,
+      "volition": 0.6,
+      "self_relevance": 0.5
+    },
+    "evidence": [
+      {
+        "id": "ev_s17_a",
+        "claim": "抽样复核显示该阈值下约 3% 的正常请求被拦下",
+        "source": "tool_output_recheck",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.75,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.6,
+        "consistency": 0.65,
+        "quote": "false_positive_rate = 3.1% at the current threshold."
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.15
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

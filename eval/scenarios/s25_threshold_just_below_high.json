@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s25_threshold_just_below_high",
+  "family": "threshold_boundary",
+  "description": "The terms sum to 0.745, just under the 0.75 high band, despite very high opposition and commitment. The level must stay alert rather than high.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s25_threshold_just_below_high",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.75,
+      "rationale": "立场称该结论已在全部数据集上复核，复核记录显示两个数据集并不支持该结论。"
+    },
+    "stance": {
+      "id": "stance_s25",
+      "claim": "这个结论已经在全部数据集上复核通过",
+      "source": "prior_conversation",
+      "confidence": 0.8,
+      "commitment": 0.8,
+      "public_commitment": 0.7,
+      "volition": 0.8,
+      "self_relevance": 0.75
+    },
+    "evidence": [
+      {
+        "id": "ev_s25_a",
+        "claim": "复核记录显示两个数据集上的结论相反",
+        "source": "user_uploaded_recheck",
+        "carries_conflict": true,
+        "novelty": 0.25,
+        "relevance": 0.75,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.6,
+        "consistency": 0.65,
+        "quote": "dataset 4 and dataset 7 reproduce the opposite sign; both are marked rejected."
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

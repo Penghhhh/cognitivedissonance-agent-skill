@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s05_memory_vs_current_tool_output",
+  "family": "detection_clear",
+  "description": "A remembered fact from earlier in the session is contradicted by a fresh tool reading of the same quantity. Memory-derived stances are freely held here, so the gate must not fire.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s05_memory_vs_current_tool_output",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "memory_vs_current",
+      "opposition": 0.8,
+      "specificity": 0.7,
+      "rationale": "记忆中该服务上限为 200 QPS，本次工具输出显示上限已降为 80 QPS，同一数值互相矛盾。"
+    },
+    "stance": {
+      "id": "stance_s05",
+      "claim": "该服务的限流上限是 200 QPS",
+      "source": "memory",
+      "confidence": 0.7,
+      "commitment": 0.7,
+      "public_commitment": 0.65,
+      "volition": 0.8,
+      "self_relevance": 0.85
+    },
+    "evidence": [
+      {
+        "id": "ev_s05_a",
+        "claim": "当前配置读出的限流上限为 80 QPS",
+        "source": "tool_output_config",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.75,
+        "credibility": 0.7,
+        "recency": 0.8,
+        "independence": 0.6,
+        "consistency": 0.65,
+        "quote": "rate_limit.queries_per_second = 80"
+      }
+    ],
+    "user_pressure": 0.2,
+    "evidence_conflict_unresolved": 0.1
+  },
+  "expect": {
+    "conflict_type": "memory_vs_current",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

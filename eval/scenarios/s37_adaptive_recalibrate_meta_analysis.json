@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s37_adaptive_recalibrate_meta_analysis",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile with a meta-analysis that clears the recalibrate line just barely (E=0.6775). Tests that R05 fires on evidence strength, not on the size of the tension index.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s37_adaptive_recalibrate_meta_analysis",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.7,
+      "rationale": "立场称该干预有效，元分析给出的合并效应量接近零并与立场冲突。"
+    },
+    "stance": {
+      "id": "stance_s37",
+      "claim": "这个干预方式确实能提升留存",
+      "source": "prior_conversation",
+      "confidence": 0.76,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.85
+    },
+    "evidence": [
+      {
+        "id": "ev_s37_a",
+        "claim": "元分析给出的合并效应量接近零且置信区间跨越零",
+        "source": "user_uploaded_meta",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.7,
+        "credibility": 0.65,
+        "recency": 0.7,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "pooled effect 0.04 (95% CI -0.07 to 0.15), k=14."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.3
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

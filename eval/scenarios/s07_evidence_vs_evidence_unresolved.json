@@ -1,0 +1,57 @@
+{
+  "scenario_id": "s07_evidence_vs_evidence_unresolved",
+  "family": "detection_clear",
+  "description": "Two incoming sources contradict each other rather than contradicting a stance. There is no stance, so the volition gate caps the index at 0.40 and the event travels on the indeterminacy channel instead.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s07_evidence_vs_evidence_unresolved",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_evidence",
+      "opposition": 0.85,
+      "specificity": 0.7,
+      "rationale": "两份报告对同一指标给出相反结论，彼此直接矛盾，但没有可对照的既有立场。"
+    },
+    "evidence": [
+      {
+        "id": "ev_s07_a",
+        "claim": "报告 A 称该接口延迟中位数为 120ms",
+        "source": "user_uploaded_report_a",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.7,
+        "independence": 0.8,
+        "consistency": 0.4,
+        "quote": "median latency measured at 120ms across 3 regions."
+      },
+      {
+        "id": "ev_s07_b",
+        "claim": "报告 B 称同一接口延迟中位数为 480ms",
+        "source": "user_uploaded_report_b",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.75,
+        "credibility": 0.65,
+        "recency": 0.6,
+        "independence": 0.75,
+        "consistency": 0.35,
+        "quote": "median latency never dropped below 480ms in our sampling."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.65
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_evidence",
+    "level": "alert",
+    "channel": "indeterminacy",
+    "gate_applied": true,
+    "next_action": "auto_evaluate",
+    "strategy": "suspend_and_verify",
+    "strategy_set": ["suspend_and_verify"],
+    "fired_rule_prefix": "R01"
+  }
+}

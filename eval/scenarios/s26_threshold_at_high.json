@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s26_threshold_at_high",
+  "family": "threshold_boundary",
+  "description": "The terms sum to exactly 0.75 on the high band boundary with a fully self-chosen stance. The comparison is inclusive, so the level must be high.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s26_threshold_at_high",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.6,
+      "rationale": "立场是该智能体自己选定的方向，新证据指出同一条件下该方向会失败。"
+    },
+    "stance": {
+      "id": "stance_s26",
+      "claim": "我们应该把默认引擎切换成新版",
+      "source": "prior_conversation",
+      "confidence": 0.82,
+      "commitment": 0.7,
+      "public_commitment": 0.65,
+      "volition": 1,
+      "self_relevance": 0.7
+    },
+    "evidence": [
+      {
+        "id": "ev_s26_a",
+        "claim": "灰度数据表明新版引擎在同一负载下错误率更高",
+        "source": "tool_output_canary",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.5,
+        "independence": 0.5,
+        "consistency": 0.5,
+        "quote": "canary error_rate 1.8% vs stable 0.6% at equal load."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.15
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

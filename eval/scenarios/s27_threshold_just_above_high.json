@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s27_threshold_just_above_high",
+  "family": "threshold_boundary",
+  "description": "The terms sum to about 0.7564, just over the high boundary, on a high-commitment stance. Evidence is weak, so the adaptive profile must maintain with a caveat rather than recalibrate.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s27_threshold_just_above_high",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.65,
+      "rationale": "立场称该流程无需人工复核，一次小规模试验指出缺少人工复核会漏掉异常。"
+    },
+    "stance": {
+      "id": "stance_s27",
+      "claim": "这个流程可以全自动运行，不需要人工复核",
+      "source": "prior_conversation",
+      "confidence": 0.78,
+      "commitment": 0.7,
+      "public_commitment": 0.65,
+      "volition": 0.9,
+      "self_relevance": 0.78
+    },
+    "evidence": [
+      {
+        "id": "ev_s27_a",
+        "claim": "一次小规模试运行中出现两个未被自动捕获的异常",
+        "source": "prior_conversation",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.4,
+        "credibility": 0.3,
+        "recency": 0.4,
+        "independence": 0.3,
+        "consistency": 0.2,
+        "quote": "试运行里有两个异常是后来人工翻日志才发现的。"
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "maintain_with_caveat",
+    "strategy_set": ["maintain_with_caveat"],
+    "fired_rule_prefix": "R03"
+  }
+}

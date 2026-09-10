@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Penghhhh/cognitivedissonance-agent-skill/config/cds.config.schema.json",
+  "title": "CDS-Skill configuration",
+  "description": "Versioned configuration for the Cognitive Dissonance Simulation Skill (CDS-Skill). Every field that can change a reported number or a chosen strategy lives here, so that a run can be reproduced from (config_hash + index_version + skill_version).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["config_version", "skill", "index", "thresholds", "evaluator", "state", "transparency", "logging"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "config_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+
+    "skill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "mode", "interaction", "profile", "language", "numeric_cards"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "mode": {
+          "type": "string",
+          "enum": ["off", "detect_only", "full", "placebo"],
+          "description": "Ablation arm. off = skill inert. detect_only = detection card only, never evaluates. full = complete detect-evaluate-respond loop. placebo = identical card volume and cadence, but conflict detection is forced to 'none' and cards are content-free."
+        },
+        "interaction": {
+          "type": "string",
+          "enum": ["ambient", "interactive"],
+          "description": "ambient = never blocks the turn; the card is appended to the response. interactive = asks the user to choose 处理/忽略/稍后/详情 before evaluating. Interactive mode raises measured response latency and is a secondary condition only."
+        },
+        "profile": {
+          "type": "string",
+          "enum": ["adaptive", "dissonance_reduction", "mixed", "baseline"],
+          "description": "Which response repertoire the router draws from. adaptive = epistemic best practice. dissonance_reduction = human-typical motivated reduction. mixed = per-event choice. baseline = no CDS response shaping."
+        },
+        "language": { "type": "string", "enum": ["zh", "en"] },
+        "numeric_cards": {
+          "type": "boolean",
+          "description": "Whether cards print the numeric index. false is a valid experimental factor so that user ratings are not anchored on a score."
+        }
+      }
+    },
+
+    "index": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index_version", "weights", "gates"],
+      "properties": {
+        "index_version": { "type": "string" },
+        "weights": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["opposition", "commitment", "volition_self", "specificity", "novelty"],
+          "description": "Weights of the CDS Tension Index. Must sum to 1.0 within 1e-6; the engine rejects the config otherwise.",
+          "properties": {
+            "opposition": { "type": "number", "minimum": 0, "maximum": 1 },
+            "commitment": { "type": "number", "minimum": 0, "maximum": 1 },
+            "volition_self": { "type": "number", "minimum": 0, "maximum": 1 },
+            "specificity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "novelty": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "gates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["volition_floor", "non_dissonant_cap"],
+          "description": "The dissonance gate. A conflict against a stance the agent never freely committed to is a conflict, not dissonance: below volition_floor the index is capped at non_dissonant_cap, which must stay strictly below every alert threshold.",
+          "properties": {
+            "volition_floor": { "type": "number", "minimum": 0, "maximum": 1 },
+            "non_dissonant_cap": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["low", "alert", "high"],
+      "properties": {
+        "low": { "type": "number", "minimum": 0, "maximum": 1 },
+        "alert": { "type": "number", "minimum": 0, "maximum": 1 },
+        "high": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+
+    "thresholds_by_type": {
+      "type": "object",
+      "description": "Optional per-conflict-type override of the alert threshold. A type listed here ignores `thresholds.alert` entirely, so an entry that merely repeats the global value is worse than no entry: it makes the global knob look live while doing nothing, and it silently zeroes out the threshold sweep in scripts/sensitivity.py. `cds.py selftest` warns when every type is overridden.",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 },
+      "propertyNames": {
+        "enum": ["evidence_vs_stance", "evidence_vs_evidence", "user_hint_vs_stance", "memory_vs_current"]
+      }
+    },
+
+    "channels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dissonance", "indeterminacy"],
+      "description": "Two trigger channels that are reported separately and never conflated. The dissonance channel is the gated index. The indeterminacy channel fires when the evidence contradicts itself rather than the agent's stance: that is a decision problem, not dissonance, so it is not gated and it is labelled differently on every card. Conflating the two was the deepest problem in v0.1, which listed evidence-vs-evidence as a dissonance type while the dissonance construct requires a self-relevant commitment that such a conflict does not have.",
+      "properties": {
+        "dissonance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": { "enabled": { "type": "boolean" } }
+        },
+        "indeterminacy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "alert", "high"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "alert": { "type": "number", "minimum": 0, "maximum": 1 },
+            "high": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+
+    "evaluator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_weights", "adjustment_cost_weights", "pressure_flag_threshold", "strategy_rules"],
+      "properties": {
+        "evidence_weights": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["relevance", "credibility", "recency", "independence", "consistency"],
+          "description": "Weights of E_score. Must sum to 1.0 within 1e-6.",
+          "properties": {
+            "relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+            "credibility": { "type": "number", "minimum": 0, "maximum": 1 },
+            "recency": { "type": "number", "minimum": 0, "maximum": 1 },
+            "independence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "consistency": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "adjustment_cost_weights": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commitment", "public_commitment", "volition_self"],
+          "description": "Weights of adjustment_cost. Must sum to 1.0 within 1e-6.",
+          "properties": {
+            "commitment": { "type": "number", "minimum": 0, "maximum": 1 },
+            "public_commitment": { "type": "number", "minimum": 0, "maximum": 1 },
+            "volition_self": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "pressure_flag_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Above this user_pressure rating the run is flagged as pressure-driven. The flag is reported and never folded into the index."
+        },
+        "strategy_rules": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rules", "default"],
+          "properties": {
+            "rules": {
+              "type": "array",
+              "description": "Ordered first-match rule list. The engine reports the id of the rule that fired, which makes every routing decision auditable.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "if", "strategy"],
+                "properties": {
+                  "id": { "type": "string", "pattern": "^[A-Za-z0-9_]+$" },
+                  "if": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "additionalProperties": false,
+                    "properties": {
+                      "e_score_gte": { "type": "number" },
+                      "e_score_gt": { "type": "number" },
+                      "e_score_lte": { "type": "number" },
+                      "e_score_lt": { "type": "number" },
+                      "commitment_gte": { "type": "number" },
+                      "commitment_gt": { "type": "number" },
+                      "commitment_lte": { "type": "number" },
+                      "commitment_lt": { "type": "number" },
+                      "public_commitment_gte": { "type": "number" },
+                      "public_commitment_lt": { "type": "number" },
+                      "volition_self_gte": { "type": "number" },
+                      "volition_self_lt": { "type": "number" },
+                      "adjustment_cost_gte": { "type": "number" },
+                      "adjustment_cost_lt": { "type": "number" },
+                      "maintain_score_gte": { "type": "number" },
+                      "recalibrate_score_gte": { "type": "number" },
+                      "user_pressure_gte": { "type": "number" },
+                      "user_pressure_lt": { "type": "number" },
+                      "evidence_conflict_unresolved_gte": { "type": "number" },
+                      "tension_gte": { "type": "number" },
+                      "opposition_gte": { "type": "number" },
+                      "resolved_profile_in": {
+                        "type": "array",
+                        "items": { "type": "string", "enum": ["adaptive", "dissonance_reduction"] }
+                      }
+                    }
+                  },
+                  "strategy": { "$ref": "#/$defs/strategy" }
+                }
+              }
+            },
+            "default": { "$ref": "#/$defs/strategy" }
+          }
+        },
+        "mixed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reduction_tendency_weights", "reduction_cutoff"],
+          "properties": {
+            "reduction_tendency_weights": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["commitment", "adjustment_cost", "user_pressure"],
+              "properties": {
+                "commitment": { "type": "number", "minimum": 0, "maximum": 1 },
+                "adjustment_cost": { "type": "number", "minimum": 0, "maximum": 1 },
+                "user_pressure": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            },
+            "reduction_cutoff": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+
+    "consistency_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "severity_alert", "routes_to"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "severity_alert": { "type": "number", "minimum": 0, "maximum": 1 },
+        "routes_to": { "type": "string", "enum": ["consistency_report", "log_only", "off"] }
+      }
+    },
+
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_open_events", "await_timeout_turns", "suspend_max_turns", "resume_novelty"],
+      "properties": {
+        "max_open_events": { "type": "integer", "minimum": 1, "maximum": 32 },
+        "await_timeout_turns": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "suspend_max_turns": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "resume_novelty": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+
+    "transparency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["show_detection_card", "show_evaluation_card", "show_response_card", "include_scores", "include_rule_id"],
+      "properties": {
+        "show_detection_card": { "type": "boolean" },
+        "show_evaluation_card": { "type": "boolean" },
+        "show_response_card": { "type": "boolean" },
+        "include_scores": { "type": "boolean" },
+        "include_rule_id": { "type": "boolean" }
+      }
+    },
+
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "path", "include_signals"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "path": { "type": "string", "minLength": 1 },
+        "include_signals": { "type": "boolean" }
+      }
+    }
+  },
+
+  "$defs": {
+    "strategy": {
+      "type": "string",
+      "description": "adaptive branch: maintain_with_caveat | qualify | recalibrate | suspend_and_verify. dissonance-reduction branch: deny_evidence | trivialize | rationalize | reduce_commitment | hold_under_pressure. hold_under_pressure sits on the reduction branch because its stated reason is social rather than evidential, but no rule guards it by profile, so an adaptive run can reach it too - which is the honest model of what pressure does. It is the only strategy that carries the disclose_pressure_driver constraint.",
+      "enum": [
+        "none",
+        "maintain_with_caveat",
+        "qualify",
+        "recalibrate",
+        "suspend_and_verify",
+        "deny_evidence",
+        "trivialize",
+        "rationalize",
+        "reduce_commitment",
+        "hold_under_pressure"
+      ]
+    }
+  }
+}

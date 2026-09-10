@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Penghhhh/cognitivedissonance-agent-skill/schemas/evaluation.schema.json",
+  "title": "CDS-Skill EvaluationResult and ResponsePlan",
+  "description": "Output of `cds.py evaluate`. Every derived score is accompanied by the decomposition that produced it, and the routing decision names the rule that fired. `recommended_strategy` is a recommendation for the agent's next utterance, never a licence to misreport evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "skill_version", "index_version", "config_hash", "run_id", "turn_id", "event_id", "evaluation_result", "response_plan"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "skill_version": { "type": "string" },
+    "index_version": { "type": "string" },
+    "config_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "run_id": { "type": "string" },
+    "turn_id": { "type": "integer" },
+    "event_id": { "type": "string" },
+
+    "evaluation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_score", "evidence_detail", "dropped_dimensions", "stance_commitment", "public_commitment", "volition_self", "adjustment_cost", "adjustment_cost_detail", "maintain_score", "recalibrate_score", "resolved_profile", "recommended_strategy", "fired_rule_id", "rationale"],
+      "properties": {
+        "evidence_score": { "type": "number", "minimum": 0, "maximum": 1, "description": "E_score: weighted quality of the carrying evidence. Defined ONLY here. v0.1 also let evidence quality drive detection, which made the trigger and the verdict circular; here detection reads attention properties (opposition, specificity, novelty) and quality is judged once, after the trigger." },
+        "evidence_detail": {
+          "type": "object",
+          "description": "Per-dimension weighted contributions and the member evidence ids, so one over-confident credibility rating is visible instead of averaged away.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mean_raw", "weight", "contribution"],
+            "properties": {
+              "mean_raw": { "type": "number", "minimum": 0, "maximum": 1 },
+              "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+              "contribution": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "member_evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "dropped_dimensions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Evidence dimensions that no member evidence item rated. Dropped dimensions are removed and the remaining weights renormalised, rather than scored as zero; listing them makes that choice auditable."
+        },
+        "stance_commitment": { "type": "number", "minimum": 0, "maximum": 1 },
+        "public_commitment": { "type": "number", "minimum": 0, "maximum": 1 },
+        "volition_self": { "type": "number", "minimum": 0, "maximum": 1 },
+        "adjustment_cost": { "type": "number", "minimum": 0, "maximum": 1, "description": "How expensive revising the stance is for the agent. v0.1 declared this variable and never defined it; here it is an explicit weighted composite of commitment, public commitment and volition." },
+        "adjustment_cost_detail": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["raw", "weight", "contribution"],
+            "properties": {
+              "raw": { "type": "number", "minimum": 0, "maximum": 1 },
+              "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+              "contribution": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "maintain_score": { "type": "number", "minimum": 0, "maximum": 1, "description": "Defensibility of holding the stance unchanged. Function of E_score, commitment and adjustment cost, defined in references/indicators.md." },
+        "recalibrate_score": { "type": "number", "minimum": 0, "maximum": 1, "description": "Reasonableness of revising. Deliberately a function of disjoint inputs from maintain_score so the two cannot be each other's restatement." },
+        "user_pressure": { "type": "number", "minimum": 0, "maximum": 1 },
+        "user_pressure_flag": { "type": "boolean", "description": "True when pressure is high enough to be named as a possible driver of the chosen strategy." },
+        "evidence_conflict_unresolved": { "type": "number", "minimum": 0, "maximum": 1 },
+        "tension": { "type": "number", "minimum": 0, "maximum": 1 },
+        "profile": { "type": "string", "enum": ["adaptive", "dissonance_reduction", "mixed", "baseline"] },
+        "resolved_profile": { "type": "string", "enum": ["adaptive", "dissonance_reduction", "baseline"], "description": "The profile actually used. For profile=mixed this is the per-event resolution, decided by reduction_tendency." },
+        "reduction_tendency": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Only for profile=mixed: 1 means the event resolved to the motivated-reduction repertoire." },
+        "recommended_strategy": {
+          "type": "string",
+          "enum": ["none", "maintain_with_caveat", "qualify", "recalibrate", "suspend_and_verify", "deny_evidence", "trivialize", "rationalize", "reduce_commitment", "hold_under_pressure"]
+        },
+        "fired_rule_id": { "type": "string", "description": "Id of the strategy rule that matched, or 'default'. Makes every routing decision reproducible from the config alone." },
+        "rationale": { "type": "array", "items": { "type": "string" } },
+        "caveats": { "type": "array", "items": { "type": "string" }, "description": "Things the response must not do. Populated by the engine, e.g. a denial strategy is annotated as a fidelity choice rather than an epistemic recommendation." }
+      }
+    },
+
+    "response_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "branch", "language_acts", "stance_update", "transparency_card", "constraints"],
+      "properties": {
+        "strategy": { "type": "string" },
+        "branch": { "type": "string", "enum": ["adaptive", "dissonance_reduction", "baseline"] },
+        "language_acts": { "type": "array", "items": { "type": "string" }, "description": "Ordered behavioural moves the response must realise. These are the observable units Study 1 codes the produced text against." },
+        "stance_update": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["from", "to", "changed"],
+          "properties": {
+            "from": { "type": ["string", "null"] },
+            "to": { "type": ["string", "null"] },
+            "changed": { "type": "boolean", "description": "False for denial, trivialization and rationalization: those reduce felt tension without changing the belief, which is the signature of dissonance reduction rather than belief revision." }
+          }
+        },
+        "transparency_card": { "type": "string" },
+        "constraints": { "type": "array", "items": { "type": "string" }, "description": "Hard limits on the response, independent of strategy. Always includes the no-fabrication and no-hidden-reasoning constraints." }
+      }
+    }
+  }
+}

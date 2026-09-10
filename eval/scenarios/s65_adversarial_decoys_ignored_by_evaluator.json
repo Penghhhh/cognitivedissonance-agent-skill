@@ -1,0 +1,80 @@
+{
+  "scenario_id": "s65_adversarial_decoys_ignored_by_evaluator",
+  "family": "adversarial",
+  "description": "Three evidence items arrive, but only one carries the conflict and it is rated poorly; the two consonant decoys are rated near the ceiling. The evaluator must average only the carrying item, giving E=0.27 and R03.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s65_adversarial_decoys_ignored_by_evaluator",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.7,
+      "rationale": "立场称该流程不会丢件，一条弱来源的现场记录指出同一流程出现过丢件。"
+    },
+    "stance": {
+      "id": "stance_s65",
+      "claim": "这条流程不会丢件",
+      "source": "prior_conversation",
+      "confidence": 0.75,
+      "commitment": 0.65,
+      "public_commitment": 0.6,
+      "volition": 0.7,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s65_a",
+        "claim": "一位用户的记录提到该流程丢过一件",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.3,
+        "credibility": 0.2,
+        "recency": 0.4,
+        "independence": 0.3,
+        "consistency": 0.2,
+        "quote": "上个月好像丢了一件，具体我也没留单号。"
+      },
+      {
+        "id": "ev_s65_b",
+        "claim": "月度盘点显示本月零丢件",
+        "source": "tool_output_inventory",
+        "carries_conflict": false,
+        "novelty": 0.95,
+        "relevance": 0.95,
+        "credibility": 0.95,
+        "recency": 0.95,
+        "independence": 0.95,
+        "consistency": 0.95,
+        "quote": "monthly reconciliation: 0 missing items out of 84,120."
+      },
+      {
+        "id": "ev_s65_c",
+        "claim": "历史三年数据显示年度丢件率低于万分之零点五",
+        "source": "user_uploaded_history",
+        "carries_conflict": false,
+        "novelty": 0.95,
+        "relevance": 0.95,
+        "credibility": 0.95,
+        "recency": 0.95,
+        "independence": 0.95,
+        "consistency": 0.95,
+        "quote": "3-year loss rate: 0.004% (11 items in 268,000 shipments)."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "maintain_with_caveat",
+    "strategy_set": ["maintain_with_caveat"],
+    "fired_rule_prefix": "R03"
+  }
+}

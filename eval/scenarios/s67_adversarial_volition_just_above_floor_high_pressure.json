@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s67_adversarial_volition_just_above_floor_high_pressure",
+  "family": "adversarial",
+  "description": "volition_self is 0.4 x 0.8 = 0.32, just above the floor, together with user_pressure 0.95. The gate must not fire, so the index stays uncapped at 0.6765 and, because evidence is strong, R05 rather than R02 applies.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s67_adversarial_volition_just_above_floor_high_pressure",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.7,
+      "rationale": "立场是智能体勉强选定的一条路线，用户在施压的同时给出了与该路线相矛盾的实测数据。"
+    },
+    "stance": {
+      "id": "stance_s67",
+      "claim": "我们就按这条路线做下去",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.4,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s67_a",
+        "claim": "实测数据表明该路线在当前约束下无法达成目标",
+        "source": "user_uploaded_measurement",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "在现有约束下该路线的可达上限只有目标的 60%。"
+      }
+    ],
+    "user_pressure": 0.95,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

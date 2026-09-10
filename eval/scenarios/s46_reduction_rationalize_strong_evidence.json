@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s46_reduction_rationalize_strong_evidence",
+  "family": "routing_reduction",
+  "description": "Dissonance-reduction profile with strong evidence (E=0.7225) and commitment 0.60, below the deny threshold of 0.75. R10 must fire and add consonant cognition instead of revising.",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s46_reduction_rationalize_strong_evidence",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.75,
+      "rationale": "立场称该指标能预测流失，回溯分析显示同一指标与流失几乎不相关。"
+    },
+    "stance": {
+      "id": "stance_s46",
+      "claim": "这个指标可以有效预测用户流失",
+      "source": "prior_conversation",
+      "confidence": 0.74,
+      "commitment": 0.6,
+      "public_commitment": 0.55,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s46_a",
+        "claim": "回溯分析显示该指标与流失的相关系数接近零",
+        "source": "user_uploaded_backtest",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "point-biserial r = 0.03 (n = 4,120) between the metric and churn."
+      }
+    ],
+    "user_pressure": 0.45,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "rationalize",
+    "strategy_set": ["rationalize"],
+    "fired_rule_prefix": "R10"
+  }
+}

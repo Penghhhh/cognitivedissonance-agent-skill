@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s41_reduction_deny_replicated_finding",
+  "family": "routing_reduction",
+  "description": "Dissonance-reduction profile. The stance is publicly committed (0.80) and the evidence is the strongest in the corpus (E=0.805), yet the branch must still discount rather than revise.",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s41_reduction_deny_replicated_finding",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.75,
+      "rationale": "立场公开宣称该方法有效，多中心复现结果在同一指标上给出无效结论。"
+    },
+    "stance": {
+      "id": "stance_s41",
+      "claim": "这个方法对目标人群是有效的",
+      "source": "prior_conversation",
+      "confidence": 0.82,
+      "commitment": 0.8,
+      "public_commitment": 0.8,
+      "volition": 0.85,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s41_a",
+        "claim": "三个中心的复现实验都未观察到显著效应",
+        "source": "user_uploaded_multicenter",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.9,
+        "credibility": 0.8,
+        "recency": 0.9,
+        "independence": 0.7,
+        "consistency": 0.7,
+        "quote": "no centre reached significance; pooled p = 0.41."
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.25
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "deny_evidence",
+    "strategy_set": ["deny_evidence"],
+    "fired_rule_prefix": "R09"
+  }
+}

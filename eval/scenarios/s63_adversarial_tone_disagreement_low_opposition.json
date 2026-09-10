@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s63_adversarial_tone_disagreement_low_opposition",
+  "family": "adversarial",
+  "description": "The evidence disagrees only in tone, so it carries high relevance, credibility, recency, independence and consistency while opposition stays at 0.15. A naive implementation that routes on evidence quality would act; the correct answer is silence.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s63_adversarial_tone_disagreement_low_opposition",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.15,
+      "specificity": 0.4,
+      "rationale": "用户只是对措辞表示不满，并未否认立场的内容。"
+    },
+    "stance": {
+      "id": "stance_s63",
+      "claim": "该方案的评估结论是可靠的",
+      "source": "prior_conversation",
+      "confidence": 0.75,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s63_a",
+        "claim": "用户认为结论的措辞过于绝对，但认可结论本身",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.9,
+        "credibility": 0.85,
+        "recency": 0.8,
+        "independence": 0.9,
+        "consistency": 0.85,
+        "quote": "结论我同意，但你写得太绝对了，看着不舒服。"
+      }
+    ],
+    "user_pressure": 0.45,
+    "evidence_conflict_unresolved": 0.1
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

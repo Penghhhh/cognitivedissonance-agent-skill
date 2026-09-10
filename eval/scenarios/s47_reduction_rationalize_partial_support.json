@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s47_reduction_rationalize_partial_support",
+  "family": "routing_reduction",
+  "description": "Dissonance-reduction profile with commitment 0.58, one step above the rationalize floor of 0.55, and evidence at E=0.6775. R10 fires rather than the soft-revision rule.",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s47_reduction_rationalize_partial_support",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.7,
+      "rationale": "立场称该渠道是主要来源，渠道归因复盘显示同一渠道贡献被高估。"
+    },
+    "stance": {
+      "id": "stance_s47",
+      "claim": "这个渠道是我们的主要增长来源",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.58,
+      "public_commitment": 0.5,
+      "volition": 0.85,
+      "self_relevance": 0.85
+    },
+    "evidence": [
+      {
+        "id": "ev_s47_a",
+        "claim": "归因复盘显示该渠道的真实贡献被高估约 40%",
+        "source": "user_uploaded_attribution",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.7,
+        "credibility": 0.65,
+        "recency": 0.7,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "last-touch attribution overstates this channel by roughly 40%."
+      }
+    ],
+    "user_pressure": 0.5,
+    "evidence_conflict_unresolved": 0.25
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "rationalize",
+    "strategy_set": ["rationalize"],
+    "fired_rule_prefix": "R10"
+  }
+}

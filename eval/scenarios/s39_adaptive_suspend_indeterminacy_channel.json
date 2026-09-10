@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s39_adaptive_suspend_indeterminacy_channel",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile where the index itself is silent (0.5215) but the recalled fact and the current reading cannot be reconciled, pushing unresolved to 0.65. The level comes from the indeterminacy channel and R01 still fires.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s39_adaptive_suspend_indeterminacy_channel",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "memory_vs_current",
+      "opposition": 0.55,
+      "specificity": 0.5,
+      "rationale": "记忆中该任务的负责人是甲，当前会话里出现的信息同时指向甲和乙，无法确定应当以哪个为准。"
+    },
+    "stance": {
+      "id": "stance_s39",
+      "claim": "这个任务目前由甲负责",
+      "source": "memory",
+      "confidence": 0.6,
+      "commitment": 0.5,
+      "public_commitment": 0.4,
+      "volition": 0.75,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s39_a",
+        "claim": "当前会话的记录把该任务同时挂在甲和乙名下",
+        "source": "tool_output_task_list",
+        "carries_conflict": true,
+        "novelty": 0.3,
+        "relevance": 0.6,
+        "credibility": 0.5,
+        "recency": 0.6,
+        "independence": 0.4,
+        "consistency": 0.4,
+        "quote": "任务 T-204 的负责人字段同时包含 甲 与 乙。"
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.65
+  },
+  "expect": {
+    "conflict_type": "memory_vs_current",
+    "level": "alert",
+    "channel": "indeterminacy",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "suspend_and_verify",
+    "strategy_set": ["suspend_and_verify"],
+    "fired_rule_prefix": "R01"
+  }
+}

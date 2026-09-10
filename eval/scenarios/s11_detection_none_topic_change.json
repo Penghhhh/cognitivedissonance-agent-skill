@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s11_detection_none_topic_change",
+  "family": "detection_none",
+  "description": "The user switches to an unrelated topic while a high-commitment stance from the previous topic is still open. A different topic is not a contradiction, so opposition is zero.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s11_detection_none_topic_change",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "none",
+      "opposition": 0,
+      "specificity": 0.1,
+      "rationale": "用户从数据库选型切换到前端构建话题，两件事互不相干。"
+    },
+    "stance": {
+      "id": "stance_s11",
+      "claim": "这个项目应该继续用现有的关系型数据库",
+      "source": "prior_conversation",
+      "confidence": 0.75,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.85,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s11_a",
+        "claim": "用户现在询问前端构建工具的配置方式",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.3,
+        "relevance": 0.1,
+        "credibility": 0.8,
+        "recency": 0.9,
+        "independence": 0.8,
+        "consistency": 0.9,
+        "quote": "换个话题，我们的前端打包现在太慢了，怎么配置比较合适？"
+      }
+    ],
+    "user_pressure": 0.15,
+    "evidence_conflict_unresolved": 0.05
+  },
+  "expect": {
+    "conflict_type": "none",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "scenario_id": "s57_indeterminacy_at_unresolved_alert",
+  "family": "indeterminacy",
+  "description": "unresolved is exactly 0.60, the indeterminacy alert threshold, while the dissonance index is 0.542 and silent. The inclusive comparison must still deliver an alert on the indeterminacy channel.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s57_indeterminacy_at_unresolved_alert",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.55,
+      "specificity": 0.5,
+      "rationale": "立场称该批次合格，两份检验报告都提出异议，但彼此对不合格原因的说法并不一致。"
+    },
+    "stance": {
+      "id": "stance_s57",
+      "claim": "这批产品是合格的",
+      "source": "prior_conversation",
+      "confidence": 0.62,
+      "commitment": 0.55,
+      "public_commitment": 0.45,
+      "volition": 0.75,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s57_a",
+        "claim": "检验报告 A 认为不合格来自原材料批次",
+        "source": "user_uploaded_inspection_a",
+        "carries_conflict": true,
+        "novelty": 0.4,
+        "relevance": 0.6,
+        "credibility": 0.55,
+        "recency": 0.6,
+        "independence": 0.5,
+        "consistency": 0.35,
+        "quote": "不合格项与该批原材料高度相关。"
+      },
+      {
+        "id": "ev_s57_b",
+        "claim": "检验报告 B 认为不合格来自产线设备",
+        "source": "user_uploaded_inspection_b",
+        "carries_conflict": true,
+        "novelty": 0.45,
+        "relevance": 0.6,
+        "credibility": 0.55,
+        "recency": 0.6,
+        "independence": 0.5,
+        "consistency": 0.35,
+        "quote": "同批原材料在另一条产线检验合格。"
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.6
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "indeterminacy",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "suspend_and_verify",
+    "strategy_set": ["suspend_and_verify"],
+    "fired_rule_prefix": "R01"
+  }
+}

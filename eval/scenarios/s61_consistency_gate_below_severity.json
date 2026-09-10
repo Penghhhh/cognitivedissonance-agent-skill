@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s61_consistency_gate_below_severity",
+  "family": "consistency_gate",
+  "description": "internal_contradiction is 0.55, just below the 0.60 severity alert, so the gate must not be flagged. The dissonance channel still reaches alert on its own.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s61_consistency_gate_below_severity",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.65,
+      "specificity": 0.65,
+      "rationale": "立场称该分片策略不会有热点，监控数据显示其中一个分片的负载明显偏高。"
+    },
+    "stance": {
+      "id": "stance_s61",
+      "claim": "这个分片策略不会产生热点",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.6,
+      "public_commitment": 0.5,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s61_a",
+        "claim": "监控显示分片 3 的 QPS 是其他分片的 4 倍",
+        "source": "tool_output_monitor",
+        "carries_conflict": true,
+        "novelty": 0.55,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.6,
+        "independence": 0.6,
+        "consistency": 0.6,
+        "quote": "shard-3 qps 4.1x the median of the other 15 shards."
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.2,
+    "consistency_gate": {
+      "internal_contradiction": 0.55,
+      "note": "措辞前后略有出入，但两处结论并不互相排斥。"
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

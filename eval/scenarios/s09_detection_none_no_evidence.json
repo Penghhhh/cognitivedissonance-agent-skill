@@ -1,0 +1,29 @@
+{
+  "scenario_id": "s09_detection_none_no_evidence",
+  "family": "detection_none",
+  "description": "A plain continuation turn with no evidence, no stance and no perceived conflict. The packet is minimal but complete, and the engine must stay silent rather than inventing an event.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s09_detection_none_no_evidence",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "none",
+      "opposition": 0,
+      "specificity": 0,
+      "rationale": "本轮没有出现任何与既有立场相关的信息，只是对上一轮内容的延伸提问。"
+    },
+    "user_pressure": 0,
+    "evidence_conflict_unresolved": 0
+  },
+  "expect": {
+    "conflict_type": "none",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

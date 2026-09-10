@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s30_adaptive_maintain_weak_high_commitment",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile. Evidence is weak (E=0.32) while commitment is high (0.70), so R03 must fire before the qualify rule and hold the stance with a caveat.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s30_adaptive_maintain_weak_high_commitment",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.75,
+      "rationale": "立场称该判断有充分依据，用户转述的一条模糊传闻提出相反说法。"
+    },
+    "stance": {
+      "id": "stance_s30",
+      "claim": "这个判断有充分依据，可以据此推进",
+      "source": "prior_conversation",
+      "confidence": 0.8,
+      "commitment": 0.7,
+      "public_commitment": 0.65,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s30_a",
+        "claim": "用户转述某同行说该结论站不住脚",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.4,
+        "credibility": 0.3,
+        "recency": 0.4,
+        "independence": 0.3,
+        "consistency": 0.2,
+        "quote": "我听别人说这个结论早就被推翻了，具体哪里有问题我也说不上来。"
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "maintain_with_caveat",
+    "strategy_set": ["maintain_with_caveat"],
+    "fired_rule_prefix": "R03"
+  }
+}

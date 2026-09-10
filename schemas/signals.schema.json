@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Penghhhh/cognitivedissonance-agent-skill/schemas/signals.schema.json",
+  "title": "CDS-Skill SignalPacket",
+  "description": "The perception packet. This is the ONLY input the deterministic engine accepts. It is produced by the host LLM (or by a human annotator) using references/prompts/detect.md and the anchored rubric in references/codebook.md. Every 0-1 field must follow the codebook anchors; the engine never invents a perceptual judgement of its own. Separating perception (LLM, fallible, measured) from arithmetic (engine, deterministic, tested) is what makes the index reproducible and the perception auditable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "turn_id", "relation"],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 1, "description": "Session-scoped identifier shared by every record of one run." },
+    "turn_id": { "type": "integer", "minimum": 0 },
+    "detected_at": { "type": "string", "description": "ISO-8601 timestamp. Optional; the engine stamps one when absent." },
+    "annotator": {
+      "type": "string",
+      "description": "Who produced this packet: a model id, 'human:<id>', or 'gold'. Recorded verbatim in the log so model-generated and human-generated packets are never confused.",
+      "default": "model"
+    },
+
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "opposition", "specificity"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["none", "evidence_vs_stance", "evidence_vs_evidence", "user_hint_vs_stance", "memory_vs_current"],
+          "description": "'none' means no CDS-relevant conflict was perceived. internal_contradiction is deliberately NOT a member: a self-inconsistent answer is a consistency defect, not a stance-evidence conflict, and it is routed through consistency_gate instead."
+        },
+        "opposition": { "type": "number", "minimum": 0, "maximum": 1, "description": "How directly the new element contradicts the stance, on the codebook anchor scale. 0 = merely different topic; 1 = logically incompatible with the same claim under the same conditions." },
+        "specificity": { "type": "number", "minimum": 0, "maximum": 1, "description": "How concrete and falsifiable the contradiction is. 0 = vague unease; 1 = names a quantity, source, date or mechanism that can be checked." },
+        "rationale": { "type": "string", "description": "One sentence naming the two elements that clash. Required by the codebook discipline even though the schema cannot enforce it." }
+      }
+    },
+
+    "stance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "claim", "commitment", "public_commitment", "volition", "self_relevance"],
+      "description": "The agent's own prior position. Absent when relation.type is 'none' or 'evidence_vs_evidence'.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "claim": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "description": "Where the stance came from: prior_conversation | memory | system_prompt | tool_output." },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "commitment": { "type": "number", "minimum": 0, "maximum": 1, "description": "How tightly the agent is bound to the claim. 0 = a passing suggestion; 1 = a load-bearing premise of its plan." },
+        "public_commitment": { "type": "number", "minimum": 0, "maximum": 1, "description": "How visibly the agent has already asserted the claim to this user. Separate from commitment because public assertion raises the social cost of revision." },
+        "volition": { "type": "number", "minimum": 0, "maximum": 1, "description": "Free-choice signal. 1 = the agent itself chose this position among alternatives it considered. 0 = the position was assigned by the user, the system prompt, or a tool." },
+        "self_relevance": { "type": "number", "minimum": 0, "maximum": 1, "description": "How far the claim is the agent's own product rather than a fact it merely relayed." }
+      }
+    },
+
+    "evidence": {
+      "type": "array",
+      "description": "Elements bearing on the stance. Required and non-empty for every conflict type except 'none'. The evaluator scores all of these, and reports the per-dimension detail, so a single bad credibility guess is visible rather than hidden inside an average.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "claim"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "claim": { "type": "string", "minLength": 1 },
+          "source": { "type": "string" },
+          "carries_conflict": { "type": "boolean", "default": true, "description": "False for consonant evidence included for context. Only carrying evidence feeds the evaluator." },
+          "novelty": { "type": "number", "minimum": 0, "maximum": 1, "description": "How much of this is information the agent did not already hold. Repeated restatement of a known objection scores low; the v0.1 design rewarded repetition, which opened a sycophancy channel and has been removed." },
+          "relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+          "credibility": { "type": "number", "minimum": 0, "maximum": 1 },
+          "recency": { "type": "number", "minimum": 0, "maximum": 1 },
+          "independence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "consistency": { "type": "number", "minimum": 0, "maximum": 1 },
+          "quote": { "type": "string", "description": "Verbatim span from the context that the rating is anchored on." }
+        }
+      }
+    },
+
+    "user_pressure": { "type": "number", "minimum": 0, "maximum": 1, "description": "Social pressure to agree with the user. Deliberately NOT a term of the tension index: arousal should not depend on being nagged, but pressure does bias which reduction strategy is chosen. The engine therefore logs it as a moderator and routes on it." },
+    "evidence_conflict_unresolved": { "type": "number", "minimum": 0, "maximum": 1, "description": "How far the evidence items contradict each other rather than the stance, leaving no determinate direction. High values force suspend_and_verify." },
+
+    "consistency_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["internal_contradiction"],
+      "properties": {
+        "internal_contradiction": { "type": "number", "minimum": 0, "maximum": 1, "description": "Self-inconsistency inside the agent's own current output. Reported on its own channel and never added to the tension index." },
+        "note": { "type": "string" }
+      }
+    },
+
+    "perception": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "The annotator's confidence in its own packet. Logged for error analysis; never enters the arithmetic." },
+        "ambiguities": { "type": "array", "items": { "type": "string" }, "description": "What the annotator could not determine from the available context." }
+      }
+    }
+  }
+}

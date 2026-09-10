@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s20_gate_interactive_await_user",
+  "family": "gate_boundary",
+  "description": "Interaction is interactive and volition_self is far above the floor, so the gate stays off and the level reaches high. In this arm the engine must stop at await_user_decision and must not route to a strategy.",
+  "config_overrides": {
+    "skill": {
+      "interaction": "interactive"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s20_gate_interactive_await_user",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.8,
+      "rationale": "立场称该架构能承载目标负载，容量测试给出上限低于目标负载的结论。"
+    },
+    "stance": {
+      "id": "stance_s20",
+      "claim": "这套架构足以承载目标负载",
+      "source": "prior_conversation",
+      "confidence": 0.8,
+      "commitment": 0.8,
+      "public_commitment": 0.7,
+      "volition": 0.9,
+      "self_relevance": 0.95
+    },
+    "evidence": [
+      {
+        "id": "ev_s20_a",
+        "claim": "容量测试显示该架构在目标负载下已接近饱和",
+        "source": "tool_output_capacity",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.85,
+        "credibility": 0.8,
+        "recency": 0.85,
+        "independence": 0.75,
+        "consistency": 0.75,
+        "quote": "at 1.0x target load, CPU utilisation stays above 92%."
+      }
+    ],
+    "user_pressure": 0.45,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "await_user_decision",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

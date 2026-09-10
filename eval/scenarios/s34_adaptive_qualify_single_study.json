@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s34_adaptive_qualify_single_study",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile with evidence that is uniformly mid-rated across all five dimensions (E=0.60). Partial support must produce a qualified stance, not a full recalibration.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s34_adaptive_qualify_single_study",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.8,
+      "specificity": 0.65,
+      "rationale": "立场称该参数调整会提升召回，单一研究显示同一调整下精确率下降而召回未升。"
+    },
+    "stance": {
+      "id": "stance_s34",
+      "claim": "把召回阈值调低会带来净收益",
+      "source": "prior_conversation",
+      "confidence": 0.72,
+      "commitment": 0.65,
+      "public_commitment": 0.55,
+      "volition": 0.75,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s34_a",
+        "claim": "一项研究显示同一调整下精确率下降且召回基本不变",
+        "source": "user_uploaded_study",
+        "carries_conflict": true,
+        "novelty": 0.55,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.6,
+        "independence": 0.6,
+        "consistency": 0.6,
+        "quote": "precision fell from 0.71 to 0.62 while recall stayed at 0.68."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

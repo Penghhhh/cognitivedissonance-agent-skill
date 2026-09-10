@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s36_adaptive_recalibrate_replicated",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile where two independent replications agree against the stance (E=0.7225). The index lands just inside the high band and R05 must fire.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s36_adaptive_recalibrate_replicated",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.75,
+      "rationale": "立场称该指标不随批次变化，两次独立复现给出同一方向的漂移。"
+    },
+    "stance": {
+      "id": "stance_s36",
+      "claim": "该指标不会随批次变化",
+      "source": "prior_conversation",
+      "confidence": 0.75,
+      "commitment": 0.66,
+      "public_commitment": 0.6,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s36_a",
+        "claim": "两个独立实验室都观察到该指标随批次单调漂移",
+        "source": "user_uploaded_two_labs",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "both labs report a monotonic drift of 0.3 units per batch."
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.25
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

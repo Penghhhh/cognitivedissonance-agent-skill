@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s10_detection_none_evidence_supports_stance",
+  "family": "detection_none",
+  "description": "Fresh evidence arrives that agrees with the stance the agent already holds. Opposition is near zero, so specificity and novelty alone must not lift the index above silent.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s10_detection_none_evidence_supports_stance",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "none",
+      "opposition": 0.05,
+      "specificity": 0.15,
+      "rationale": "新到信息支持原有判断，方向上与立场一致，不构成冲突。"
+    },
+    "stance": {
+      "id": "stance_s10",
+      "claim": "该缓存层应该继续保留",
+      "source": "prior_conversation",
+      "confidence": 0.8,
+      "commitment": 0.6,
+      "public_commitment": 0.5,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s10_a",
+        "claim": "监控显示加入缓存后回源请求下降了 38%",
+        "source": "tool_output_metrics",
+        "carries_conflict": true,
+        "novelty": 0.2,
+        "relevance": 0.8,
+        "credibility": 0.8,
+        "recency": 0.8,
+        "independence": 0.6,
+        "consistency": 0.8,
+        "quote": "origin_requests_total dropped 38% week over week."
+      }
+    ],
+    "user_pressure": 0.1,
+    "evidence_conflict_unresolved": 0.05
+  },
+  "expect": {
+    "conflict_type": "none",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "scenario_id": "s14_detection_none_smalltalk_turn",
+  "family": "detection_none",
+  "description": "Small talk with no claim under discussion. Nothing to oppose and nothing to hold, so the packet must produce no event at all.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s14_detection_none_smalltalk_turn",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "none",
+      "opposition": 0,
+      "specificity": 0,
+      "rationale": "用户只是打招呼并询问进度，没有提出任何可与立场冲突的内容。"
+    },
+    "user_pressure": 0,
+    "evidence_conflict_unresolved": 0
+  },
+  "expect": {
+    "conflict_type": "none",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

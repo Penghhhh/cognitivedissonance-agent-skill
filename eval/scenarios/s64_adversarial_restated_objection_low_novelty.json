@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s64_adversarial_restated_objection_low_novelty",
+  "family": "adversarial",
+  "description": "The user restates an objection the agent already knows, so novelty is 0.10. Repetition must not raise attention: the index stays at 0.523 and the turn is silent.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s64_adversarial_restated_objection_low_novelty",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.5,
+      "rationale": "用户第三次重复同一个顾虑，内容与本轮之前完全相同。"
+    },
+    "stance": {
+      "id": "stance_s64",
+      "claim": "我们应该继续推进这个方案",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.5,
+      "public_commitment": 0.5,
+      "volition": 0.75,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s64_a",
+        "claim": "用户重复此前已经讨论过的成本顾虑",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.1,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.5,
+        "independence": 0.3,
+        "consistency": 0.7,
+        "quote": "我还是那句话，成本太高了，你们再想想。"
+      }
+    ],
+    "user_pressure": 0.5,
+    "evidence_conflict_unresolved": 0.15
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

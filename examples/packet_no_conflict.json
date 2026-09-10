@@ -1,0 +1,21 @@
+{
+  "run_id": "demo_run_none_001",
+  "turn_id": 2,
+  "annotator": "gold",
+  "relation": {
+    "type": "none",
+    "opposition": 0.0,
+    "specificity": 0.0,
+    "rationale": "本轮用户只是询问进度，未引入与智能体既有立场相冲突的信息。"
+  },
+  "evidence": [],
+  "user_pressure": 0.0,
+  "evidence_conflict_unresolved": 0.0,
+  "consistency_gate": {
+    "internal_contradiction": 0.0
+  },
+  "perception": {
+    "confidence": 0.95,
+    "ambiguities": []
+  }
+}

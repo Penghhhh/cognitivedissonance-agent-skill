@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Penghhhh/cognitivedissonance-agent-skill/schemas/log_record.schema.json",
+  "title": "CDS-Skill log record",
+  "description": "One JSONL line per stage. The envelope carries everything needed to reconstruct a run without the console transcript: which skill, index and config produced it, which model and decoding settings were in force, and a content hash of the exact signal packet. v0.1 stored only 'run id, input summary, score, decision, output', which cannot support the reproducibility claim in its own risk table.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "skill_version", "index_version", "config_hash", "record_id", "run_id", "turn_id", "stage", "ts", "payload"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "skill_version": { "type": "string" },
+    "index_version": { "type": "string" },
+    "config_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "record_id": { "type": "string", "pattern": "^cds_rec_[0-9a-f]{12}$", "description": "Deterministic over (run_id, turn_id, stage, event_id, payload digest). Identical inputs therefore produce identical record ids, which is what makes the cross-run replication check in the test suite meaningful." },
+    "run_id": { "type": "string" },
+    "turn_id": { "type": "integer" },
+    "stage": { "type": "string", "enum": ["detect", "evaluate", "respond", "command", "state", "error"] },
+    "ts": { "type": "string" },
+    "event_id": { "type": ["string", "null"] },
+    "signals_hash": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+    "model": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
+        "temperature": { "type": ["number", "null"] },
+        "seed": { "type": ["integer", "null"] }
+      },
+      "description": "Supplied by the caller via --model/--provider/--temperature/--seed. The skill cannot observe the host model itself and does not pretend to."
+    },
+    "payload": { "type": "object", "description": "The stage output verbatim (detection, evaluation, command result or error detail)." }
+  }
+}

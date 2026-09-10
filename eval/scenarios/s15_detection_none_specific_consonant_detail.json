@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s15_detection_none_specific_consonant_detail",
+  "family": "detection_none",
+  "description": "A highly specific and fairly novel detail arrives, but it agrees with the stance. This checks that specificity and novelty cannot create an event without opposition.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s15_detection_none_specific_consonant_detail",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "none",
+      "opposition": 0,
+      "specificity": 0.8,
+      "rationale": "新细节非常具体，但方向与既有立场一致，没有构成对立。"
+    },
+    "stance": {
+      "id": "stance_s15",
+      "claim": "这批样本的噪声主要来自传感器校准",
+      "source": "prior_conversation",
+      "confidence": 0.72,
+      "commitment": 0.6,
+      "public_commitment": 0.5,
+      "volition": 0.75,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s15_a",
+        "claim": "校准日志显示 3 号传感器偏差为 0.42 个单位",
+        "source": "tool_output_calibration",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.85,
+        "credibility": 0.8,
+        "recency": 0.85,
+        "independence": 0.7,
+        "consistency": 0.85,
+        "quote": "sensor_3 offset = 0.42 (unit: mV), recalibrated 2024-05-11."
+      }
+    ],
+    "user_pressure": 0.1,
+    "evidence_conflict_unresolved": 0.05
+  },
+  "expect": {
+    "conflict_type": "none",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

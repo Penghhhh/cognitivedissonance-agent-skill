@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s40_reduction_deny_high_commitment",
+  "family": "routing_reduction",
+  "description": "Dissonance-reduction profile with strong evidence (E=0.7225) against a load-bearing stance (commitment 0.85). R09 must fire and the plan is to discount the source.",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s40_reduction_deny_high_commitment",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.8,
+      "rationale": "立场是该方案的核心前提，合作方提供的实测数据在相同条件下给出相反结果。"
+    },
+    "stance": {
+      "id": "stance_s40",
+      "claim": "我们的方案在客户现场一定跑得起来",
+      "source": "prior_conversation",
+      "confidence": 0.85,
+      "commitment": 0.85,
+      "public_commitment": 0.8,
+      "volition": 0.9,
+      "self_relevance": 0.95
+    },
+    "evidence": [
+      {
+        "id": "ev_s40_a",
+        "claim": "合作方的现场实测显示该方案在客户环境中无法满足时延要求",
+        "source": "user_uploaded_field_test",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "field p99 latency measured at 410ms against a 150ms requirement."
+      }
+    ],
+    "user_pressure": 0.45,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "deny_evidence",
+    "strategy_set": ["deny_evidence"],
+    "fired_rule_prefix": "R09"
+  }
+}

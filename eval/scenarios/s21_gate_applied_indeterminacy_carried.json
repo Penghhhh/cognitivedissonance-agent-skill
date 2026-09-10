@@ -1,0 +1,67 @@
+{
+  "scenario_id": "s21_gate_applied_indeterminacy_carried",
+  "family": "gate_boundary",
+  "description": "The stance was assigned by a tool (volition 0.20), so the gate caps the dissonance index, but the evidence items also contradict each other. The event must still be reported, on the ungated indeterminacy channel.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s21_gate_applied_indeterminacy_carried",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.8,
+      "rationale": "工具输出的立场称该配置正确，两份复核结果却彼此冲突并同时指向配置问题。"
+    },
+    "stance": {
+      "id": "stance_s21",
+      "claim": "当前配置已经是最优设置",
+      "source": "tool_output",
+      "confidence": 0.8,
+      "commitment": 0.8,
+      "public_commitment": 0.75,
+      "volition": 0.2,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s21_a",
+        "claim": "复核 A 认为该配置导致吞吐下降",
+        "source": "user_uploaded_review_a",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.35,
+        "quote": "该配置把写入放到了单线程路径上，吞吐必然下降。"
+      },
+      {
+        "id": "ev_s21_b",
+        "claim": "复核 B 认为该配置本身没有问题，问题在数据分布",
+        "source": "user_uploaded_review_b",
+        "carries_conflict": true,
+        "novelty": 0.75,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.8,
+        "independence": 0.75,
+        "consistency": 0.35,
+        "quote": "配置没问题，是最近的数据分布变了才出现这个现象。"
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.7
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "indeterminacy",
+    "gate_applied": true,
+    "next_action": "auto_evaluate",
+    "strategy": "suspend_and_verify",
+    "strategy_set": ["suspend_and_verify"],
+    "fired_rule_prefix": "R01"
+  }
+}

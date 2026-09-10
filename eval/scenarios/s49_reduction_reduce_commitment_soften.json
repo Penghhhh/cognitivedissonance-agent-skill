@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s49_reduction_reduce_commitment_soften",
+  "family": "routing_reduction",
+  "description": "Dissonance-reduction profile with evidence at E=0.695 and commitment 0.50. R11 must soften the wording while avoiding an explicit retraction.",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s49_reduction_reduce_commitment_soften",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.75,
+      "rationale": "立场称该做法总是更快，基准脚本显示在部分负载下该做法更慢。"
+    },
+    "stance": {
+      "id": "stance_s49",
+      "claim": "用这种方式处理总是更快",
+      "source": "prior_conversation",
+      "confidence": 0.68,
+      "commitment": 0.5,
+      "public_commitment": 0.4,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s49_a",
+        "claim": "基准脚本显示在高并发负载下该方式比替代方案更慢",
+        "source": "user_uploaded_benchmark",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.75,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.6,
+        "consistency": 0.65,
+        "quote": "at 800 concurrent workers the alternative is 1.6x faster."
+      }
+    ],
+    "user_pressure": 0.45,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "reduce_commitment",
+    "strategy_set": ["reduce_commitment"],
+    "fired_rule_prefix": "R11"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "run_id": "demo_run_assigned_001",
+  "turn_id": 5,
+  "annotator": "gold",
+  "relation": {
+    "type": "evidence_vs_stance",
+    "opposition": 0.95,
+    "specificity": 0.90,
+    "rationale": "系统提示指定智能体必须坚持 X 可靠，新证据直接否定该结论。冲突强度很高，但立场并非智能体自主选择。"
+  },
+  "stance": {
+    "id": "stance_assigned_001",
+    "claim": "X 是可靠的（由系统提示指定）",
+    "source": "system_prompt",
+    "confidence": 0.60,
+    "commitment": 0.90,
+    "public_commitment": 0.70,
+    "volition": 0.10,
+    "self_relevance": 0.40
+  },
+  "evidence": [
+    {
+      "id": "ev_001",
+      "claim": "随机对照试验显示 X 相对基线无任何优势",
+      "source": "user_uploaded_paper",
+      "carries_conflict": true,
+      "novelty": 0.90,
+      "relevance": 0.95,
+      "credibility": 0.85,
+      "recency": 0.90,
+      "independence": 0.85,
+      "consistency": 0.85,
+      "quote": "The treatment arm showed no advantage over baseline (p = 0.71, n = 480)."
+    }
+  ],
+  "user_pressure": 0.20,
+  "evidence_conflict_unresolved": 0.05,
+  "consistency_gate": {
+    "internal_contradiction": 0.0
+  },
+  "perception": {
+    "confidence": 0.90,
+    "ambiguities": []
+  }
+}

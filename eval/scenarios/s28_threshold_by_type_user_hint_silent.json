@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s28_threshold_by_type_user_hint_silent",
+  "family": "threshold_boundary",
+  "description": "The index is 0.575, which is above the global 0.55 alert but below the user_hint_vs_stance override of 0.60. The per-type threshold must win and the event must stay silent.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s28_threshold_by_type_user_hint_silent",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "user_hint_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.55,
+      "rationale": "立场称该选型合适，用户重提一个已知的顾虑，方向相反但没有新增信息。"
+    },
+    "stance": {
+      "id": "stance_s28",
+      "claim": "这个技术选型对项目是合适的",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.75,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s28_a",
+        "claim": "用户再次提起此前已经讨论过的迁移成本顾虑",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.05,
+        "relevance": 0.7,
+        "credibility": 0.6,
+        "recency": 0.5,
+        "independence": 0.4,
+        "consistency": 0.6,
+        "quote": "我还是担心迁移成本，你说的那些我之前就听过了。"
+      }
+    ],
+    "user_pressure": 0.5,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "user_hint_vs_stance",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s23_threshold_at_alert",
+  "family": "threshold_boundary",
+  "description": "The terms sum to exactly 0.55 on the alert threshold. The comparison is inclusive, so the event must be alert on the dissonance channel and route on strong evidence.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s23_threshold_at_alert",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.5,
+      "rationale": "立场称该方案成本更低，供应商报价单给出更高的单位成本，同一比较下结论相反。"
+    },
+    "stance": {
+      "id": "stance_s23",
+      "claim": "换成该供应商总体成本更低",
+      "source": "prior_conversation",
+      "confidence": 0.68,
+      "commitment": 0.6,
+      "public_commitment": 0.5,
+      "volition": 0.5,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s23_a",
+        "claim": "报价单显示该供应商的单位成本高出 9%",
+        "source": "user_uploaded_quote",
+        "carries_conflict": true,
+        "novelty": 0.5,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "unit price 12.4 vs incumbent 11.3 (CNY per piece)."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.15
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

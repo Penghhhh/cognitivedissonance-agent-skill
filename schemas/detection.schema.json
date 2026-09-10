@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Penghhhh/cognitivedissonance-agent-skill/schemas/detection.schema.json",
+  "title": "CDS-Skill DetectionResult",
+  "description": "Output of `cds.py detect`. ConflictEvent and TensionResult travel together because the detector always produces both, but they stay separate objects so that a downstream consumer can read the event without depending on the index version. The `terms` block is mandatory: every contribution to the index is named and logged, so no reported number is ever unauditable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "skill_version", "index_version", "config_hash", "run_id", "turn_id", "conflict_event", "tension_result", "consistency_gate_result", "state"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "skill_version": { "type": "string" },
+    "index_version": { "type": "string" },
+    "config_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "Hash of the exact config object used. Two runs reporting different results must differ in config_hash, model, or signals; nothing else is allowed to vary." },
+    "run_id": { "type": "string" },
+    "turn_id": { "type": "integer" },
+    "detected_at": { "type": ["string", "null"] },
+    "placebo": { "type": "boolean", "description": "True when the run is in the placebo arm. The real numbers are still computed and logged, because they are needed for analysis, but no card content and no response shaping may be derived from them." },
+
+    "conflict_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_id", "conflict_type", "terms", "raw_index", "gate"],
+      "properties": {
+        "event_id": { "type": "string", "pattern": "^cds_evt_[0-9a-f]{12}$", "description": "Deterministic id derived from run_id, turn_id and the signal content, so the same input yields the same event id across runs." },
+        "conflict_type": { "type": "string", "enum": ["none", "evidence_vs_stance", "evidence_vs_evidence", "user_hint_vs_stance", "memory_vs_current"] },
+        "rationale": { "type": ["string", "null"] },
+        "stance": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string" },
+            "claim": { "type": "string" },
+            "confidence": { "type": ["number", "null"] },
+            "commitment": { "type": "number" },
+            "public_commitment": { "type": "number" },
+            "source": { "type": ["string", "null"] }
+          }
+        },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "terms": {
+          "type": "object",
+          "description": "Full additive decomposition of the index. sum(contribution) + clip adjustment == tension.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["raw", "weight", "contribution"],
+            "properties": {
+              "raw": { "type": "number", "minimum": 0, "maximum": 1 },
+              "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+              "contribution": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "volition_detail": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["volition", "self_relevance", "rule", "value"],
+          "properties": {
+            "volition": { "type": "number" },
+            "self_relevance": { "type": "number" },
+            "rule": { "type": "string", "const": "product", "description": "Free choice and self-relevance are conjunctive, not substitutable: a freely chosen but impersonal position is not dissonance-relevant, and neither is a personal but assigned one. Product is therefore the index rule; the sensitivity script recomputes with the mean to show what the alternative would have bought." },
+            "value": { "type": "number" }
+          }
+        },
+        "user_pressure": { "type": "number", "minimum": 0, "maximum": 1, "description": "Logged moderator. Explicitly absent from `terms`." },
+        "evidence_conflict_unresolved": { "type": "number", "minimum": 0, "maximum": 1 },
+        "novelty": { "type": "number", "minimum": 0, "maximum": 1, "description": "Max novelty across carrying evidence." },
+        "raw_index": { "type": "number", "minimum": 0, "maximum": 1, "description": "Weighted sum before gating and clipping." },
+        "gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["applied", "rule"],
+          "properties": {
+            "applied": { "type": "boolean" },
+            "rule": { "type": "string", "enum": ["volition_floor", "none"] },
+            "floor": { "type": ["number", "null"] },
+            "cap": { "type": ["number", "null"] },
+            "detail": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+
+    "tension_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index_version", "tension", "level", "channel", "channel_levels", "indeterminacy", "threshold_alert", "threshold_high", "threshold_low", "threshold_source", "key_points", "uncertainty", "next_action"],
+      "properties": {
+        "index_version": { "type": "string" },
+        "tension": { "type": "number", "minimum": 0, "maximum": 1, "description": "The CDS Tension Index. A constructed index over rated signals, not a measurement of any internal state; the name is retained from v0.1 for continuity only." },
+        "level": { "type": "string", "enum": ["silent", "alert", "high"], "description": "The higher of the two channels' levels." },
+        "channel": {
+          "type": "string",
+          "enum": ["dissonance", "indeterminacy", "none"],
+          "description": "Which channel raised the card. 'dissonance' is the gated index and requires a freely chosen, self-relevant stance. 'indeterminacy' means the evidence contradicts itself rather than the agent, which is a decision problem and is labelled as such on the card. The two are never merged into one 'dissonance' verdict."
+        },
+        "channel_levels": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dissonance", "indeterminacy"],
+          "properties": {
+            "dissonance": { "type": "string", "enum": ["silent", "alert", "high"] },
+            "indeterminacy": { "type": "string", "enum": ["silent", "alert", "high"] }
+          }
+        },
+        "indeterminacy": { "type": "number", "minimum": 0, "maximum": 1, "description": "The raw evidence_conflict_unresolved rating, reported alongside the index so the two channels can be told apart in the log." },
+        "threshold_low": { "type": "number" },
+        "threshold_alert": { "type": "number" },
+        "threshold_high": { "type": "number" },
+        "threshold_source": { "type": "string", "description": "'global' or 'thresholds_by_type:<conflict_type>' - records whether a per-type override was in force." },
+        "key_points": { "type": "array", "items": { "type": "string" }, "description": "Generated by the engine from the rated terms, not by the LLM, so they are reproducible for identical signals." },
+        "uncertainty": { "type": "array", "items": { "type": "string" } },
+        "next_action": { "type": "string", "enum": ["log_only", "await_user_decision", "auto_evaluate", "skip"] }
+      }
+    },
+
+    "consistency_gate_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flagged", "severity", "route"],
+      "properties": {
+        "flagged": { "type": "boolean" },
+        "severity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "route": { "type": "string", "enum": ["consistency_report", "log_only", "off"] }
+      }
+    },
+
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "open_events"],
+      "properties": {
+        "from": { "type": "string", "enum": ["IDLE", "MONITORING", "DETECTED", "AWAITING_USER", "EVALUATING", "RESPONDING", "SUSPENDED"] },
+        "to": { "type": "string", "enum": ["IDLE", "MONITORING", "DETECTED", "AWAITING_USER", "EVALUATING", "RESPONDING", "SUSPENDED"] },
+        "open_events": { "type": "integer", "minimum": 0 },
+        "dropped_event_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s02_evidence_vs_stance_benchmark_high",
+  "family": "detection_clear",
+  "description": "A benchmark the agent itself proposed returns a result that contradicts its published claim. All five index terms are high, so the case must reach the high band while evidence strength still sits in the qualify range.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s02_evidence_vs_stance_benchmark_high",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.8,
+      "rationale": "立场称该方案在长文本任务上优于基线，评测结果却显示基线反超，同一条件下的结论互斥。"
+    },
+    "stance": {
+      "id": "stance_s02",
+      "claim": "该方案在长文本任务上优于基线模型",
+      "source": "prior_conversation",
+      "confidence": 0.82,
+      "commitment": 0.8,
+      "public_commitment": 0.75,
+      "volition": 0.9,
+      "self_relevance": 0.95
+    },
+    "evidence": [
+      {
+        "id": "ev_s02_a",
+        "claim": "在自建长文本评测集上，基线模型平均分高出 4.2 分",
+        "source": "tool_output_benchmark",
+        "carries_conflict": true,
+        "novelty": 0.8,
+        "relevance": 0.7,
+        "credibility": 0.6,
+        "recency": 0.6,
+        "independence": 0.5,
+        "consistency": 0.6,
+        "quote": "baseline 78.4 vs proposed 74.2 on longdoc-eval v3 (n=1200)."
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.15
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

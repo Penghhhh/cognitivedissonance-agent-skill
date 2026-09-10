@@ -1,0 +1,60 @@
+name: CI
+
+# The repository claims that every reported number is reproducible from
+# (signals, config). That claim is only worth anything if it is checked on every
+# change, so this workflow runs the full verification on each push and pull
+# request. It installs nothing: the skill has no third-party dependency, and a
+# reproducibility artifact that needs an environment built before it can be
+# verified is a weaker artifact.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify (python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.9 is the documented floor; 3.12 is a current stable; ubuntu and
+        # windows because the CLI reconfigures its streams to UTF-8 for the
+        # Chinese cards, which is exactly the kind of thing that works on one
+        # platform and not the other.
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Config invariants and schema availability
+        run: python scripts/cds.py selftest
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -t tests
+
+      - name: Evaluation corpus (strict)
+        run: python scripts/run_scenarios.py --strict
+
+      - name: Example packets behave as documented
+        run: python scripts/check_examples.py
+
+      - name: Reports are up to date with the config and the corpus
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: |
+          python scripts/run_scenarios.py --write-report
+          python scripts/sensitivity.py --write-report
+          if ! git diff --quiet -- eval/report.md eval/results.csv eval/sensitivity.md; then
+            echo "::error::eval/ reports are stale. Commit the regenerated files."
+            git diff --stat -- eval/
+            exit 1
+          fi

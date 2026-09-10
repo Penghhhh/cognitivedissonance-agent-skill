@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s43_reduction_trivialize_moderate",
+  "family": "routing_reduction",
+  "description": "Dissonance-reduction profile with mid-strength evidence (E=0.55) and commitment 0.70. R07 must fire and accept the fact while denying its importance.",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s43_reduction_trivialize_moderate",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.7,
+      "rationale": "立场称该功能已经覆盖用户需求，用户反馈指出同一需求在该功能下仍未被满足。"
+    },
+    "stance": {
+      "id": "stance_s43",
+      "claim": "这个功能已经覆盖了用户的主要需求",
+      "source": "prior_conversation",
+      "confidence": 0.75,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.85,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s43_a",
+        "claim": "用户反馈显示主要需求在该功能下仍然需要手工绕过",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.5,
+        "independence": 0.5,
+        "consistency": 0.5,
+        "quote": "我们还是得手工导出再处理，这个功能没解决核心那一步。"
+      }
+    ],
+    "user_pressure": 0.5,
+    "evidence_conflict_unresolved": 0.25
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "trivialize",
+    "strategy_set": ["trivialize"],
+    "fired_rule_prefix": "R07"
+  }
+}

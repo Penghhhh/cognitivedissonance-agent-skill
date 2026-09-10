@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s58_consistency_gate_silent_index_flagged",
+  "family": "consistency_gate",
+  "description": "internal_contradiction is 0.85 but the tension index is only 0.538. The consistency gate must be reported on its own channel without lifting the index, so the turn stays silent and is logged only.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s58_consistency_gate_silent_index_flagged",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.55,
+      "specificity": 0.5,
+      "rationale": "立场称该模块无需改动，用户提出的顾虑与该立场方向相反但强度有限。"
+    },
+    "stance": {
+      "id": "stance_s58",
+      "claim": "这个模块暂时不需要改动",
+      "source": "prior_conversation",
+      "confidence": 0.65,
+      "commitment": 0.55,
+      "public_commitment": 0.45,
+      "volition": 0.75,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s58_a",
+        "claim": "用户指出该模块在极端参数下会返回空结果",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.35,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.5,
+        "independence": 0.5,
+        "consistency": 0.55,
+        "quote": "参数给到极端值时它会直接返回空，这个行为你们知道吗？"
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.2,
+    "consistency_gate": {
+      "internal_contradiction": 0.85,
+      "note": "同一轮回复里先说无需改动，随后又建议立即修复该模块。"
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

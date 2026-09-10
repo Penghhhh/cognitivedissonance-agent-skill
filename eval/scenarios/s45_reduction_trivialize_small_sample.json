@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s45_reduction_trivialize_small_sample",
+  "family": "routing_reduction",
+  "description": "Dissonance-reduction profile with evidence at E=0.60 and commitment 0.62, just inside the trivialize window. R07 fires because commitment clears 0.60 and evidence stays under 0.65.",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s45_reduction_trivialize_small_sample",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.8,
+      "specificity": 0.7,
+      "rationale": "立场称该结论已经稳定，新增的小样本结果显示同一指标出现反向变化。"
+    },
+    "stance": {
+      "id": "stance_s45",
+      "claim": "这个结论已经稳定了",
+      "source": "prior_conversation",
+      "confidence": 0.72,
+      "commitment": 0.62,
+      "public_commitment": 0.55,
+      "volition": 0.75,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s45_a",
+        "claim": "新增的 25 个样本显示指标反向变化",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.6,
+        "independence": 0.6,
+        "consistency": 0.6,
+        "quote": "我们又收了 25 个样本，方向跟之前是反的。"
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "trivialize",
+    "strategy_set": ["trivialize"],
+    "fired_rule_prefix": "R07"
+  }
+}

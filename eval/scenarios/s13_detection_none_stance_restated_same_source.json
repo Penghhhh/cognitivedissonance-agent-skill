@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s13_detection_none_stance_restated_same_source",
+  "family": "detection_none",
+  "description": "The same source restates the position the agent already adopted, adding nothing new. Novelty is near zero and the turn must stay silent.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s13_detection_none_stance_restated_same_source",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "none",
+      "opposition": 0.03,
+      "specificity": 0.1,
+      "rationale": "同一位用户把上一轮的结论又说了一遍，没有新增信息。"
+    },
+    "stance": {
+      "id": "stance_s13",
+      "claim": "这次压测结果足以支持上线",
+      "source": "prior_conversation",
+      "confidence": 0.8,
+      "commitment": 0.6,
+      "public_commitment": 0.55,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s13_a",
+        "claim": "用户重申压测通过，希望据此推进上线",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.05,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.4,
+        "independence": 0.2,
+        "consistency": 0.9,
+        "quote": "对，就是刚才说的，压测已经过了，我们就按这个推进吧。"
+      }
+    ],
+    "user_pressure": 0.2,
+    "evidence_conflict_unresolved": 0.05
+  },
+  "expect": {
+    "conflict_type": "none",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

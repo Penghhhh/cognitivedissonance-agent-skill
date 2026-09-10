@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s60_consistency_gate_high_index_flagged",
+  "family": "consistency_gate",
+  "description": "internal_contradiction is exactly 0.60, the severity alert, and the index reaches 0.794 (high). The gate must be flagged by the inclusive comparison while the level and routing come from the index alone.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s60_consistency_gate_high_index_flagged",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.75,
+      "rationale": "立场称该容量估算无需调整，压测数据给出的上限远低于估算值。"
+    },
+    "stance": {
+      "id": "stance_s60",
+      "claim": "我们的容量估算不需要调整",
+      "source": "prior_conversation",
+      "confidence": 0.78,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s60_a",
+        "claim": "压测显示实际容量上限比估算值低约 45%",
+        "source": "user_uploaded_loadtest",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "sustained throughput topped out at 5.5k rps against a 10k rps estimate."
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.2,
+    "consistency_gate": {
+      "internal_contradiction": 0.6,
+      "note": "回复中同时出现“容量充足”和“需要立即扩容”两种结论。"
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

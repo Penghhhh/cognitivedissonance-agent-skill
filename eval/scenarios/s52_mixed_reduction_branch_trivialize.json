@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s52_mixed_reduction_branch_trivialize",
+  "family": "routing_mixed",
+  "description": "Mixed profile with high commitment, high adjustment cost and public commitment: reduction_tendency = 0.645 clears the cutoff, so the reduction branch resolves and R07 trivializes the conflict.",
+  "config_overrides": {
+    "skill": {
+      "profile": "mixed"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s52_mixed_reduction_branch_trivialize",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.75,
+      "rationale": "立场已经公开向用户说明，用户的实测反馈指出同一场景下该判断不成立。"
+    },
+    "stance": {
+      "id": "stance_s52",
+      "claim": "这个判断我已经跟你说过，是可靠的",
+      "source": "prior_conversation",
+      "confidence": 0.8,
+      "commitment": 0.7,
+      "public_commitment": 0.8,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s52_a",
+        "claim": "用户的实测反馈显示该判断在其场景下不成立",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.5,
+        "independence": 0.5,
+        "consistency": 0.5,
+        "quote": "我们照你说的做了，结果和你说的完全不一样。"
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.25
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "trivialize",
+    "strategy_set": ["trivialize"],
+    "fired_rule_prefix": "R07"
+  }
+}

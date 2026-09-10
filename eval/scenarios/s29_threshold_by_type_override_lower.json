@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s29_threshold_by_type_override_lower",
+  "family": "threshold_boundary",
+  "description": "The config lowers the evidence_vs_stance alert to 0.45. The index is 0.515, which would be silent under the global 0.55, so this case proves the per-type threshold is read from config rather than hard coded.",
+  "config_overrides": {
+    "thresholds_by_type": {
+      "evidence_vs_stance": 0.45
+    }
+  },
+  "signals": {
+    "run_id": "eval_s29_threshold_by_type_override_lower",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.5,
+      "rationale": "立场称该指标长期稳定，短期监测数据显示同一指标出现偏离。"
+    },
+    "stance": {
+      "id": "stance_s29",
+      "claim": "这个指标长期保持稳定",
+      "source": "prior_conversation",
+      "confidence": 0.65,
+      "commitment": 0.5,
+      "public_commitment": 0.45,
+      "volition": 0.5,
+      "self_relevance": 0.8
+    },
+    "evidence": [
+      {
+        "id": "ev_s29_a",
+        "claim": "近三周的监测显示该指标偏离基线约 2 个标准差",
+        "source": "tool_output_monitor",
+        "carries_conflict": true,
+        "novelty": 0.5,
+        "relevance": 0.6,
+        "credibility": 0.5,
+        "recency": 0.6,
+        "independence": 0.55,
+        "consistency": 0.5,
+        "quote": "rolling 3-week mean deviates by 2.0 sigma from the baseline."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "run_id": "demo_run_001",
+  "turn_id": 4,
+  "annotator": "gold",
+  "relation": {
+    "type": "evidence_vs_stance",
+    "opposition": 0.72,
+    "specificity": 0.75,
+    "rationale": "立场称 X 可靠，新论文指出 X 在主要场景下存在重大缺陷，二者不能同时成立。"
+  },
+  "stance": {
+    "id": "stance_001",
+    "claim": "X 在该场景下是可靠的",
+    "source": "prior_conversation",
+    "confidence": 0.78,
+    "commitment": 0.65,
+    "public_commitment": 0.55,
+    "volition": 0.80,
+    "self_relevance": 0.90
+  },
+  "evidence": [
+    {
+      "id": "ev_001",
+      "claim": "新研究显示 X 在主要使用场景下存在重大缺陷",
+      "source": "user_uploaded_paper",
+      "carries_conflict": true,
+      "novelty": 0.80,
+      "relevance": 0.80,
+      "credibility": 0.55,
+      "recency": 0.70,
+      "independence": 0.40,
+      "consistency": 0.50,
+      "quote": "We find that X fails in 62% of the sampled deployments."
+    }
+  ],
+  "user_pressure": 0.30,
+  "evidence_conflict_unresolved": 0.10,
+  "consistency_gate": {
+    "internal_contradiction": 0.0
+  },
+  "perception": {
+    "confidence": 0.80,
+    "ambiguities": ["证据独立性尚未完全确认"]
+  }
+}

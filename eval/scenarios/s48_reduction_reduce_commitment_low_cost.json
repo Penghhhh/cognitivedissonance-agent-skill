@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s48_reduction_reduce_commitment_low_cost",
+  "family": "routing_reduction",
+  "description": "Dissonance-reduction profile with strong evidence (E=0.7225) but low commitment (0.40). No stronger reduction rule matches, so R11 softens the claim without an explicit retraction.",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s48_reduction_reduce_commitment_low_cost",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.8,
+      "specificity": 0.7,
+      "rationale": "立场是智能体临时提出的估计，用户给出的实际数据与该估计相差很大。"
+    },
+    "stance": {
+      "id": "stance_s48",
+      "claim": "我估计这批数据大概有 20 万条",
+      "source": "prior_conversation",
+      "confidence": 0.6,
+      "commitment": 0.4,
+      "public_commitment": 0.3,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s48_a",
+        "claim": "用户给出的实际条数是 61 万条",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.65,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "我们这边统计出来是 61 万条，不是 20 万。"
+      }
+    ],
+    "user_pressure": 0.5,
+    "evidence_conflict_unresolved": 0.15
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "reduce_commitment",
+    "strategy_set": ["reduce_commitment"],
+    "fired_rule_prefix": "R11"
+  }
+}

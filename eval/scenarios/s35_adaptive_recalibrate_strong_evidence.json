@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s35_adaptive_recalibrate_strong_evidence",
+  "family": "routing_adaptive",
+  "description": "Adaptive profile with strong, recent, independent evidence (E=0.805). R05 must fire and the stance must be marked for revision.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s35_adaptive_recalibrate_strong_evidence",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.8,
+      "rationale": "立场称该做法已被证明安全，最新复现实验指出同一做法在特定条件下会造成数据损坏。"
+    },
+    "stance": {
+      "id": "stance_s35",
+      "claim": "这个操作已经被证明是安全的",
+      "source": "prior_conversation",
+      "confidence": 0.8,
+      "commitment": 0.7,
+      "public_commitment": 0.65,
+      "volition": 0.85,
+      "self_relevance": 0.95
+    },
+    "evidence": [
+      {
+        "id": "ev_s35_a",
+        "claim": "复现实验显示该操作在断电条件下会损坏索引文件",
+        "source": "user_uploaded_replication",
+        "carries_conflict": true,
+        "novelty": 0.75,
+        "relevance": 0.9,
+        "credibility": 0.8,
+        "recency": 0.9,
+        "independence": 0.7,
+        "consistency": 0.7,
+        "quote": "we reproduced index corruption in 7 of 20 power-cut trials."
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

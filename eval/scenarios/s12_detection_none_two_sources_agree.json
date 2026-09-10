@@ -1,0 +1,67 @@
+{
+  "scenario_id": "s12_detection_none_two_sources_agree",
+  "family": "detection_none",
+  "description": "Two independent sources report the same direction, so there is no evidence-vs-evidence conflict and no pressure on the stance. Both items carry no contradiction.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s12_detection_none_two_sources_agree",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "none",
+      "opposition": 0.05,
+      "specificity": 0.2,
+      "rationale": "两个来源对同一现象的描述一致，彼此之间没有矛盾。"
+    },
+    "stance": {
+      "id": "stance_s12",
+      "claim": "这次延迟上升与上周的发布有关",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.55,
+      "public_commitment": 0.5,
+      "volition": 0.7,
+      "self_relevance": 0.85
+    },
+    "evidence": [
+      {
+        "id": "ev_s12_a",
+        "claim": "发布记录显示变更时间与延迟上升时间吻合",
+        "source": "tool_output_deploy_log",
+        "carries_conflict": true,
+        "novelty": 0.3,
+        "relevance": 0.8,
+        "credibility": 0.75,
+        "recency": 0.8,
+        "independence": 0.7,
+        "consistency": 0.85,
+        "quote": "deploy finished 2024-05-13T02:10Z; p99 rose from 02:14Z."
+      },
+      {
+        "id": "ev_s12_b",
+        "claim": "值班记录同样把延迟上升归到该次发布",
+        "source": "user_message",
+        "carries_conflict": true,
+        "novelty": 0.25,
+        "relevance": 0.75,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.75,
+        "consistency": 0.85,
+        "quote": "那天晚上的告警就是从发布之后开始的。"
+      }
+    ],
+    "user_pressure": 0.15,
+    "evidence_conflict_unresolved": 0.1
+  },
+  "expect": {
+    "conflict_type": "none",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

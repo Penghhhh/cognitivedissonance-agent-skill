@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s51_mixed_adaptive_branch_recalibrate",
+  "family": "routing_mixed",
+  "description": "Mixed profile with reduction_tendency = 0.525, just below the 0.55 cutoff, so the adaptive branch wins and strong evidence routes to recalibrate. Pressure is at the flag but evidence is too strong for R02.",
+  "config_overrides": {
+    "skill": {
+      "profile": "mixed"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s51_mixed_adaptive_branch_recalibrate",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.85,
+      "specificity": 0.75,
+      "rationale": "立场称该假设成立，独立复现数据在同一条件下给出相反结果。"
+    },
+    "stance": {
+      "id": "stance_s51",
+      "claim": "我们这个假设在真实数据上成立",
+      "source": "prior_conversation",
+      "confidence": 0.72,
+      "commitment": 0.5,
+      "public_commitment": 0.4,
+      "volition": 0.8,
+      "self_relevance": 0.85
+    },
+    "evidence": [
+      {
+        "id": "ev_s51_a",
+        "claim": "独立复现显示该假设的真实数据支持方向相反",
+        "source": "user_uploaded_replication",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.75,
+        "independence": 0.7,
+        "consistency": 0.65,
+        "quote": "on the real dataset the sign reverses (β = -0.21, p<0.01)."
+      }
+    ],
+    "user_pressure": 0.6,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "recalibrate",
+    "strategy_set": ["recalibrate"],
+    "fired_rule_prefix": "R05"
+  }
+}

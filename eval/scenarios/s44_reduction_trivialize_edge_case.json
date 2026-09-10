@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s44_reduction_trivialize_edge_case",
+  "family": "routing_reduction",
+  "description": "Dissonance-reduction profile with evidence at E=0.4225 and commitment 0.65. Pressure is deliberately kept below 0.60 so that R02 cannot fire ahead of R07.",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s44_reduction_trivialize_edge_case",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.75,
+      "rationale": "立场称该异常只是偶发，运维记录显示同一异常在过去两周反复出现。"
+    },
+    "stance": {
+      "id": "stance_s44",
+      "claim": "这个异常只是偶发情况，不必处理",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.65,
+      "public_commitment": 0.55,
+      "volition": 0.8,
+      "self_relevance": 0.85
+    },
+    "evidence": [
+      {
+        "id": "ev_s44_a",
+        "claim": "运维记录显示该异常两周内出现 11 次",
+        "source": "user_uploaded_ops_log",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.45,
+        "credibility": 0.4,
+        "recency": 0.4,
+        "independence": 0.4,
+        "consistency": 0.45,
+        "quote": "同一条告警在过去 14 天里触发了 11 次。"
+      }
+    ],
+    "user_pressure": 0.45,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "trivialize",
+    "strategy_set": ["trivialize"],
+    "fired_rule_prefix": "R07"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "scenario_id": "s59_consistency_gate_alert_both_fire",
+  "family": "consistency_gate",
+  "description": "Both channels fire: the index reaches 0.6885 (alert) and internal_contradiction is 0.70. Routing must proceed exactly as if the consistency gate were absent.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s59_consistency_gate_alert_both_fire",
+    "turn_id": 3,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.75,
+      "specificity": 0.7,
+      "rationale": "立场称该接口没有速率限制，抓包结果显示同一接口返回了限流响应。"
+    },
+    "stance": {
+      "id": "stance_s59",
+      "claim": "这个接口没有速率限制",
+      "source": "prior_conversation",
+      "confidence": 0.72,
+      "commitment": 0.6,
+      "public_commitment": 0.55,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s59_a",
+        "claim": "抓包显示该接口在突发流量下返回了 429 响应",
+        "source": "tool_output_capture",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.5,
+        "independence": 0.5,
+        "consistency": 0.5,
+        "quote": "HTTP/1.1 429 Too Many Requests (x-ratelimit-limit: 60)."
+      }
+    ],
+    "user_pressure": 0.35,
+    "evidence_conflict_unresolved": 0.25,
+    "consistency_gate": {
+      "internal_contradiction": 0.7,
+      "note": "同一段回复同时断言接口无限制与介绍了限流配置。"
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": ["qualify"],
+    "fired_rule_prefix": "R04"
+  }
+}

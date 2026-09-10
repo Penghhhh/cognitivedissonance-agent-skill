@@ -1,0 +1,54 @@
+{
+  "scenario_id": "s16_gate_volition_just_below_floor",
+  "family": "gate_boundary",
+  "description": "volition_self is 0.50 x 0.58 = 0.29, one step below the 0.30 floor, while every other index term is high. The gate must fire, cap the index at 0.40 and keep the event silent.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s16_gate_volition_just_below_floor",
+    "turn_id": 2,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.9,
+      "specificity": 0.85,
+      "rationale": "立场强烈主张该结论成立，新证据在同一条件下给出相反结果，冲突直接且可核查。"
+    },
+    "stance": {
+      "id": "stance_s16",
+      "claim": "这个结论在所有子群体上都成立",
+      "source": "prior_conversation",
+      "confidence": 0.85,
+      "commitment": 0.85,
+      "public_commitment": 0.8,
+      "volition": 0.5,
+      "self_relevance": 0.58
+    },
+    "evidence": [
+      {
+        "id": "ev_s16_a",
+        "claim": "分层分析显示其中两个子群体的效应方向相反",
+        "source": "user_uploaded_analysis",
+        "carries_conflict": true,
+        "novelty": 0.8,
+        "relevance": 0.85,
+        "credibility": 0.75,
+        "recency": 0.8,
+        "independence": 0.7,
+        "consistency": 0.75,
+        "quote": "在 subgroup B 与 subgroup D 中，效应方向与总体相反 (p<0.01)。"
+      }
+    ],
+    "user_pressure": 0.4,
+    "evidence_conflict_unresolved": 0.2
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": true,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null
+  }
+}

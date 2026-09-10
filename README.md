@@ -110,34 +110,25 @@ endorsing source-discounting.
 
 ## Quick start
 
-Requires Python 3.9+ and nothing else. There is no install step, no dependency
-file, and no network access at any point.
+One clone and three commands. Python 3.9+ is the only requirement: no `pip install`,
+no dependency file, no network access at any point.
 
 ```bash
 git clone https://github.com/Penghhhh/cognitivedissonance-agent-skill.git
 cd cognitivedissonance-agent-skill
 
-python scripts/cds.py selftest
-python scripts/cds.py config
+python scripts/cds.py selftest     # "selftest OK"
+python scripts/cds.py config       # the settings in force, and their hash
 python scripts/cds.py run --signals examples/packet_evidence_vs_stance.json
 ```
 
-> The repository is named `cognitivedissonance-agent-skill`; the **skill** is named
-> `cds-skill`. On harnesses that require the bundle directory to equal the
-> frontmatter `name` (the Agent Skills convention), the installer copies the bundle
-> to a directory literally called `cds-skill`. DeepSeek Harness does **not** impose
-> that requirement — its loader reads `name` from the frontmatter and never compares
-> it to the directory name — so on DSH a plain clone placed under
-> `<project>/.dsh/skills/` is discovered as-is. The installer remains the portable
-> option.
-
-Output (Chinese by default — this is real card text, quoted verbatim):
+The last command pushes one prepared conflict through the whole loop and prints a card
+per stage. Real output, quoted verbatim:
 
 ```text
 【CDS｜检测】
 状态：认知失调相关冲突张力
 张力指数：0.71 / 阈值 0.55
-评分可动范围：仅 ±0.04（最近阈值 0.75）：同一输入在不同标注下很可能跨越阈值，请勿把本层级当作确定判断
 类型：证据—立场冲突
 通道：失调通道（需要自主选择的立场）
 关键点：
@@ -146,23 +137,40 @@ Output (Chinese by default — this is real card text, quoted verbatim):
 ...
 ```
 
-The `评分可动范围` (*"rating tolerance"*) figure is **computed from the packet**, not
-a constant: it is the distance from this index value to the nearest level boundary,
-and because the five index weights sum to 1.0, a uniform rating shift of that size is
-exactly what it would take to cross. v0.2.0 printed a hard-coded `±0.06` on every
-card, which was false for most packets — including this one, whose real margins are
-0.04 to `high` and 0.16 to `alert`.
+Cards come out in Chinese because `skill.language` defaults to `zh`; set it to `"en"`
+in [`config/cds.config.json`](config/cds.config.json) for an English run — every
+string has both.
+
+### Run it on your own case
+
+There are two steps, because the design is one split: **you rate the situation, the
+script does the arithmetic.**
+
+1. **Rate it.** Write a *signal packet* — a small JSON file scoring the conflict from
+   0 to 1. Start from
+   [`examples/packet_evidence_vs_stance.json`](examples/packet_evidence_vs_stance.json)
+   and edit it; [`references/codebook.md`](references/codebook.md) anchors every field.
+2. **Run it.** `python scripts/cds.py run --signals packet.json` gives you the index,
+   the routed strategy, and the language acts to perform.
+
+Then write the reply yourself and hand it back, so the recorded outcome comes from the
+text you produced rather than from the plan:
+
+```bash
+python scripts/cds.py run --signals packet.json --reply-file reply.txt
+```
+
+### Verify the checkout
 
 ```bash
 python -m unittest discover -s tests -t tests   # 447 stdlib unittest tests, all green
-python scripts/run_scenarios.py                  # score the eval corpus
-python scripts/sensitivity.py                    # how load-bearing are the weights?
-python scripts/check_arms.py                     # does each arm realise its repertoire?
 python scripts/check_examples.py                 # do the docs still match the code?
 ```
 
-`check_examples.py` counts the test methods and fails if the figure above is stale, so
-that claim cannot rot. It also fails if any generated report loses its
+`run_scenarios.py`, `sensitivity.py` and `check_arms.py` re-derive the evaluation
+figures and check them against the corpus; CI runs all of them on every push.
+`check_examples.py` holds the docs to the code — it counts the test methods and fails
+if the figure above is stale, and fails any generated report that has lost its
 "what this cannot show" block.
 
 ## Closing the loop on the reply
@@ -189,33 +197,37 @@ be read as an observation of the produced text.
 
 ## Install as a skill
 
-The repository is itself a valid skill bundle in the portable Agent Skills layout,
-so installation is a directory copy.
+The repository *is* a skill bundle — `SKILL.md` plus the folders beside it — so
+installing it means copying it into the folder your harness scans for skills. The
+installer picks that folder for you:
 
-**DeepSeek Harness (DSH)** — project scope, discovered at `<project>/.dsh/skills/`:
+| Where you want it | Windows | macOS / Linux |
+|---|---|---|
+| DeepSeek Harness, this project: `<project>/.dsh/skills/` | `./install.ps1 -Target dsh-project` | `./install.sh dsh-project` |
+| DeepSeek Harness, all projects: `$DSH_HOME/skills/` (default `~/.dsh`) | `./install.ps1 -Target dsh-user` | `./install.sh dsh-user` |
+| Claude Code: `~/.claude/skills/` | `./install.ps1 -Target claude-user` | `./install.sh claude-user` |
+| Any `~/.agents` harness: `$DSH_AGENTS_HOME/skills/` | `./install.ps1 -Target agents-user` | `./install.sh agents-user` |
 
-```powershell
-./install.ps1 -Target dsh-project          # Windows
-```
-```bash
-./install.sh dsh-project                    # macOS / Linux
-```
+The copy is always a folder called `cds-skill`, not `cognitivedissonance-agent-skill`:
+the repository and the skill have different names, and some harnesses require the
+folder to match the `name` in the frontmatter. (DeepSeek Harness does not — it reads
+`name` from the frontmatter and never compares it to the folder — so on DSH a plain
+clone dropped under `<project>/.dsh/skills/` is discovered as it stands. The installer
+stays the portable option.)
 
-**Claude Code and other compatible harnesses** — user scope:
+Re-run with `-Force` (PowerShell) or `FORCE=1` (shell) to replace an existing install,
+and use `-ProjectRoot` / `PROJECT_ROOT` to target a project other than the current
+directory.
 
-```bash
-./install.sh claude-user
-```
-
-**Any harness, any agent** — the engine is a plain program, so a harness with no
-skill system can still call it directly:
+**No skill system at all?** The engine is an ordinary program, so any harness can call
+it directly:
 
 ```bash
 python /path/to/cds-skill/scripts/cds.py run --signals packet.json
 ```
 
-See [`references/operations.md`](references/operations.md) for the installation
-script's options and for wiring the skill into a system prompt by hand.
+Full options, and how to wire the skill into a system prompt by hand, are in
+[`references/operations.md`](references/operations.md).
 
 ## Repository layout
 

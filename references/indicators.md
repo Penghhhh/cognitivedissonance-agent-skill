@@ -139,6 +139,28 @@ properties matter before you rely on either:
   for the inter-rater protocol, not a result. `rate_claim_strength` is an explicit
   placeholder whose docstring says the same.
 
+### Editing a lexicon
+
+Two failure modes are worth knowing before you add an entry, because both produce
+plausible numbers rather than an error:
+
+- **A short CJK entry leaks into longer words.** Matching is substring-based for CJK,
+  so `若` (a conditional) also matched inside `若干` (a quantifier), and a reply reading
+  «若干研究支持这一结论» coded as a conditional. The `blockers` category exists for this:
+  its entries are *consumed but credited to nothing*, so they suppress any shorter
+  lexeme they contain without firing themselves. Add an entry there whenever a short
+  lexeme has a common longer host in which it does not carry its meaning. English needs
+  none — ASCII lexemes match at word boundaries, so `if` cannot fire inside `verify`.
+- **A misspelled category key raises.** It used to read as "category absent" and fall
+  back to the built-in default: you edit the instrument, the coder measures with the
+  old one, and nothing says so. `load_lexicon` now raises `LexiconError` and
+  `cds.py selftest` fails on it. Invalid JSON is still tolerated, because a stray comma
+  should not lose a corpus run and the rest of the file is still your edit.
+
+Because one consumption mask is shared across categories, a *longer* entry suppresses
+a shorter one everywhere, including in another category — so a compound that should
+count for two indicators has to be listed in both.
+
 ## Reporting
 
 Report, at minimum:

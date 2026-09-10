@@ -154,7 +154,7 @@ card, which was false for most packets — including this one, whose real margin
 0.04 to `high` and 0.16 to `alert`.
 
 ```bash
-python -m unittest discover -s tests -t tests   # 431 stdlib unittest tests, all green
+python -m unittest discover -s tests -t tests   # 445 stdlib unittest tests, all green
 python scripts/run_scenarios.py                  # score the eval corpus
 python scripts/sensitivity.py                    # how load-bearing are the weights?
 python scripts/check_arms.py                     # does each arm realise its repertoire?

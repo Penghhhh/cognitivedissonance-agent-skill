@@ -90,5 +90,7 @@
     "as a result", "which means", "consequently", "accordingly", "given that",
     "it follows that", "so that"
   ],
-  "quote_pairs": ["“”", "‘’", "\"\"", "''", "「」", "『』"]
+  "quote_pairs": ["“”", "‘’", "\"\"", "''", "「」", "『』"],
+  "_blockers_note": "Not an indicator. A blocker span is consumed by the matching mask - so any shorter lexeme inside it is suppressed - but is credited to nothing and never fires. Empty for English because ASCII entries are matched at word boundaries, so `if` cannot fire inside `verify`; the category exists here so the two files keep the same shape.",
+  "blockers": []
 }

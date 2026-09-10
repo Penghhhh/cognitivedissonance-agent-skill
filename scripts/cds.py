@@ -645,6 +645,29 @@ def cmd_selftest(args: argparse.Namespace, config: dict[str, Any]) -> int:
         except Exception as exc:  # pragma: no cover - surfaces a packaging error
             failures.append(f"schema {name} did not load: {exc}")
 
+    # The lexicons are the measurement instrument for the produced reply, and a
+    # misspelled category key used to read as "category absent" and fall back to
+    # the built-in default. Numbers still came out; nothing said they came from a
+    # file the researcher had not actually edited. Checked here as well as at load
+    # time so that `selftest` catches it before a corpus run rather than during one.
+    #
+    # The import is local for the same reason it is local in _code_supplied_reply:
+    # the deterministic half should not become unloadable because the measurement
+    # half is missing. A missing coder is reported here as the packaging failure it
+    # is, rather than surfacing as an ImportError traceback.
+    try:
+        from cds_indicators import lexicon_unknown_keys
+
+        for language in ("zh", "en"):
+            unknown = lexicon_unknown_keys(language)
+            if unknown:
+                failures.append(
+                    f"config/lexicon.{language}.json has keys that are not lexicon categories: "
+                    f"{', '.join(unknown)}"
+                )
+    except ImportError as exc:
+        failures.append(f"the indicator coder did not import: {exc}")
+
     if failures:
         print("SELFTEST FAILED")
         for failure in failures:

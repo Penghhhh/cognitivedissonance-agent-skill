@@ -185,11 +185,38 @@ have found in the meantime. Reasoning for each change is in
 
 ### Notes
 
-- The suite is now **431 stdlib unittest tests**, up from 149.
+- The suite is now **445 stdlib unittest tests**, up from 149.
 - The inter-rater protocol in `references/codebook.md` remains the blocking item. The
   coder, the perception scorer and the response scorer all now produce numbers, and the
   interpretation of every one of them depends on a reliability estimate that has not
   been measured.
+
+### Fixed (post-release pass)
+
+Two defects in the new coder, both found by exercising it rather than by reading it, and
+both of the kind that produce plausible numbers instead of an error:
+
+- **A single-character lexeme leaked into longer words.** CJK matching is substring-based,
+  so `若` (a conditional) also matched inside `若干` (a quantifier): a reply reading
+  «若干研究支持这一结论» coded `conditional_marker = 1`. Dropping `若` would have cost real
+  coverage, so the lexicon gained a **`blockers`** category whose entries are *consumed
+  but credited to nothing* — they suppress any shorter lexeme inside them and never fire
+  themselves. `若干`, `若干年`, `若干次`, `若干项` and `般若` ship as entries, the built-in
+  default carries them too (so a missing file cannot reintroduce the misfire), and the
+  mechanism is documented as the place to record any future short-lexeme-longer-host
+  collision. Verified in both directions: `若样本量不足` still codes as a conditional.
+- **A misspelled lexicon category key was silently ignored.** It read as "category
+  absent" and fell back to the built-in default — you edit the instrument, the coder
+  measures with the old one, and nothing says so. `load_lexicon` now raises
+  `LexiconError` listing the valid categories, `cds.py selftest` fails on it, and
+  `load_lexicon_at(path, strict=False)` plus `lexicon_unknown_keys_at(path)` exist for
+  callers that want to inspect rather than refuse. Invalid JSON is still tolerated: a
+  stray comma should not lose a corpus run, and that failure is recoverable whereas a
+  mistyped key is not.
+
+Both are covered by tests (14 new), and `references/indicators.md` gained an "Editing a
+lexicon" section so the next person to add an entry meets the two traps before the data
+does.
 
 ## [0.2.0] — 2026-09-10
 

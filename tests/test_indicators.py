@@ -20,12 +20,17 @@ except ModuleNotFoundError:  # `python -m unittest tests.test_indicators` from t
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import context  # noqa: F401
 
+import context  # noqa: F401
+
+import cds_indicators
 from cds_indicators import (
     INDICATOR_NAMES,
     LEXICON_CATEGORIES,
+    LexiconError,
     code_reply,
     evidence_for,
     expected_indicators,
+    lexicon_unknown_keys,
     load_lexicon,
     rate_claim_strength,
     split_clauses,
@@ -797,6 +802,122 @@ class TestExampleMaterial(unittest.TestCase):
         """report_uncertainty_explicitly is an adaptive-branch constraint."""
         self.assertEqual(code_reply(REDUCTION_REPLY)["uncertainty_term"], 0)
         self.assertGreaterEqual(code_reply(ADAPTIVE_REPLY)["uncertainty_term"], 1)
+
+
+class TestBlockers(unittest.TestCase):
+    """A blocker span is consumed but credited to nothing.
+
+    CJK lexemes match as substrings, so a single-character entry leaks into every
+    compound containing it. The shipped case: ``若`` (a conditional) fired inside
+    ``若干`` (a quantifier), and a reply reading "若干研究支持这一结论" was coded as a
+    conditional. Dropping ``若`` would have cost real coverage, so the lexicon grew
+    a category that says "this span is not what it looks like" instead.
+    """
+
+    def test_a_quantifier_is_not_read_as_a_conditional(self):
+        result = code_reply("若干研究支持这一结论，我的判断不变。")
+        self.assertEqual(result["conditional_marker"], 0)
+
+    def test_the_blocked_lexeme_still_fires_on_its_own(self):
+        """The fix must not cost coverage: 若 alone is a real conditional."""
+        result = code_reply("若样本量不足，我的判断就会改变。")
+        self.assertEqual(result["conditional_marker"], 1)
+
+    def test_a_longer_blocker_beats_a_shorter_one(self):
+        for text in ("若干项证据支持它。", "若干年来的数据支持它。", "若干次复现都支持它。"):
+            with self.subTest(text=text):
+                self.assertEqual(code_reply(text)["conditional_marker"], 0)
+
+    def test_blockers_are_never_credited_to_an_indicator(self):
+        result = code_reply("若干研究支持这一结论。")
+        for name in INDICATOR_NAMES:
+            with self.subTest(indicator=name):
+                self.assertNotIn(
+                    "blockers",
+                    {record.get("indicator") for record in evidence_for(result, name)},
+                )
+
+    def test_blockers_is_a_lexicon_category_in_both_languages(self):
+        self.assertIn("blockers", LEXICON_CATEGORIES)
+        self.assertTrue(load_lexicon("zh")["blockers"])
+        # English needs none: ASCII lexemes are matched at word boundaries.
+        self.assertEqual(load_lexicon("en")["blockers"], [])
+
+    def test_the_built_in_default_carries_the_blocker_too(self):
+        """A missing or unreadable lexicon file must not reintroduce the misfire."""
+        builtin = cds_indicators._DEFAULT_LEXICON["zh"]
+        self.assertIn("若干", builtin["blockers"])
+
+
+class TestLexiconFileValidation(unittest.TestCase):
+    """A misspelled category key must fail loudly.
+
+    It used to read as "category absent", fall back to the built-in default, and
+    produce plausible numbers from an instrument the researcher had not actually
+    edited. That is the worst available outcome, and it contradicts the
+    repository's own stance that generated claims should be checkable rather than
+    assumed.
+    """
+
+    def test_the_shipped_files_have_no_unknown_keys(self):
+        for language in ("zh", "en"):
+            with self.subTest(language=language):
+                self.assertEqual(lexicon_unknown_keys(language), ())
+
+    def test_the_shipped_files_load_strictly(self):
+        for language in ("zh", "en"):
+            with self.subTest(language=language):
+                self.assertEqual(set(load_lexicon(language)), set(LEXICON_CATEGORIES))
+
+    def test_metadata_keys_are_not_mistaken_for_typos(self):
+        with context.scratch_dir() as tmp:
+            path = Path(tmp) / "lexicon.zh.json"
+            path.write_text(
+                json.dumps({"_provenance": "note", "_anything": "note", "hedges": ["可能"]}),
+                encoding="utf-8",
+            )
+            self.assertEqual(cds_indicators.lexicon_unknown_keys_at(path), ())
+
+    def test_a_typo_is_reported_and_refused(self):
+        with context.scratch_dir() as tmp:
+            path = Path(tmp) / "lexicon.zh.json"
+            path.write_text(json.dumps({"hedgess": ["可能"]}), encoding="utf-8")
+            self.assertEqual(cds_indicators.lexicon_unknown_keys_at(path), ("hedgess",))
+            with self.assertRaises(LexiconError) as caught:
+                cds_indicators.load_lexicon_at(path)
+            message = str(caught.exception)
+            self.assertIn("hedgess", message)
+            self.assertIn("hedges", message)  # the valid list is printed
+
+    def test_non_strict_loading_ignores_the_typo(self):
+        with context.scratch_dir() as tmp:
+            path = Path(tmp) / "lexicon.zh.json"
+            path.write_text(json.dumps({"hedgess": ["可能"], "hedges": ["或许"]}), encoding="utf-8")
+            loaded = cds_indicators.load_lexicon_at(path, strict=False)
+            self.assertEqual(loaded["hedges"], ["或许"])
+
+    def test_an_invalid_file_is_tolerated_rather_than_fatal(self):
+        """A stray comma must not lose a corpus run; that is a different failure."""
+        with context.scratch_dir() as tmp:
+            path = Path(tmp) / "lexicon.zh.json"
+            path.write_text("{ this is not json", encoding="utf-8")
+            self.assertEqual(cds_indicators.lexicon_unknown_keys_at(path), ())
+            self.assertEqual(set(cds_indicators.load_lexicon_at(path)), set(LEXICON_CATEGORIES))
+
+    def test_a_missing_file_falls_back_to_the_built_in_default(self):
+        with context.scratch_dir() as tmp:
+            path = Path(tmp) / "lexicon.zh.json"
+            self.assertEqual(cds_indicators.lexicon_unknown_keys_at(path), ())
+            self.assertTrue(cds_indicators.load_lexicon_at(path)["hedges"])
+
+    def test_the_error_names_the_valid_categories(self):
+        with context.scratch_dir() as tmp:
+            path = Path(tmp) / "lexicon.zh.json"
+            path.write_text(json.dumps({"nope": []}), encoding="utf-8")
+            with self.assertRaises(LexiconError) as caught:
+                cds_indicators.load_lexicon_at(path)
+            for category in ("hedges", "boosters", "blockers"):
+                self.assertIn(category, str(caught.exception))
 
 
 if __name__ == "__main__":

@@ -80,8 +80,8 @@ clause. Note prefixes carry the record's kind:
 those kinds, so the traceability claim ("every non-zero flag or count is traceable
 to a clause and a lexicon entry") is machine-checkable.
 
-Lexicon mechanics, including one trap
--------------------------------------
+Lexicon mechanics, including three traps
+----------------------------------------
 Lexemes are matched longest-first with a single consumption mask shared across
 categories, so a longer entry suppresses any shorter entry it overlaps. That is
 what keeps ``不一定`` (a hedge) from also counting as ``一定`` (a booster) and
@@ -94,6 +94,24 @@ matched at word boundaries (so ``if`` cannot fire inside ``verify``), while CJK
 entries are matched as substrings, which is the intended behaviour for a language
 without spaces. Lexemes are data, not claims of linguistic authority; see
 ``_provenance`` in each lexicon file.
+
+The second trap follows from that substring matching, and ``blockers`` is the fix.
+A short CJK entry leaks into every longer word containing it: ``若`` (a
+conditional) fired inside ``若干`` (a quantifier), so a reply reading
+"若干研究支持这一结论" coded as a conditional. Dropping ``若`` would have cost real
+coverage, so the lexicon grew a category whose entries are *consumed but credited
+to nothing*: they suppress what they contain and never fire themselves. Add an
+entry there whenever a short lexeme has a common longer host in which it does not
+carry its meaning. English needs none, because word-boundary matching already
+prevents it.
+
+The third trap is in the file format, not the matching: a **misspelled category
+key** raises :class:`LexiconError` rather than falling back. It used to read as
+"category absent" and quietly fall back to the built-in default — plausible
+numbers, from an instrument nobody edited. Invalid JSON is still tolerated, since a
+stray comma should not lose a corpus run and the rest of the file is still what the
+researcher wrote; a key that is simply not a category is a different kind of
+failure and is reported as one.
 """
 
 from __future__ import annotations
@@ -152,11 +170,43 @@ LEXICON_CATEGORIES: tuple[str, ...] = (
     "change_acknowledgement_cues",
     "reason_step_markers",
     "quote_pairs",
+    "blockers",
 )
+
+#: ``blockers`` is the one category that is not an indicator. Its entries are
+#: *consumed* by the matching mask — so any shorter lexeme they contain is
+#: suppressed — but they are credited to nothing and never fire.
+#:
+#: It exists because CJK lexemes match as substrings, so a single-character entry
+#: leaks into every compound containing it. The shipped example: ``若`` (a
+#: conditional, "if") fires inside ``若干`` ("several"), which is a quantifier, and
+#: a reply saying "若干研究支持这一结论" was coded as a conditional. The lexicon
+#: format has no other way to express "this span is not what it looks like", and
+#: the alternative — dropping every risky single character — costs real coverage.
+#:
+#: Adding an entry here is the right move whenever a short lexeme has a common
+#: longer host word in which it does not carry its meaning.
 
 # The three record kinds that are *not* firings. Kept here rather than in the
 # lexicon because they describe the record format, not the language.
 NON_FIRING_NOTE_PREFIXES: tuple[str, ...] = ("failed act:", "explains:", "expected_act:", "not coded:")
+
+#: The only lexicon keys that are not categories. Anything else in a lexicon file
+#: must be a category name, and a misspelling raises rather than falling back.
+METADATA_KEYS: tuple[str, ...] = ("_provenance", "_comment", "_notes")
+
+
+class LexiconError(Exception):
+    """Raised when a lexicon file cannot be used as written.
+
+    A misspelled category key used to read as "absent" and silently fall back to
+    the built-in default, which is the worst available outcome: the researcher
+    believes they edited the instrument and the coder quietly measures with the
+    old one. Numbers still come out. Nothing says they came from somewhere else.
+    Invalid JSON and unreadable files are still tolerated (a stray comma should
+    not lose a corpus run) — but a key that is simply not a category is a bug, and
+    this repository's stance is that bugs are loud.
+    """
 
 # ---------------------------------------------------------------------------
 # Vocabulary that is structural rather than lexical
@@ -315,6 +365,10 @@ _DEFAULT_LEXICON: dict[str, dict[str, tuple[str, ...]]] = {
         "change_acknowledgement_cues": ("收窄", "下调", "我调整", "需要修正", "更正", "我更新", "我改变", "修正我的说法"),
         "reason_step_markers": ("因为", "由于", "所以", "因此", "因而", "理由是", "理由", "原因是"),
         "quote_pairs": ("「」", "『』", "“”", "‘’", "\"\"", "''"),
+        # Consumed but never credited. The built-in default carries the blocker
+        # too, so a missing or unreadable lexicon file cannot reintroduce the
+        # 若/若干 misfire the file version suppresses.
+        "blockers": ("若干", "若干年", "若干次", "若干项", "般若"),
     },
     "en": {
         "hedges": ("maybe", "perhaps", "possibly", "probably", "seems", "appears", "roughly", "somewhat"),
@@ -334,19 +388,28 @@ _DEFAULT_LEXICON: dict[str, dict[str, tuple[str, ...]]] = {
         "change_acknowledgement_cues": ("i correct", "correction", "i should revise", "i update", "i overstated"),
         "reason_step_markers": ("because", "since", "therefore", "thus", "hence", "the reason", "as a result"),
         "quote_pairs": ("“”", "‘’", "\"\"", "''", "「」", "『』"),
+        # Empty on purpose: ASCII lexemes are matched at word boundaries, so a
+        # short entry cannot leak into a longer host word the way CJK substrings do.
+        "blockers": (),
     },
 }
 
 
 @lru_cache(maxsize=8)
-def _read_lexicon_file(path: str) -> tuple[tuple[str, tuple[str, ...]], ...] | None:
+def _read_lexicon_file(path: str) -> tuple[tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...]] | None:
     """Parse one lexicon file into immutable per-category tuples.
 
-    Returns ``None`` for any failure — missing file, invalid JSON, wrong shape —
-    because the documented behaviour is a fallback, not an exception: a research
-    tool that dies because a hand-edited data file has a stray comma is a tool
-    that loses a corpus run. The file is parsed at most once per process, so an
-    edit is picked up by the next run and not by a long-lived one.
+    Returns ``(entries, unknown_keys)``, or ``None`` for any failure — missing
+    file, invalid JSON, wrong shape — because the documented behaviour is a
+    fallback, not an exception: a research tool that dies because a hand-edited
+    data file has a stray comma is a tool that loses a corpus run. The file is
+    parsed at most once per process, so an edit is picked up by the next run and
+    not by a long-lived one.
+
+    ``unknown_keys`` is reported rather than swallowed. It is the difference
+    between a stray comma (recoverable, and the rest of the file is still what the
+    researcher wrote) and a misspelled category (not recoverable: the researcher's
+    edit is silently inert). :func:`load_lexicon` turns the second into an error.
     """
     try:
         data = json.loads(read_text(path))
@@ -360,24 +423,51 @@ def _read_lexicon_file(path: str) -> tuple[tuple[str, tuple[str, ...]], ...] | N
         if isinstance(values, list):
             cleaned = tuple(sorted({value for value in values if isinstance(value, str) and value}))
             entries.append((category, cleaned))
-    return tuple(entries)
+    unknown = tuple(
+        sorted(
+            str(key)
+            for key in data
+            if key not in LEXICON_CATEGORIES and key not in METADATA_KEYS and not str(key).startswith("_")
+        )
+    )
+    return tuple(entries), unknown
 
 
-def load_lexicon(language: str = "zh") -> dict[str, list[str]]:
-    """Load ``config/lexicon.<lang>.json``, falling back to the built-in default.
+def lexicon_unknown_keys_at(path: str | Path) -> tuple[str, ...]:
+    """Category-looking keys in one lexicon file that are not categories.
 
-    Per-category: a category absent from the file falls back to the built-in
-    default, while a category present as an empty list stays empty, because an
-    empty list is a coder's deliberate decision whereas an absent key is not.
-    Unknown or misspelled keys are ignored (a typo therefore reads as "absent"
-    and silently falls back — worth knowing before editing a file). Metadata keys
-    such as ``_provenance`` are dropped, so the return value is exactly
-    :data:`LEXICON_CATEGORIES`, each mapping to a fresh list.
+    Empty when the file is absent, unreadable, or has only known keys.
+    """
+    loaded = _read_lexicon_file(str(path))
+    return loaded[1] if loaded else ()
+
+
+def lexicon_unknown_keys(language: str = "zh") -> tuple[str, ...]:
+    """Category-looking keys in ``config/lexicon.<lang>.json`` that are not categories.
+
+    Exposed so ``cds.py selftest`` and CI can fail on a typo before a corpus run
+    rather than during one.
     """
     key = language if isinstance(language, str) and language else "zh"
-    loaded = _read_lexicon_file(str(LEXICON_DIR / f"lexicon.{key}.json"))
-    from_file = dict(loaded) if loaded else {}
-    default = _DEFAULT_LEXICON.get(key) or _DEFAULT_LEXICON["zh"]
+    return lexicon_unknown_keys_at(LEXICON_DIR / f"lexicon.{key}.json")
+
+
+def load_lexicon_at(path: str | Path, *, language: str = "zh", strict: bool = True) -> dict[str, list[str]]:
+    """Load one lexicon file. See :func:`load_lexicon`.
+
+    Path-parameterised so that the strictness rules can be tested against files a
+    test writes, rather than only against the shipped ones.
+    """
+    loaded = _read_lexicon_file(str(path))
+    if loaded is not None and strict and loaded[1]:
+        raise LexiconError(
+            f"{path} has keys that are not lexicon categories: "
+            f"{', '.join(loaded[1])}. Valid categories are {', '.join(LEXICON_CATEGORIES)}; "
+            f"metadata keys must start with '_'. A misspelled key would silently fall back "
+            f"to the built-in default, so it is an error rather than a warning."
+        )
+    from_file = dict(loaded[0]) if loaded else {}
+    default = _DEFAULT_LEXICON.get(language) or _DEFAULT_LEXICON["zh"]
     result: dict[str, list[str]] = {}
     for category in LEXICON_CATEGORIES:
         entries = from_file.get(category)
@@ -385,6 +475,26 @@ def load_lexicon(language: str = "zh") -> dict[str, list[str]]:
             entries = tuple(default.get(category, ()))
         result[category] = list(entries)
     return result
+
+
+def load_lexicon(language: str = "zh", *, strict: bool = True) -> dict[str, list[str]]:
+    """Load ``config/lexicon.<lang>.json``, falling back to the built-in default.
+
+    Per-category: a category absent from the file falls back to the built-in
+    default, while a category present as an empty list stays empty, because an
+    empty list is a coder's deliberate decision whereas an absent key is not.
+    Metadata keys (anything starting with ``_``) are dropped, so the return value
+    is exactly :data:`LEXICON_CATEGORIES`, each mapping to a fresh list.
+
+    A key that is not a category and not metadata raises :class:`LexiconError`
+    unless ``strict=False``, in which case it is ignored and can be read back with
+    :func:`lexicon_unknown_keys`. The default is strict because the silent version
+    of this — a misspelled key reading as "category absent", falling back to the
+    built-in default — produces plausible numbers from an instrument the
+    researcher did not actually edit.
+    """
+    key = "zh" if not isinstance(language, str) or not language else language
+    return load_lexicon_at(LEXICON_DIR / f"lexicon.{key}.json", language=key, strict=strict)
 
 
 def _normalised(lexicon: dict[str, Any], category: str) -> list[str]:

@@ -88,5 +88,8 @@
     "理由是", "理由", "原因", "原因在于", "鉴于", "基于", "这说明", "这意味着", "也就是说",
     "换言之", "据此", "可见"
   ],
-  "quote_pairs": ["「」", "『』", "“”", "‘’", "\"\"", "''"]
+  "quote_pairs": ["「」", "『』", "“”", "‘’", "\"\"", "''"],
+
+  "_blockers_note": "Not an indicator. A blocker span is consumed by the matching mask - so any shorter lexeme inside it is suppressed - but it is credited to nothing and never fires. It exists because CJK lexemes match as substrings: 若 (a conditional) otherwise fires inside 若干 (a quantifier), and a reply saying 若干研究支持这一结论 was coded as a conditional. Add an entry here whenever a short lexeme has a common longer host word in which it does not carry its meaning. English needs none, because ASCII entries are matched at word boundaries.",
+  "blockers": ["若干", "若干年", "若干次", "若干项", "般若"]
 }

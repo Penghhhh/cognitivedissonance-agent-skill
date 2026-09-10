@@ -308,5 +308,8 @@ data exists.
 | Numbers differ across runs | Compare `config_hash` first, then `signals_hash`, then the model block |
 | `note: no --state given` on stderr | Preconditions could not be checked; pass `--state` for the recorded loop |
 | Config refused at startup | A load-time invariant failed; the message names it |
+| `LexiconError: ... has keys that are not lexicon categories` | A lexicon file has a misspelled key. Fix the key (the message lists the valid ones); metadata keys must start with `_`. This is deliberate: the old behaviour fell back to the built-in default and measured with an instrument nobody had edited |
+| Every indicator comes out zero after editing a lexicon | The file failed to parse (a stray comma returns the built-in default silently) — check it with `python -c "import json;json.load(open('config/lexicon.zh.json',encoding='utf-8'))"` |
+| A conditional fires where the text has no conditional | A short lexeme is matching inside a longer host word. Add the host to the `blockers` category in the lexicon; see `references/indicators.md`, "Editing a lexicon" |
 | Chinese cards are mojibake | Console encoding. The CLI reconfigures its streams to UTF-8; if wrapped, set `PYTHONIOENCODING=utf-8` |
 | Tests fail writing to a temp directory | The test suite uses a repo-local scratch dir precisely to avoid this; if it persists, check permissions on `tests/.scratch/` |

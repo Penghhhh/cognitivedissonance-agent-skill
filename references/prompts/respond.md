@@ -72,7 +72,23 @@ because there is less to say — but a short response must still contain every a
 
 ## After the reply
 
-Run `cds.py respond --evaluation evaluation.json --state s.json`. It closes the
-cycle: `resolved` if the stance moved, `unresolved` otherwise. Both are data —
-`unresolved` is not a failure, it is the signature of dissonance reduction, where
-the discomfort was relieved without the belief moving.
+Hand the reply back so the loop closes on the text, not on the plan:
+
+```bash
+python scripts/cds.py respond --evaluation evaluation.json --signals packet.json \
+    --state s.json --reply-file reply.txt
+```
+
+`--reply-file` codes the reply against `references/indicators.md` and derives the
+event's outcome **from the reply**. Without it the outcome records what the plan
+intended, and the log says so: `outcome_source` reads `"planned"` rather than
+`"observed"`. A log analysis must filter on that field — a planned outcome carries no
+information about what was written, because it is a function of the routed strategy
+name.
+
+Both outcomes are data, but they do not mean what an earlier version of this file
+said they meant. `unresolved` is *not* "the signature of dissonance reduction":
+`maintain_with_caveat` and `suspend_and_verify` — both adaptive, both defensible
+practice — also leave the stance where it was, and `reduce_commitment`, which drifts
+the claim quietly, counts as a change. Read `unresolved` as "the reply did not move
+the stance", which is a description of the text and not a verdict on it.

@@ -77,7 +77,10 @@
     "gate_applied": true,
     "next_action": "auto_evaluate",
     "strategy": "suspend_and_verify",
-    "strategy_set": ["suspend_and_verify"],
-    "fired_rule_prefix": "R01"
+    "strategy_set": [
+      "suspend_and_verify"
+    ],
+    "fired_rule_prefix": "R01",
+    "near_boundary": true
   }
 }

@@ -52,7 +52,10 @@
     "gate_applied": false,
     "next_action": "auto_evaluate",
     "strategy": "deny_evidence",
-    "strategy_set": ["deny_evidence"],
-    "fired_rule_prefix": "R09"
+    "strategy_set": [
+      "deny_evidence"
+    ],
+    "fired_rule_prefix": "R09",
+    "near_boundary": false
   }
 }

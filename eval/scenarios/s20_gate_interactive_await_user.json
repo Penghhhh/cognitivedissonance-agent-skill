@@ -53,6 +53,7 @@
     "next_action": "await_user_decision",
     "strategy": null,
     "strategy_set": [],
-    "fired_rule_prefix": null
+    "fired_rule_prefix": null,
+    "near_boundary": false
   }
 }

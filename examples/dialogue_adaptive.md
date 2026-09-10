@@ -70,7 +70,7 @@ python scripts/cds.py run --signals packet.json
 【CDS｜检测】
 状态：认知失调相关冲突张力
 张力指数：0.71 / 阈值 0.55
-评分可动范围：±0.06（同一输入在不同标注下可能跨越阈值）
+评分可动范围：仅 ±0.04（最近阈值 0.75）：同一输入在不同标注下很可能跨越阈值，请勿把本层级当作确定判断
 类型：证据—立场冲突
 通道：失调通道（需要自主选择的立场）
 关键点：
@@ -134,10 +134,14 @@ The act list is realised in order, and no act name or score appears in the prose
 ## Stage 5 — close and log
 
 ```bash
-python scripts/cds.py respond --evaluation evaluation.json --state s.json
+python scripts/cds.py respond --evaluation evaluation.json --state s.json \
+    --reply-file reply.txt --signals packet.json
 ```
 
-Outcome `resolved`, because `stance_update.changed` is true. The event closes and
+Planned outcome `resolved`, because `stance_update.planned_change` is true — the plan
+moves the stance. With the reply supplied, the outcome is instead taken from the text:
+this reply states the change explicitly, so the observed outcome agrees with the plan
+and `outcome_source` reads `observed`. The event closes and
 the machine returns to `MONITORING`.
 
 ## What a reader can check afterwards

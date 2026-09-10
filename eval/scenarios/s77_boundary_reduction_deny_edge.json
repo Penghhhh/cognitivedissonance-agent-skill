@@ -1,0 +1,69 @@
+{
+  "scenario_id": "s77_boundary_reduction_deny_edge",
+  "family": "boundary_straddling",
+  "description": "承诺度紧贴 0.75：削减分支在此从 rationalize 切到 deny_evidence。 straddles: commitment 0.75. Solved e_score=0.8000 (moved rating to {'relevance': 0.8375, 'credibility': 0.7706, 'recency': 0.8007, 'independence': 0.7007, 'consistency': 0.8639}).",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s77_boundary_reduction_deny_edge",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.6,
+      "rationale": "情境被构造成紧贴判定边界，用于检验评分微扰是否会改变引擎给出的标签。"
+    },
+    "stance": {
+      "id": "stance_b",
+      "claim": "该结论已写入对外发布的技术白皮书",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.749,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_b1",
+        "claim": "一份独立复现研究未能重现该结论",
+        "source": "external_report",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.8375,
+        "credibility": 0.7706,
+        "recency": 0.8007,
+        "independence": 0.7007,
+        "consistency": 0.8639,
+        "quote": "该复现研究使用了公开数据集与原始分析脚本。"
+      }
+    ],
+    "user_pressure": 0.0,
+    "evidence_conflict_unresolved": 0.0,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.7,
+      "ambiguities": []
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "rationalize",
+    "strategy_set": [
+      "deny_evidence",
+      "rationalize"
+    ],
+    "fired_rule_prefix": "R10",
+    "near_boundary": false
+  }
+}

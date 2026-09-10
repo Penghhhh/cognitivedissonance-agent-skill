@@ -1,0 +1,69 @@
+{
+  "scenario_id": "s76_boundary_reduction_commitment_edge",
+  "family": "boundary_straddling",
+  "description": "承诺度紧贴 0.60：削减分支在此从 trivialize 切到 reduce_commitment。 straddles: commitment 0.60. Solved e_score=0.5500 (moved rating to {'relevance': 0.5413, 'credibility': 0.5615, 'recency': 0.5394, 'independence': 0.4394, 'consistency': 0.6374}).",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s76_boundary_reduction_commitment_edge",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.6,
+      "rationale": "情境被构造成紧贴判定边界，用于检验评分微扰是否会改变引擎给出的标签。"
+    },
+    "stance": {
+      "id": "stance_b",
+      "claim": "该判断在团队内部已经对外公布并据此排期",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.599,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_b1",
+        "claim": "新到的一份评估报告与该判断的方向不一致",
+        "source": "external_report",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.5413,
+        "credibility": 0.5615,
+        "recency": 0.5394,
+        "independence": 0.4394,
+        "consistency": 0.6374,
+        "quote": "该报告采用的样本与我们的口径一致，但结论相反。"
+      }
+    ],
+    "user_pressure": 0.0,
+    "evidence_conflict_unresolved": 0.0,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.7,
+      "ambiguities": []
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "reduce_commitment",
+    "strategy_set": [
+      "reduce_commitment",
+      "trivialize"
+    ],
+    "fired_rule_prefix": "R08",
+    "near_boundary": false
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "scenario_id": "s74_boundary_escore_below_strong_edge",
+  "family": "boundary_straddling",
+  "description": "证据分被解到 0.65 之下 0.01 以内：qualify 与 recalibrate 在此处相邻。 straddles: e_score 0.65. Solved e_score=0.6450 (moved rating to {'relevance': 0.6538, 'credibility': 0.641, 'recency': 0.6387, 'independence': 0.5387, 'consistency': 0.7235}).",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s74_boundary_escore_below_strong_edge",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.6,
+      "rationale": "情境被构造成紧贴判定边界，用于检验评分微扰是否会改变引擎给出的标签。"
+    },
+    "stance": {
+      "id": "stance_b",
+      "claim": "该做法在多数场景下是安全的",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.6,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_b1",
+        "claim": "一项多中心研究指出该做法在特定人群中有明确风险",
+        "source": "external_report",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6538,
+        "credibility": 0.641,
+        "recency": 0.6387,
+        "independence": 0.5387,
+        "consistency": 0.7235,
+        "quote": "该研究纳入三个中心共 1200 例，风险比为 2.1。"
+      }
+    ],
+    "user_pressure": 0.0,
+    "evidence_conflict_unresolved": 0.0,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.7,
+      "ambiguities": []
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": [
+      "qualify",
+      "recalibrate"
+    ],
+    "fired_rule_prefix": "R04",
+    "near_boundary": false
+  }
+}

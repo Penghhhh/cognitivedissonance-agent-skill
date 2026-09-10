@@ -1,0 +1,65 @@
+{
+  "scenario_id": "s73_boundary_escore_above_weak_edge",
+  "family": "boundary_straddling",
+  "description": "证据分被解到 0.35 之上 0.01 以内，用于检验 R03/R04 之间的切换。 straddles: e_score 0.35. Solved e_score=0.3550 (moved rating to {'relevance': 0.3103, 'credibility': 0.3984, 'recency': 0.3355, 'independence': 0.2355, 'consistency': 0.4608}).",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s73_boundary_escore_above_weak_edge",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.6,
+      "rationale": "情境被构造成紧贴判定边界，用于检验评分微扰是否会改变引擎给出的标签。"
+    },
+    "stance": {
+      "id": "stance_b",
+      "claim": "该结论可以直接用于下一阶段决策",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.75,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_b1",
+        "claim": "一份中等质量的研究对该结论提出了限定条件",
+        "source": "external_report",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.3103,
+        "credibility": 0.3984,
+        "recency": 0.3355,
+        "independence": 0.2355,
+        "consistency": 0.4608,
+        "quote": "该研究在方法部分指出原结论只在特定人群子集中成立。"
+      }
+    ],
+    "user_pressure": 0.0,
+    "evidence_conflict_unresolved": 0.0,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.7,
+      "ambiguities": []
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": [
+      "maintain_with_caveat",
+      "qualify"
+    ],
+    "fired_rule_prefix": "R04",
+    "near_boundary": false
+  }
+}

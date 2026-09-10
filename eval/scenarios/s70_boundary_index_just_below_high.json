@@ -1,0 +1,65 @@
+{
+  "scenario_id": "s70_boundary_index_just_below_high",
+  "family": "boundary_straddling",
+  "description": "张力指数紧贴 high 阈值下沿，检验 high 档与 alert 档之间的边界。 straddles: index high 0.75. Solved tension=0.7450 (moved rating to 0.35).",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s70_boundary_index_just_below_high",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.7157,
+      "specificity": 0.6,
+      "rationale": "情境被构造成紧贴判定边界，用于检验评分微扰是否会改变引擎给出的标签。"
+    },
+    "stance": {
+      "id": "stance_b",
+      "claim": "该方案在合规审查中不会构成风险",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.85,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_b1",
+        "claim": "监管口径更新后同一做法被明确列为需报备事项",
+        "source": "external_report",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.6,
+        "independence": 0.6,
+        "consistency": 0.6,
+        "quote": "新版指引第 12 条将该做法列入需事前报备的范围。"
+      }
+    ],
+    "user_pressure": 0.0,
+    "evidence_conflict_unresolved": 0.0,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.7,
+      "ambiguities": []
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": [
+      "qualify",
+      "recalibrate"
+    ],
+    "fired_rule_prefix": "R04",
+    "near_boundary": true
+  }
+}

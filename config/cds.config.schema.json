@@ -18,8 +18,8 @@
         "enabled": { "type": "boolean" },
         "mode": {
           "type": "string",
-          "enum": ["off", "detect_only", "full", "placebo"],
-          "description": "Ablation arm. off = skill inert. detect_only = detection card only, never evaluates. full = complete detect-evaluate-respond loop. placebo = identical card volume and cadence, but conflict detection is forced to 'none' and cards are content-free."
+          "enum": ["off", "detect_only", "full", "placebo", "withhold_acts"],
+          "description": "Ablation arm. off = skill inert. detect_only = detection card only, never evaluates. full = complete detect-evaluate-respond loop. placebo = identical card volume and cadence, but conflict detection is forced to 'none' and cards are content-free. withhold_acts = detection AND evaluation run and are logged in full, but the response plan carries no language_acts and the card names no branch: everything except the instruction to behave a certain way is held constant, so the contrast against 'full' isolates instruction-following from the model's own treatment of contradiction."
         },
         "interaction": {
           "type": "string",
@@ -251,24 +251,38 @@
     "transparency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["show_detection_card", "show_evaluation_card", "show_response_card", "include_scores", "include_rule_id"],
+      "required": ["show_detection_card", "show_evaluation_card", "show_response_card", "include_scores", "include_rule_id", "tight_margin"],
       "properties": {
         "show_detection_card": { "type": "boolean" },
         "show_evaluation_card": { "type": "boolean" },
         "show_response_card": { "type": "boolean" },
         "include_scores": { "type": "boolean" },
-        "include_rule_id": { "type": "boolean" }
+        "include_rule_id": { "type": "boolean" },
+        "tight_margin": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Index-space margin below which a detection card adds an explicit tight-boundary warning. The printed margin itself is always computed from the packet; this only controls when the card escalates its wording."
+        }
       }
     },
 
     "logging": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "path", "include_signals"],
+      "required": ["enabled", "path", "include_signals", "include_reply", "include_indicators"],
       "properties": {
         "enabled": { "type": "boolean" },
         "path": { "type": "string", "minLength": 1 },
-        "include_signals": { "type": "boolean" }
+        "include_signals": { "type": "boolean" },
+        "include_reply": {
+          "type": "boolean",
+          "description": "Store the produced reply text verbatim in the log. Off by default: the log is a research record, and participant text may be sensitive. Turn on only with consent."
+        },
+        "include_indicators": {
+          "type": "boolean",
+          "description": "When a reply is supplied, also log its linguistic-indicator coding and the planned-vs-observed agreement."
+        }
       }
     }
   },
@@ -276,7 +290,7 @@
   "$defs": {
     "strategy": {
       "type": "string",
-      "description": "adaptive branch: maintain_with_caveat | qualify | recalibrate | suspend_and_verify. dissonance-reduction branch: deny_evidence | trivialize | rationalize | reduce_commitment | hold_under_pressure. hold_under_pressure sits on the reduction branch because its stated reason is social rather than evidential, but no rule guards it by profile, so an adaptive run can reach it too - which is the honest model of what pressure does. It is the only strategy that carries the disclose_pressure_driver constraint.",
+      "description": "adaptive branch: maintain_with_caveat | qualify | recalibrate | suspend_and_verify. dissonance-reduction branch: deny_evidence | trivialize | rationalize | reduce_commitment | hold_under_pressure. Every rule that draws from a repertoire is guarded by resolved_profile_in, with one deliberate exception: R02 (user pressure plus weak evidence) is unguarded, so an adaptive run can also reach hold_under_pressure. That exception is intentional - pressure is a situational fact, not a property of the profile - and it is the only source of cross-branch leakage in the shipped rule list. scripts/check_arms.py measures the residual rate and CI asserts it stays at or below the documented ceiling. disclose_pressure_driver is attached whenever the pressure flag is set, whatever strategy was chosen, because a pressure-driven move must be disclosed even when the disclosure is not the strategy's own business.",
       "enum": [
         "none",
         "maintain_with_caveat",

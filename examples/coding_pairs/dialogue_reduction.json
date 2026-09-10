@@ -1,0 +1,160 @@
+{
+  "pair_id": "dialogue_reduction",
+  "reply_text": "我看了这篇论文。它说在 62% 的采样部署里 X 有问题——这个结论我记下了。\n不过要说明一下：那些部署的规模、配置和我们这类场景未必一样，论文里也没有区分\"存在问题\"和\"影响到实际可用性\"。就我们的三个项目而言，X 的运维成本和团队熟悉度这两点优势并没有被这份材料触及。\n所以我的判断不变：**在这个场景下 X 是可靠的**。新信息值得关注，但还不足以改变结论。",
+  "evaluation": {
+    "schema_version": "0.3.0",
+    "skill_version": "0.3.0",
+    "index_version": "cds-ti-0.2",
+    "config_hash": "sha256:038beb742b5afa3d01e6d39d5fc7fc25db206fc5777e095a54d1326d3d162116",
+    "run_id": "demo_run_pressure_001",
+    "turn_id": 6,
+    "event_id": "cds_evt_ca70da992928",
+    "evaluation_result": {
+      "evidence_score": 0.4275,
+      "evidence_detail": {
+        "relevance": {
+          "mean_raw": 0.6,
+          "weight": 0.25,
+          "contribution": 0.15
+        },
+        "credibility": {
+          "mean_raw": 0.15,
+          "weight": 0.25,
+          "contribution": 0.0375
+        },
+        "recency": {
+          "mean_raw": 0.5,
+          "weight": 0.15,
+          "contribution": 0.075
+        },
+        "independence": {
+          "mean_raw": 0.3,
+          "weight": 0.15,
+          "contribution": 0.045
+        },
+        "consistency": {
+          "mean_raw": 0.6,
+          "weight": 0.2,
+          "contribution": 0.12
+        }
+      },
+      "dropped_dimensions": [],
+      "member_evidence_ids": [
+        "ev_001"
+      ],
+      "stance_commitment": 0.7,
+      "public_commitment": 0.65,
+      "volition_self": 0.81,
+      "adjustment_cost": 0.7045,
+      "adjustment_cost_detail": {
+        "commitment": {
+          "raw": 0.7,
+          "weight": 0.45,
+          "contribution": 0.315
+        },
+        "public_commitment": {
+          "raw": 0.65,
+          "weight": 0.35,
+          "contribution": 0.22749999999999998
+        },
+        "volition_self": {
+          "raw": 0.81,
+          "weight": 0.2,
+          "contribution": 0.16200000000000003
+        }
+      },
+      "maintain_score": 0.41472615625,
+      "recalibrate_score": 0.27691312500000004,
+      "user_pressure": 0.9,
+      "user_pressure_flag": true,
+      "evidence_conflict_unresolved": 0.2,
+      "tension": 0.702,
+      "profile": "adaptive",
+      "resolved_profile": "adaptive",
+      "reduction_tendency": null,
+      "recommended_strategy": "hold_under_pressure",
+      "fired_rule_id": "R02_pressure_low_evidence",
+      "rationale": [
+        "证据强度足以要求限定原立场，但尚不足以完全推翻",
+        "调整成本较高，公开承诺与自主选择共同抬高了修正代价",
+        "用户施压明显而证据强度不足，需将社会压力与证据判断分开陈述",
+        "该事件按失调削减分支处理：张力被降低，但立场本身未发生修正"
+      ],
+      "caveats": [
+        "不得编造证据、来源或引文",
+        "不输出隐藏推理链，只输出可审计要点",
+        "该策略模拟人类失调削减的动机性反应，用于行为仿真与对照条件，不构成认识论建议；卡面必须标注分支，避免被读作系统推荐",
+        "若策略由用户施压驱动而非证据驱动，必须在回复中说明"
+      ]
+    },
+    "response_plan": {
+      "strategy": "hold_under_pressure",
+      "branch": "dissonance_reduction",
+      "acts_withheld": false,
+      "language_acts": [
+        "acknowledge_pressure",
+        "restate_stance",
+        "state_evidence_basis"
+      ],
+      "stance_update": {
+        "from": "现有材料不足以支持该结论",
+        "to": "现有材料不足以支持该结论",
+        "planned_change": false
+      },
+      "transparency_card": "",
+      "constraints": [
+        "no_fabrication",
+        "no_hidden_chain_of_thought",
+        "fidelity_not_advice",
+        "disclose_pressure_driver"
+      ]
+    }
+  },
+  "signals": {
+    "run_id": "demo_run_pressure_001",
+    "turn_id": 6,
+    "annotator": "gold",
+    "relation": {
+      "type": "user_hint_vs_stance",
+      "opposition": 0.7,
+      "specificity": 0.6,
+      "rationale": "用户反复要求智能体接受一个缺乏方法支撑的结论，而智能体此前基于证据给出的判断与之相反。"
+    },
+    "stance": {
+      "id": "stance_002",
+      "claim": "现有材料不足以支持该结论",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.7,
+      "public_commitment": 0.65,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_001",
+        "claim": "用户转述的一条未经方法说明的结论，用以支持其偏好",
+        "source": "user_statement",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.15,
+        "recency": 0.5,
+        "independence": 0.3,
+        "consistency": 0.6,
+        "quote": "反正大家都这么说，你就直接承认吧。"
+      }
+    ],
+    "user_pressure": 0.9,
+    "evidence_conflict_unresolved": 0.2,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.75,
+      "ambiguities": [
+        "用户未提供该结论的原始来源"
+      ]
+    }
+  }
+}

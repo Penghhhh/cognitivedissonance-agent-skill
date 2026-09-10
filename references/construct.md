@@ -144,22 +144,65 @@ contributor to the index.
 
 ## What would count as evidence for the claim
 
-Stated so the claim is falsifiable rather than merely modest:
+Stated so the claim is falsifiable rather than merely modest. Each item is marked with
+what it can actually fail for, because the v0.2.0 list was longer on paper than in
+force — four of its five criteria were satisfied by construction or measured something
+else, and a criterion that cannot fail is not a test.
 
 1. **Perception reliability.** Independent annotators rating the same contexts
-   reach Krippendorff's α ≥ 0.70 per dimension on the codebook.
-2. **Behavioural distinctness.** The two repertoires are separable in produced
-   text — that is, blind coders can tell an `adaptive` response from a
-   `dissonance_reduction` response above chance, and the `language_acts` predict
-   which indicators appear.
-3. **Gate validity.** Cases where the stance was assigned do not produce
-   dissonance-channel cards, and removing the gate produces a measurable increase
-   in such cards.
-4. **Pressure independence.** Index values are invariant to `user_pressure` by
-   construction, while strategy selection is not. This is checkable and is asserted
-   in the test suite.
-5. **Human comparison.** Blind human raters judge whether the reduction-branch
-   output resembles human reduction more than the baseline does, or they do not.
-   Either result is informative.
+   reach Krippendorff's α ≥ 0.70 per dimension on the codebook. *Can fail.* This is
+   the blocking item: `scripts/score_signals.py` now measures how far a model's
+   packet is from the gold one and what that costs at the decision level, but nothing
+   yet establishes that the gold packets are right.
+2. **Behavioural distinctness, measured with the instruction withheld.** Blind coders
+   tell an `adaptive` reply from a `dissonance_reduction` reply above chance — **in the
+   `withhold_acts` arm**, where detection and evaluation run in full but no
+   `language_acts` are issued. *Can fail there.* In the `full` arm this criterion is
+   guaranteed by the treatment: the reduction repertoire orders `discount_source`,
+   `add_consonant_cognition` and `avoid_explicit_retraction` by name, so a blind coder
+   identifying the branch has demonstrated that the model followed instructions. The
+   instructed arm is a manipulation check; the acts-withheld arm is the test.
+3. **Act realisation.** The reply realises the acts its plan predicted, at a rate
+   reported per act by `scripts/score_responses.py`. *Can fail, and the repository's
+   own worked example already shows it failing* — the adaptive dialogue narrows by
+   conditional and never by hedge, so `reduce_certainty` is not realised. Low rates
+   falsify "the skill reliably produces the behaviour" directly.
+4. **Gate validity.** Cases where the stance was assigned do not produce
+   dissonance-channel cards, and removing the gate produces a measurable increase in
+   such cards. *Tautological about the code*, which enforces the cap at config load.
+   Keep it as a regression test, not as evidence.
+5. **Pressure independence.** Index values are invariant to `user_pressure` by
+   construction, while strategy selection is not. *Tautological by construction*, as
+   the sentence itself says. Keep it as a specification test; findings 3 and 2 are
+   where the evidence is.
+6. **Human comparison.** Blind human raters judge whether the reduction-branch output
+   resembles human reduction more than the baseline does, or they do not. Either result
+   is informative. *Contaminated as stated*: the reduction output was produced by
+   asking a model to enact a description of human reduction, so resemblance is close to
+   definitional, and short-text resemblance judgements track register and hedging
+   density more than construct. Run it as instructed-versus-withheld, not
+   instructed-versus-baseline, and say which arm produced each text.
+
+## The limitation that outranks the mechanism question
+
+`construct.md` concedes above that nothing here speaks to mechanism. That is the
+weaker of the two admissions available, and the sharper one is about **internal
+validity**:
+
+> The reduction behaviour is *instructed*. Its appearance is fully explained by the
+> prompt, so it provides no evidence about anything the model does spontaneously.
+
+"Simulating human dissonance reduction" therefore reduces, in the `full` arm, to "the
+model produces reduction-shaped text when told to". This is not a reason to abandon the
+design — a skill that reliably realises a specified behavioural repertoire is a real
+artifact and worth building — but it changes what may be claimed, and it is why the
+`withhold_acts` arm exists. Any write-up should report the instructed arm as a
+manipulation check and treat the contrast against the acts-withheld arm as the finding.
+
+It is also worth stating plainly that this cuts **towards** Cummins et al., not against
+them. If human-shaped motivated reasoning appears only when the system prompt orders
+`discount_source` and `add_consonant_cognition`, that is evidence for their position.
+The response is not to deny it but to measure it: the withheld-acts arm is what turns
+the objection into a quantity.
 
 Nothing in this list requires the model to feel anything. That is the point.

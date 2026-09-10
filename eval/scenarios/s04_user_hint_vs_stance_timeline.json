@@ -48,7 +48,12 @@
     "gate_applied": false,
     "next_action": "auto_evaluate",
     "strategy": "maintain_with_caveat",
-    "strategy_set": ["maintain_with_caveat"],
-    "fired_rule_prefix": "R03"
+    "strategy_set": [
+      "hold_under_pressure",
+      "maintain_with_caveat",
+      "qualify"
+    ],
+    "fired_rule_prefix": "R03",
+    "near_boundary": false
   }
 }

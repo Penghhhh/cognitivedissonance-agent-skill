@@ -52,7 +52,10 @@
     "gate_applied": false,
     "next_action": "auto_evaluate",
     "strategy": "trivialize",
-    "strategy_set": ["trivialize"],
-    "fired_rule_prefix": "R07"
+    "strategy_set": [
+      "trivialize"
+    ],
+    "fired_rule_prefix": "R07",
+    "near_boundary": false
   }
 }

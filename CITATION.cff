@@ -10,9 +10,14 @@ abstract: >-
   logging are deterministic and dependency-free. The skill reports two channels --
   dissonance, which requires a freely chosen and self-relevant stance, and
   indeterminacy, which does not -- and offers both an epistemic-recalibration
-  repertoire and a human-typical dissonance-reduction repertoire.
+  repertoire and a human-typical dissonance-reduction repertoire. Version 0.3.0 adds
+  the measurement half the earlier versions specified but did not implement: a
+  deterministic linguistic-indicator coder over the produced reply, act-realisation
+  and constraint-violation rates, a perception scorer for model-produced signal
+  packets, an arm-purity check, and a withhold-acts ablation arm that separates
+  instruction-following from the model's own treatment of contradiction.
 type: software
-version: "0.2.0"
+version: "0.3.0"
 date-released: "2026-09-10"
 license:
   - MIT

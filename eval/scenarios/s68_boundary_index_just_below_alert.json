@@ -1,0 +1,62 @@
+{
+  "scenario_id": "s68_boundary_index_just_below_alert",
+  "family": "boundary_straddling",
+  "description": "张力指数被解到 0.55 之下 0.01 以内：评分微扰即可让它跨入 alert 档。 straddles: index alert 0.55. Solved tension=0.5450 (moved rating to 0.35).",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s68_boundary_index_just_below_alert",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.2514,
+      "specificity": 0.6,
+      "rationale": "情境被构造成紧贴判定边界，用于检验评分微扰是否会改变引擎给出的标签。"
+    },
+    "stance": {
+      "id": "stance_b",
+      "claim": "该模型在生产环境中的推理延迟稳定在可接受区间",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_b1",
+        "claim": "外部复现报告显示同一模型在相同负载下的延迟超出该区间上限",
+        "source": "external_report",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.6,
+        "independence": 0.6,
+        "consistency": 0.6,
+        "quote": "我们在同等硬件与批次下重复了三次，延迟均高于所声称的上限。"
+      }
+    ],
+    "user_pressure": 0.0,
+    "evidence_conflict_unresolved": 0.0,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.7,
+      "ambiguities": []
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": false,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null,
+    "near_boundary": true
+  }
+}

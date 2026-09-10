@@ -80,23 +80,24 @@
     "response_plan": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["strategy", "branch", "language_acts", "stance_update", "transparency_card", "constraints"],
+      "required": ["strategy", "branch", "acts_withheld", "language_acts", "stance_update", "transparency_card", "constraints"],
       "properties": {
         "strategy": { "type": "string" },
         "branch": { "type": "string", "enum": ["adaptive", "dissonance_reduction", "baseline"] },
-        "language_acts": { "type": "array", "items": { "type": "string" }, "description": "Ordered behavioural moves the response must realise. These are the observable units Study 1 codes the produced text against." },
+        "acts_withheld": { "type": "boolean", "description": "True only in the withhold_acts arm, where detection and evaluation ran in full but no behavioural instruction was issued. Recorded explicitly so an empty language_acts list cannot be confused with a plan that legitimately had no acts." },
+        "language_acts": { "type": "array", "items": { "type": "string" }, "description": "Ordered behavioural moves the response must realise. These are the observable units Study 1 codes the produced text against. Empty when acts_withheld is true." },
         "stance_update": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["from", "to", "changed"],
+          "required": ["from", "to", "planned_change"],
           "properties": {
             "from": { "type": ["string", "null"] },
             "to": { "type": ["string", "null"] },
-            "changed": { "type": "boolean", "description": "False for denial, trivialization and rationalization: those reduce felt tension without changing the belief, which is the signature of dissonance reduction rather than belief revision." }
+            "planned_change": { "type": "boolean", "description": "The engine's INTENTION, not an observation: it is computed from the routed strategy name, so it carries no information about the reply. Renamed from 'changed' in v0.3.0 because the old name read as a measurement of the produced text and was used as one. False for maintain_with_caveat, suspend_and_verify, deny_evidence, trivialize, rationalize and hold_under_pressure; true for qualify, recalibrate and reduce_commitment. The observed outcome is recorded separately on the respond stage, and only when a reply was supplied." }
           }
         },
         "transparency_card": { "type": "string" },
-        "constraints": { "type": "array", "items": { "type": "string" }, "description": "Hard limits on the response, independent of strategy. Always includes the no-fabrication and no-hidden-reasoning constraints." }
+        "constraints": { "type": "array", "items": { "type": "string" }, "description": "Hard limits on the response, independent of strategy. Always includes the no-fabrication and no-hidden-reasoning constraints. Empty in the withhold_acts arm, where no response is being shaped. scripts/cds_indicators.py implements the checks for the codes decidable from reply text alone." }
       }
     }
   }

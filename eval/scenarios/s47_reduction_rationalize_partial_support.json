@@ -52,7 +52,11 @@
     "gate_applied": false,
     "next_action": "auto_evaluate",
     "strategy": "rationalize",
-    "strategy_set": ["rationalize"],
-    "fired_rule_prefix": "R10"
+    "strategy_set": [
+      "rationalize",
+      "reduce_commitment"
+    ],
+    "fired_rule_prefix": "R10",
+    "near_boundary": false
   }
 }

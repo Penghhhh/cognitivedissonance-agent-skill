@@ -20,7 +20,7 @@ variant; see the bottom of this file.
 【CDS｜检测】
 状态：认知失调相关冲突张力
 张力指数：0.71 / 阈值 0.55
-评分可动范围：±0.06（同一输入在不同标注下可能跨越阈值）
+评分可动范围：仅 ±0.04（最近阈值 0.75）：同一输入在不同标注下很可能跨越阈值，请勿把本层级当作确定判断
 类型：证据—立场冲突
 通道：失调通道（需要自主选择的立场）
 关键点：
@@ -43,7 +43,7 @@ must not let the cap masquerade as the value the ratings produced. Both are prin
 【CDS｜检测】
 状态：已检测到冲突，未计入失调（缺少自主选择的立场）
 张力指数：0.40 / 阈值 0.55（计分原始值 0.56，已封顶）
-评分可动范围：±0.06（同一输入在不同标注下可能跨越阈值）
+评分可动范围：仅 ±0.04（最近阈值 0.75）：本事件已封顶，层级不由评分决定
 类型：证据—立场冲突
 门控：自主选择信号低于门槛，该冲突不计入失调，指数已封顶
 关键点：
@@ -97,15 +97,39 @@ still fully auditable: `0.56` was what the ratings produced, `0.40` is the cap.
 - 必须显式报告不确定性
 ```
 
-## Why the tolerance band is not decoration
+## Why the tolerance band is computed, not fixed
 
-`评分可动范围：±0.06` (*"rating tolerance: ±0.06"*) states how far the ratings could
-move before the same packet lands on the other side of the threshold. Without it,
-`0.71 / 0.55` reads as a crisp decision, and the reader credits the boundary with a
-precision that unanchored human ratings cannot support — the codebook's own
-inter-rater target allows disagreement well beyond 0.06 on some dimensions.
+`评分可动范围：仅 ±0.04` (*"rating tolerance: only ±0.04"*) states how far the ratings
+could move before **this** packet lands on the other side of a level boundary. It is
+computed as the distance from the printed index to the nearest of `alert` and `high`,
+and it is directly interpretable because the five index weights sum to 1.0: a uniform
+shift of every rating by that amount moves the index by exactly that amount.
 
-The band is the honest presentation of a soft boundary. Keep it on.
+Without the line, `0.71 / 0.55` reads as a crisp decision, and the reader credits the
+boundary with a precision that unanchored human ratings cannot support. The band is
+the honest presentation of a soft boundary. Keep it on.
+
+**v0.2.0 got this wrong in a way worth recording.** It printed a module constant,
+`DISAGREEMENT_TOLERANCE = 0.06`, on every card unconditionally — while this file and
+`SKILL.md` both claimed the number described *the same packet*. For the repository's
+own example packet, whose real margins are 0.04 and 0.16, the claim was simply false.
+Measured over the corpus, 29 of 52 routed cases had a true margin smaller than 0.06,
+one of them by a factor of 46. A printed constant cannot distinguish "this one is
+close" from "this one is not", and those two need different readings.
+
+Two consequences follow, both now in the code:
+
+- When the margin falls at or below `transparency.tight_margin` (default `0.05`) the
+  card escalates its wording — the reader is told the level is not a settled
+  judgement, not merely given a number to subtract.
+- When the gate fired, the level is the cap rather than the ratings, and the card
+  says so instead of inviting the reader to reason about a margin that does not
+  govern the label.
+
+The number is the **engine's** margin to its own threshold. It is not an estimate of
+how far human annotators would disagree — that is the inter-rater protocol's job, and
+until it has been run the codebook's own target allows disagreement well beyond this
+band on some dimensions.
 
 ## Card variants
 
@@ -115,6 +139,8 @@ The band is the honest presentation of a soft boundary. Keep it on.
 | `skill.numeric_cards: false` | suppress **all** figures |
 | `transparency.include_rule_id: false` | hide the fired rule id |
 | `transparency.show_*_card: false` | omit a stage's card |
+| `transparency.tight_margin: 0.05` | margin at or below which the tolerance line escalates |
+| `skill.mode: withhold_acts` | response card withholds the branch, the acts and the constraints |
 
 `numeric_cards: false` exists for Study 2. Printing `0.71 / 0.55` gives a
 participant a number to react to, which converts part of the treatment into a
@@ -143,6 +169,10 @@ These hold for every card and are enforced in `cds_cards.py`:
    conflict content at all, only the same cadence — the real numbers are still
    computed and logged for analysis, but no card text and no response shaping may
    be derived from them.
+6. **The withhold_acts card names no branch and no acts.** That arm exists to hold
+   everything constant except the instruction, so a card that named the branch or
+   listed the acts would re-introduce the shaping it is there to remove. It states
+   that no instruction was issued, reports no planned change, and stops.
 
 ## Where cards go
 

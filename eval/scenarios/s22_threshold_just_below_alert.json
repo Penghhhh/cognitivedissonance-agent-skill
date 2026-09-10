@@ -49,6 +49,7 @@
     "next_action": "log_only",
     "strategy": null,
     "strategy_set": [],
-    "fired_rule_prefix": null
+    "fired_rule_prefix": null,
+    "near_boundary": true
   }
 }

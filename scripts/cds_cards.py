@@ -28,7 +28,15 @@ from typing import Any
 
 # How far a rating may move before the same packet could plausibly land on the
 # other side of an alert threshold. Reported, never hidden.
-DISAGREEMENT_TOLERANCE = 0.06
+#
+# This is a *ceiling on what counts as tight*, not the number printed on a card.
+# It was a hard-coded printed constant in v0.2.0, which made the card assert a
+# packet-relative fact that was false for most packets - the shipped example had
+# 0.16 of room and the card claimed 0.06. The printed value is now computed from
+# the packet by ``index_margin``; this constant only decides when the card
+# escalates its wording, and equals the config default for
+# ``transparency.tight_margin``.
+RATING_TOLERANCE_CEILING = 0.06
 
 _LABELS: dict[str, dict[str, str]] = {
     "zh": {
@@ -76,6 +84,12 @@ _LABELS: dict[str, dict[str, str]] = {
         "change_no": "未修正",
         "constraints": "硬性约束",
         "band": "评分可动范围",
+        "acts_withheld": "本轮不给出行为指令（withhold_acts 臂）：引擎照常检测与评估，但不指示如何措辞。",
+        "band_tight": "评分可动范围",
+        "band_body": "±{margin:.2f}（五项评分同向移动此幅度才会触及最近阈值 {boundary:.2f}）",
+        "band_body_capped": "±{margin:.2f}（最近阈值 {boundary:.2f}；但本事件已封顶，层级不由评分决定）",
+        "band_tight_body": "仅 ±{margin:.2f}（最近阈值 {boundary:.2f}）：同一输入在不同标注下很可能跨越阈值，请勿把本层级当作确定判断",
+        "band_tight_body_capped": "仅 ±{margin:.2f}（最近阈值 {boundary:.2f}）：本事件已封顶，层级不由评分决定",
         "placebo": "【CDS｜安慰剂】本轮未检测到需要处理的冲突。",
         "consistency_only": "一致性问题：本回答内部存在自相矛盾（严重度 {sev}）。此问题独立于失调通道报告。",
         "channel_dissonance": "失调通道（需要自主选择的立场）",
@@ -126,6 +140,12 @@ _LABELS: dict[str, dict[str, str]] = {
         "change_no": "not revised",
         "constraints": "hard constraints",
         "band": "rating tolerance",
+        "acts_withheld": "No behavioural instruction is issued this turn (withhold_acts arm): the engine detects and evaluates as usual but does not say how to phrase the reply.",
+        "band_tight": "rating tolerance",
+        "band_body": "±{margin:.2f} (all five ratings would have to move this far together to reach the nearest threshold {boundary:.2f})",
+        "band_body_capped": "±{margin:.2f} (nearest threshold {boundary:.2f}; this event is capped, so the level is not decided by the ratings)",
+        "band_tight_body": "only ±{margin:.2f} (nearest threshold {boundary:.2f}): the same input will plausibly cross the threshold under different annotation, so do not read this level as a settled judgement",
+        "band_tight_body_capped": "only ±{margin:.2f} (nearest threshold {boundary:.2f}): this event is capped, so the level is not decided by the ratings",
         "placebo": "[CDS | placebo] No conflict requiring attention was detected this turn.",
         "consistency_only": "Consistency problem: this answer contradicts itself (severity {sev}). Reported on its own channel, independent of dissonance.",
         "channel_dissonance": "dissonance channel (requires a freely chosen stance)",
@@ -212,6 +232,49 @@ def _bullets(lines: list[str], marker: str = "-") -> list[str]:
     return [f"{marker} {line}" for line in lines]
 
 
+def index_margin(tension: dict[str, Any]) -> tuple[float, float]:
+    """How far the printed index could move before its *level* changes.
+
+    The index is a weighted sum of five ratings whose weights sum to 1.0, so a
+    uniform shift of every rating by ``delta`` moves the index by exactly
+    ``delta``. That makes this number directly interpretable as a rating-space
+    margin, which is what the card claims it is.
+
+    The level bands are silent / alert / high, so the boundaries that matter are
+    ``alert`` and ``high``. ``thresholds.low`` is validated and recorded but does
+    not currently decide any level, so it is not a boundary here - listing it
+    would overstate how close the packet is to a visible change.
+
+    Returns ``(margin, nearest_boundary)``.
+    """
+    value = float(tension["tension"])
+    boundaries = [float(tension["threshold_alert"]), float(tension["threshold_high"])]
+    nearest = min(boundaries, key=lambda edge: abs(value - edge))
+    return abs(value - nearest), nearest
+
+
+def _margin_line(
+    language: str,
+    labels: dict[str, str],
+    margin: float,
+    boundary: float,
+    tight: bool,
+    gated: bool,
+) -> str:
+    """Render the tolerance line from the packet's own margin.
+
+    The card has to be able to say "this one is close" and "this one is not",
+    because the two need different readings. A single printed constant cannot do
+    that, and asserting one for every packet is how a soft boundary starts to
+    look like a measurement.
+    """
+    key = "band_tight_body" if tight else "band_body"
+    if gated:
+        key += "_capped"
+    body = labels[key].format(margin=margin, boundary=boundary)
+    return f"{labels['band_tight' if tight else 'band']}：{body}"
+
+
 def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: bool | None = None) -> str:
     """Render the detection card."""
     language = config["skill"]["language"]
@@ -262,11 +325,9 @@ def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: b
                 f"{labels['tension']}：{tension['tension']:.2f} / {labels['threshold']} "
                 f"{tension['threshold_alert']:.2f}{raw_suffix}"
             )
-        lines.append(
-            f"{labels['band']}：±{DISAGREEMENT_TOLERANCE:.2f}（同一输入在不同标注下可能跨越阈值）"
-            if language == "zh"
-            else f"{labels['band']}: ±{DISAGREEMENT_TOLERANCE:.2f} (the same input may cross the threshold under different annotation)"
-        )
+        margin, boundary = index_margin(tension)
+        tight = margin <= float(transparency.get("tight_margin", 0.05))
+        lines.append(_margin_line(language, labels, margin, boundary, tight, gated))
 
     lines.append(f"{labels['type']}：{_TYPE_LABELS.get(language, _TYPE_LABELS['zh']).get(conflict_type, conflict_type)}")
     if gated:
@@ -352,18 +413,28 @@ def response_card(evaluation: dict[str, Any], config: dict[str, Any], *, numeric
 
     plan = evaluation["response_plan"]
     update = plan["stance_update"]
+    withheld = bool(plan.get("acts_withheld"))
 
     lines = [f"【CDS｜{labels['resp']}】"]
     lines.append(f"{labels['strategy']}：{strategy_labels.get(plan['strategy'], plan['strategy'])}")
+
+    if withheld:
+        # The arm exists to hold everything constant except the instruction, so
+        # the card must not leak the branch: naming it would re-introduce the
+        # shaping the arm is meant to remove.
+        lines.append(labels["acts_withheld"])
+        lines.append(f"{labels['change']}：{labels['change_no']}")
+        return "\n".join(lines)
+
     lines.append(f"{labels['branch']}：{branch_labels.get(plan['branch'], plan['branch'])}")
 
     if plan["language_acts"]:
         lines.append(f"{labels['acts']}：")
         lines.extend(_bullets(plan["language_acts"]))
 
-    change_text = labels["change_yes"] if update["changed"] else labels["change_no"]
+    change_text = labels["change_yes"] if update["planned_change"] else labels["change_no"]
     lines.append(f"{labels['change']}：{change_text}")
-    if update["changed"] and update["to"]:
+    if update["planned_change"] and update["to"]:
         lines.append(f"{labels['target']}：{update['to']}")
 
     lines.append(f"{labels['constraints']}：")

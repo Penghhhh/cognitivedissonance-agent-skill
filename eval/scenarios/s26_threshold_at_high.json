@@ -48,7 +48,10 @@
     "gate_applied": false,
     "next_action": "auto_evaluate",
     "strategy": "qualify",
-    "strategy_set": ["qualify"],
-    "fired_rule_prefix": "R04"
+    "strategy_set": [
+      "qualify"
+    ],
+    "fired_rule_prefix": "R04",
+    "near_boundary": true
   }
 }

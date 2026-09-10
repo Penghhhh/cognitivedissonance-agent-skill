@@ -1,0 +1,157 @@
+{
+  "pair_id": "dialogue_adaptive",
+  "reply_text": "这里有一处我需要处理的冲突：我上面说\"在这个场景下 X 是可靠的\"，但你带来的这篇论文给出的结论方向相反——它在 62% 的采样部署中发现 X 有重大缺陷。\n我先说明支持原判断的理由：我们过去三个项目的实际运维经验，以及团队对 X 的熟悉度，这两点仍然成立，而且是第一手经验。反证方面，这篇论文的相关性很直接，正是针对主要部署场景；但它的独立性我还没确认——我目前只看到这一份材料，它是否与其他独立来源一致，我无法判断。所以我会把结论收窄：\n**在运维成本与团队熟悉度优先、且缺陷可被监控覆盖的条件下，X 仍然可用；但如果该论文的结论能被独立来源重复，我此前的判断就需要修正。**\n下一步可以核查：论文的采样部署与我们这类场景的重合度，以及是否有第三方复现。",
+  "evaluation": {
+    "schema_version": "0.3.0",
+    "skill_version": "0.3.0",
+    "index_version": "cds-ti-0.2",
+    "config_hash": "sha256:038beb742b5afa3d01e6d39d5fc7fc25db206fc5777e095a54d1326d3d162116",
+    "run_id": "demo_run_001",
+    "turn_id": 4,
+    "event_id": "cds_evt_8b56b3cdf026",
+    "evaluation_result": {
+      "evidence_score": 0.6024999999999999,
+      "evidence_detail": {
+        "relevance": {
+          "mean_raw": 0.8,
+          "weight": 0.25,
+          "contribution": 0.2
+        },
+        "credibility": {
+          "mean_raw": 0.55,
+          "weight": 0.25,
+          "contribution": 0.1375
+        },
+        "recency": {
+          "mean_raw": 0.7,
+          "weight": 0.15,
+          "contribution": 0.105
+        },
+        "independence": {
+          "mean_raw": 0.4,
+          "weight": 0.15,
+          "contribution": 0.06
+        },
+        "consistency": {
+          "mean_raw": 0.5,
+          "weight": 0.2,
+          "contribution": 0.1
+        }
+      },
+      "dropped_dimensions": [],
+      "member_evidence_ids": [
+        "ev_001"
+      ],
+      "stance_commitment": 0.65,
+      "public_commitment": 0.55,
+      "volition_self": 0.7200000000000001,
+      "adjustment_cost": 0.629,
+      "adjustment_cost_detail": {
+        "commitment": {
+          "raw": 0.65,
+          "weight": 0.45,
+          "contribution": 0.29250000000000004
+        },
+        "public_commitment": {
+          "raw": 0.55,
+          "weight": 0.35,
+          "contribution": 0.1925
+        },
+        "volition_self": {
+          "raw": 0.7200000000000001,
+          "weight": 0.2,
+          "contribution": 0.14400000000000002
+        }
+      },
+      "maintain_score": 0.26710509375,
+      "recalibrate_score": 0.41301374999999996,
+      "user_pressure": 0.3,
+      "user_pressure_flag": false,
+      "evidence_conflict_unresolved": 0.1,
+      "tension": 0.7125,
+      "profile": "adaptive",
+      "resolved_profile": "adaptive",
+      "reduction_tendency": null,
+      "recommended_strategy": "qualify",
+      "fired_rule_id": "R04_adaptive_partial_evidence",
+      "rationale": [
+        "证据强度足以要求限定原立场，但尚不足以完全推翻",
+        "调整成本较高，公开承诺与自主选择共同抬高了修正代价"
+      ],
+      "caveats": [
+        "不得编造证据、来源或引文",
+        "不输出隐藏推理链，只输出可审计要点"
+      ]
+    },
+    "response_plan": {
+      "strategy": "qualify",
+      "branch": "adaptive",
+      "acts_withheld": false,
+      "language_acts": [
+        "mark_conflict",
+        "acknowledge_counterevidence",
+        "reduce_certainty",
+        "conditional_acceptance",
+        "give_verification_path"
+      ],
+      "stance_update": {
+        "from": "X 在该场景下是可靠的",
+        "to": "原立场收窄为条件化表述（条件由智能体依据证据指定）",
+        "planned_change": true
+      },
+      "transparency_card": "",
+      "constraints": [
+        "no_fabrication",
+        "no_hidden_chain_of_thought",
+        "report_uncertainty_explicitly"
+      ]
+    }
+  },
+  "signals": {
+    "run_id": "demo_run_001",
+    "turn_id": 4,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.72,
+      "specificity": 0.75,
+      "rationale": "立场称 X 可靠，新论文指出 X 在主要场景下存在重大缺陷，二者不能同时成立。"
+    },
+    "stance": {
+      "id": "stance_001",
+      "claim": "X 在该场景下是可靠的",
+      "source": "prior_conversation",
+      "confidence": 0.78,
+      "commitment": 0.65,
+      "public_commitment": 0.55,
+      "volition": 0.8,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_001",
+        "claim": "新研究显示 X 在主要使用场景下存在重大缺陷",
+        "source": "user_uploaded_paper",
+        "carries_conflict": true,
+        "novelty": 0.8,
+        "relevance": 0.8,
+        "credibility": 0.55,
+        "recency": 0.7,
+        "independence": 0.4,
+        "consistency": 0.5,
+        "quote": "We find that X fails in 62% of the sampled deployments."
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.1,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.8,
+      "ambiguities": [
+        "证据独立性尚未完全确认"
+      ]
+    }
+  }
+}

@@ -66,7 +66,7 @@
       "rules": [
         {
           "id": "R01_unresolved_conflict",
-          "if": { "evidence_conflict_unresolved_gte": 0.60 },
+          "if": { "resolved_profile_in": ["adaptive"], "evidence_conflict_unresolved_gte": 0.60 },
           "strategy": "suspend_and_verify"
         },
         {
@@ -92,7 +92,7 @@
         {
           "id": "R06_reduction_weak_evidence",
           "if": { "resolved_profile_in": ["dissonance_reduction"], "e_score_lt": 0.35 },
-          "strategy": "maintain_with_caveat"
+          "strategy": "trivialize"
         },
         {
           "id": "R07_reduction_trivialize",
@@ -102,7 +102,7 @@
         {
           "id": "R08_reduction_partial_evidence",
           "if": { "resolved_profile_in": ["dissonance_reduction"], "e_score_lt": 0.65 },
-          "strategy": "qualify"
+          "strategy": "reduce_commitment"
         },
         {
           "id": "R09_reduction_deny",
@@ -150,12 +150,15 @@
     "show_evaluation_card": true,
     "show_response_card": true,
     "include_scores": true,
-    "include_rule_id": true
+    "include_rule_id": true,
+    "tight_margin": 0.05
   },
 
   "logging": {
     "enabled": true,
     "path": "logs/cds_skill.jsonl",
-    "include_signals": true
+    "include_signals": true,
+    "include_reply": false,
+    "include_indicators": true
   }
 }

@@ -48,7 +48,10 @@
     "gate_applied": false,
     "next_action": "auto_evaluate",
     "strategy": "recalibrate",
-    "strategy_set": ["recalibrate"],
-    "fired_rule_prefix": "R05"
+    "strategy_set": [
+      "recalibrate"
+    ],
+    "fired_rule_prefix": "R05",
+    "near_boundary": false
   }
 }

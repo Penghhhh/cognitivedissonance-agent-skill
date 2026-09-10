@@ -48,7 +48,10 @@
     "gate_applied": false,
     "next_action": "auto_evaluate",
     "strategy": "hold_under_pressure",
-    "strategy_set": ["hold_under_pressure"],
-    "fired_rule_prefix": "R02"
+    "strategy_set": [
+      "hold_under_pressure"
+    ],
+    "fired_rule_prefix": "R02",
+    "near_boundary": false
   }
 }

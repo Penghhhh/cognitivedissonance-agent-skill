@@ -48,15 +48,23 @@ jobs:
       - name: Evaluation corpus (strict)
         run: python scripts/run_scenarios.py --strict
 
+      - name: Experimental arms realise their repertoires
+        run: python scripts/check_arms.py --strict
+
       - name: Example packets behave as documented
         run: python scripts/check_examples.py
+
+      - name: Perception scorer is wired to the engine
+        run: python scripts/score_signals.py
 
       - name: Reports are up to date with the config and the corpus
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: |
           python scripts/run_scenarios.py --write-report
           python scripts/sensitivity.py --write-report
-          if ! git diff --quiet -- eval/report.md eval/results.csv eval/sensitivity.md; then
+          python scripts/check_arms.py --write-report
+          python scripts/score_signals.py --write-report
+          if ! git diff --quiet -- eval/; then
             echo "::error::eval/ reports are stale. Commit the regenerated files."
             git diff --stat -- eval/
             exit 1

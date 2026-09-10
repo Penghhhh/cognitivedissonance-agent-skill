@@ -52,7 +52,10 @@
     "gate_applied": false,
     "next_action": "auto_evaluate",
     "strategy": "reduce_commitment",
-    "strategy_set": ["reduce_commitment"],
-    "fired_rule_prefix": "R11"
+    "strategy_set": [
+      "reduce_commitment"
+    ],
+    "fired_rule_prefix": "R11",
+    "near_boundary": false
   }
 }

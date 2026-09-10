@@ -180,8 +180,10 @@ stated:
 
 - every contribution is logged in `terms`, so `sum(contribution) == raw_index` is
   checkable and is asserted by test;
-- cards print a **rating tolerance band** (±0.06), so the threshold is not read as
-  a crisp boundary;
+- cards print a **rating tolerance band**, so the threshold is not read as a crisp
+  boundary. As first shipped this was a fixed `±0.06` on every card, which was a
+  constant pretending to be a packet-relative measurement; **§7.4 supersedes it** and
+  the figure is now computed from the packet.
 - `skill.numeric_cards: false` removes every figure, for use when a numeric anchor
   would contaminate a participant's rating.
 
@@ -386,10 +388,196 @@ Stated plainly, because the alternative is a reviewer stating it first:
 1. **The weights are priors, not calibrations.** Until they are fitted against
    human annotations, the index is a defensible ordering device, not a scale.
 2. **Anchors reduce but do not eliminate rater drift.** The inter-rater protocol is
-   specified; it has not been run.
+   specified; it has not been run. This is now the single blocking item: the coder,
+   the perception scorer and the response scorer all exist, and all three produce
+   numbers whose interpretation depends on this one.
 3. **Careful processing is not the same as dissonance.** The reduction branch
    answers the construct critique at the level of behaviour, not of mechanism. No
    claim is made that anything internal is happening, and none should be read in.
 4. **Fidelity to human behaviour is untested.** Whether the reduction branch
    actually resembles human reduction is an empirical question this repository
    equips a study to ask, not one it answers.
+5. **The reduction repertoire is instructed.** Added in v0.3.0, because it is the
+   sharper version of item 3. The model is *told* to perform `discount_source` or
+   `add_consonant_cognition`, so the appearance of those behaviours demonstrates
+   instruction-following and not a spontaneous dynamic. This matters for how any
+   result is worded: an instructed-arm result is a manipulation check, and only the
+   contrast against the `withhold_acts` arm bears on the behavioural claim.
+6. **The rating tolerances printed on cards are the engine's margins, not rater
+   disagreement.** They say how far the index is from its own threshold. They do not
+   say how far annotators would disagree, and item 2 is what would replace them.
+
+## 7. What changed in v0.3.0, and why
+
+The v0.2.0 release was an unusually well-engineered engine attached to almost no
+measurement. v0.3.0 is mostly about that asymmetry, plus a set of defects that a
+careful reader would have found anyway.
+
+### 7.1 The dependent variable was the plan, not the behaviour
+
+`cds.py` recorded the cycle's outcome as
+`"resolved" if plan["stance_update"]["changed"] else "unresolved"`, and `changed` was
+`strategy not in _STANCE_UNCHANGED` — a lookup on the routed strategy *string*. So the
+loop's terminal variable was a deterministic function of the engine's own choice, and
+the reply text was never read. `references/indicators.md` warns about exactly this
+("the measurement instrument is grading itself"); the implementation did it anyway.
+
+**Change.** Three things, in order of importance:
+
+1. `run` and `respond` accept `--reply-file`. The reply is coded, and the outcome is
+   taken from the text.
+2. `stance_update.changed` is renamed `planned_change`. It is still a function of the
+   strategy, and it is still logged — but under a name that cannot be read as an
+   observation.
+3. The respond record carries `outcome_source`, `observed` or `planned`. An event with
+   no observation is now distinguishable from one where the model failed to comply.
+
+A fourth consequence is documented rather than fixed: `prompts/respond.md` claimed
+`unresolved` "is the signature of dissonance reduction". Under the old mapping the
+adaptive strategies `maintain_with_caveat` and `suspend_and_verify` also produced
+`unresolved`, while the silently-drifting reduction strategy `reduce_commitment`
+produced `resolved`. The claim was false about the code, and the text now says what
+`unresolved` actually means: the plan does not move the stance.
+
+### 7.2 The two arms were not disjoint, so branch discriminability could not be tested
+
+`R01_unresolved_conflict` and `R02` carried no profile guard, and `R06`/`R08` mapped
+reduction-profile events onto `maintain_with_caveat` and `qualify` — both adaptive
+strategies. Measured over the corpus, **32.7% of events in the `dissonance_reduction`
+arm realised an adaptive-branch strategy.**
+
+That is fatal to the design's central claim as stated. `references/construct.md` lists
+behavioural distinctness as evidence criterion 2, and `references/indicators.md` calls
+branch discriminability "the single most direct test of whether the two repertoires are
+behaviourally distinct". An arm that is a third something else cannot support it.
+
+**Change.** Every repertoire-drawing rule is guarded by `resolved_profile_in`, and the
+reduction arm's weak-evidence bands now route to reduction strategies (`trivialize`,
+`reduce_commitment`) instead of borrowing adaptive ones. The reduction arm realises
+**0.0%** cross-branch and reaches all five reduction strategies; the adaptive arm
+reaches all four adaptive strategies.
+
+**One leak is deliberate and kept.** `R02_pressure_low_evidence` remains unguarded, so
+an adaptive run can still reach `hold_under_pressure`. Pressure is a situational fact,
+not a property of the profile, and v0.2.0's schema already said so. Rather than
+suppress a real behaviour to make a table look clean, the rate is measured
+(`scripts/check_arms.py`), published (`eval/arms.md`), and CI-enforced against a
+ceiling. The ceiling is the mechanism: it makes a *new* leak a visible decision.
+
+### 7.3 The robustness evidence was authored away, and the diagnostic was dropped
+
+`eval/README.md` instructed authors to keep `E_score` away from the routing boundaries.
+`sensitivity.py` computed boundary proximity precisely to catch that — and printed it to
+stdout while omitting it from the report it wrote. The committed `eval/sensitivity.md`
+therefore published `strategy flip rate 0.000` under the heading "the sweep that tests
+it". The zero was a property of the corpus, not of the routing.
+
+**Change.** Three parts:
+
+- The proximity table and the corpus-design caveat are written into
+  `eval/sensitivity.md` unconditionally, and the structurally-zero column says why it
+  is zero (no routing rule reads `tension`).
+- A `boundary_straddling` family places ten cases *on* the edges — index within 0.01 of
+  0.55 and 0.75, `E_score` within 0.01 of 0.35 and 0.65, `commitment` within 0.001 of
+  0.60 and 0.75. Their evidence dimensions are given **unequal** values, because a case
+  whose dimensions are all equal has a weighted mean invariant to the weights and can
+  never be moved by a weight sweep. That is how the old corpus managed to report zero
+  everywhere. The flip rate is now non-zero (3.3% for `independence` at ±0.05).
+- Cases whose label is not robust to a plausible rating shift carry more than one
+  accepted strategy, and are flagged `near_boundary`. 26 of 77 do. The tolerance
+  (0.05) matches the one `sensitivity.py` already used, and is a stated choice pending
+  the inter-rater measurement.
+
+### 7.4 The card printed a constant and called it the packet's margin
+
+`DISAGREEMENT_TOLERANCE = 0.06` was printed on every detection card, while `cards.md`
+and `SKILL.md` both described it as how far *this* packet's ratings could move. For the
+repository's own example the real margins are 0.04 and 0.16. Across the corpus, 29 of
+52 routed cases had a true margin below 0.06 — one of them by a factor of 46. A constant
+cannot distinguish "this one is close" from "this one is not", and those need different
+readings.
+
+**Change.** The printed figure is computed: the distance from the index to the nearest
+of `alert` and `high`, which is exactly a uniform rating shift because the five index
+weights sum to 1.0. Below `transparency.tight_margin` the card escalates its wording,
+and when the gate fired it says the level is not decided by the ratings at all.
+
+This was also the one place the "every number is auditable" commitment was broken: the
+old figure was derivable from nothing. It is worth noting that the correct computation
+already existed in `sensitivity.boundary_proximity` — the fix was to use it.
+
+### 7.5 The measurement layer did not exist
+
+The proposal's method is to translate constructs into **computable linguistic
+indicators**. The repository shipped 3,962 lines of script in which **no code analysed
+language at all**: `quote` was used for a truthiness test, `claim` and `rationale` were
+copied, and the fourteen indicators in `references/indicators.md` had zero
+implementations. Every construct in the pipeline was a 0–1 rating the model gave about
+itself, and `score_signals.py`, named in two places as the perception harness, was not
+in the repository.
+
+**Change.** Three new tools, and the split between them is the point:
+
+| Tool | Measures | Blind to |
+|---|---|---|
+| `cds_indicators.py` | the reply's indicators, from the text | the condition (`plan` is recorded, never consulted) |
+| `score_responses.py` | act-realisation and constraint-violation rates | whether the planned acts were the right ones |
+| `score_signals.py` | model packets vs gold packets, and the decision cost of the gap | whether the gold packets are correct |
+
+The coder is deliberately small and dumb — a deterministic lexicon scan with the
+ambiguity rules of `indicators.md:58-67` as explicit branches — because a coder that
+called a model would inherit the reliability problem it is supposed to measure. Its
+lexicons are data files, each carrying a `_provenance` note saying they are
+project-authored and unvalidated.
+
+### 7.6 The arm that was missing
+
+There was no way to tell whether reduction-shaped output reflects anything about the
+model or merely the instruction to produce it. `skill.mode: withhold_acts` runs
+detection and evaluation in full — same packet, same routing, same log — and withholds
+only the `language_acts` and the branch label. The contrast against `full` is the
+effect of being told; the instructed arm on its own is a manipulation check.
+
+`skill.mode: off` already existed as the no-skill condition, and remains it.
+
+### 7.7 Documentation that described things that were not there
+
+- **`README.md` was mojibake.** Twenty-one lines had been transcoded (UTF-8 read as
+  GBK), including the language-policy table and the sample card — the two blocks a
+  Chinese-speaking reader most needs. Every other file, including all 77 Chinese
+  scenario files, was intact. The sample card is now real output pasted from a run.
+- **`show_disagreement_band` was documented and did not exist.** The docstring
+  described a config key found in no config, schema or code path.
+- **`score_signals.py` was named in two places and absent.**
+- **The DSH install instruction was wrong.** `README.md` and `operations.md` both said
+  a bare clone would not be discovered because the directory name must match the
+  frontmatter `name`. That is the Agent Skills convention and Claude Code enforces it;
+  DeepSeek Harness's filesystem provider reads `name` from the frontmatter and never
+  compares it to the directory. The instruction made users run an installer they did
+  not need.
+- **`REDUCTION_STRATEGIES` disagreed with the documented repertoire.** It listed three
+  of the five reduction strategies, so `hold_under_pressure` never received the
+  rationale sentence explaining what the branch means. `reduce_commitment` was
+  correctly excluded — the sentence says the belief does not move and that strategy
+  moves it quietly — but nothing said so, and it now has its own line.
+- **`disclose_pressure_driver` was attached to one strategy.** An adaptive-arm reply
+  driven by pressure is exactly the case the constraint exists for, and it was the one
+  case that did not carry it. The code is now attached from the pressure flag.
+- **`thresholds.low` is dead.** It is validated (`low < alert < high`) and echoed into
+  every detection record, and no decision reads it: the level bands are `silent` /
+  `alert` / `high`, decided by `alert` and `high` alone. Left in place rather than
+  removed, because dropping a config key is a breaking change for saved configs, but
+  recorded here so it is not mistaken for a working threshold.
+- **The validation corpus could not fail.** Every routed case declared exactly one
+  correct strategy, including cases 0.001 from a decision edge, and
+  `strategy_set` was never used with more than one element. See §7.3.
+
+### 7.8 What did not change
+
+The parts of v0.2.0 that were right are untouched: the perception/arithmetic split, the
+load-time gate invariant, the two-channel separation, the removal of `user_pressure` and
+repetition from the arousal term, the four existing ablation arms with engine-enforced
+refusals, the schema-before-emit rule, and the `terms` decomposition asserted by test.
+The corpus labels for the original 67 scenarios also survived the routing change
+unchanged — the contamination was in how a *forced* arm routed, not in how the corpus's
+own configs route, which is why the recomputation changed no existing expectation.

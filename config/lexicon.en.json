@@ -1,0 +1,94 @@
+{
+  "_provenance": "Project-authored starter lexicon for the CDS-Skill indicator coder (scripts/cds_indicators.py). Chinese is the primary language of this study; this English file exists so the coder can be smoke-tested and so a future English-language replication has a starting point. It was written by the artifact's authors from the construct list and the worked examples in references/indicators.md; it is NOT derived from a validated lexical resource, and its coverage has NOT been checked against corpus data. Every entry is editable data and MUST be calibrated against the human coding in the inter-rater protocol before any indicator value it produces is reported. Matching is longest-first with one consumption mask shared across categories, so a longer entry suppresses a shorter overlapping one even in another category: a compound that should count for two indicators must be listed in both.",
+  "_language": "en",
+  "hedges": [
+    "maybe", "perhaps", "possibly", "probably", "arguably", "seems", "seem to", "appears",
+    "appears to", "looks like", "roughly", "somewhat", "fairly", "tends to", "tend to",
+    "in part", "to some extent", "more or less", "not necessarily", "might", "may",
+    "could", "likely", "unlikely", "is not certain", "approximately", "around"
+  ],
+  "boosters": [
+    "certainly", "definitely", "obviously", "clearly", "undoubtedly", "absolutely",
+    "without doubt", "no doubt", "proven", "proves", "proven that", "always", "never",
+    "must", "certain", "unquestionably", "beyond question", "conclusively", "guaranteed",
+    "surely", "of course"
+  ],
+  "uncertainty_terms": [
+    "uncertain", "uncertainty", "unclear", "unknown", "not confirmed", "unconfirmed",
+    "cannot tell", "cannot say", "cannot determine", "hard to tell", "unverified",
+    "unresolved", "pending", "no way to know", "not established", "open question",
+    "remains to be seen"
+  ],
+  "conflict_markers": [
+    "conflict", "conflicts", "contradiction", "contradicts", "contradictory",
+    "contradicting", "inconsistent", "incompatible", "at odds", "tension", "clashes",
+    "opposite direction", "runs against", "does not square", "disagrees with"
+  ],
+  "conditional_markers": [
+    "if", "unless", "as long as", "provided that", "providing that", "conditional on",
+    "in the event", "supposing", "should the", "once", "so long as", "were the",
+    "on the condition"
+  ],
+  "condition_naming_cues": [
+    "condition", "conditions", "scenario", "scenarios", "deployment", "deployments",
+    "sample", "sample size", "configuration", "version", "environment", "threshold",
+    "coverage", "cost", "dataset", "evidence", "replication", "independent source",
+    "magnitude", "scope", "case", "project"
+  ],
+  "source_quality_cues": [
+    "method", "methods", "methodology", "sample", "sample size", "sampling", "dataset",
+    "data source", "citation", "cited", "first-hand", "primary data", "raw data",
+    "peer-reviewed", "peer reviewed", "journal", "replication", "replicated",
+    "independent source", "third-party replication", "checkable", "statistics",
+    "confidence interval", "experimental design", "provenance"
+  ],
+  "source_discount_cues": [
+    "not credible", "not trustworthy", "unreliable", "untrustworthy", "biased",
+    "has an agenda", "agenda-driven", "interested party", "conflict of interest",
+    "exaggerates", "exaggerated", "sensational", "clickbait", "anonymous",
+    "dubious source", "discredited", "fabricated", "unprofessional", "take with a grain of salt"
+  ],
+  "verification_cues": [
+    "verify", "verification", "check", "cross-check", "cross-checking", "audit",
+    "replicate", "replication", "reproduce", "spot-check", "look up", "confirm",
+    "double-check", "trace", "test it", "run it", "checkable"
+  ],
+  "consonant_addition_cues": [
+    "moreover", "furthermore", "besides", "what is more", "in addition", "on top of that",
+    "after all", "at least", "also worth noting", "not only that", "another point",
+    "and remember", "even more"
+  ],
+  "importance_minimisers": [
+    "not important", "unimportant", "irrelevant", "of little importance", "minor",
+    "marginal", "edge case", "special case", "outlier", "does not change", "doesn't change",
+    "does not matter", "doesn't matter", "negligible", "beside the point", "can be ignored",
+    "secondary", "worth noting but", "rare"
+  ],
+  "concession_markers": [
+    "i admit", "i agree", "granted", "true", "indeed", "fair point", "i concede",
+    "acknowledged", "i take the point", "that is correct", "you are right", "noted",
+    "i accept", "i see that"
+  ],
+  "stance_change_markers": [
+    "i was wrong", "i revise", "i revised", "i no longer think", "i now think",
+    "i change my view", "i changed my view", "revising my earlier", "i update my",
+    "my position has changed", "i stand corrected", "i retract", "i withdraw",
+    "i was mistaken", "i correct my earlier"
+  ],
+  "softening_cues": [
+    "soften", "softened", "moderate", "moderated", "less certain", "less strong",
+    "pull back", "narrow", "narrowed", "tone down", "more cautious", "hedge",
+    "qualify", "qualified", "scale back", "walk back", "to a degree"
+  ],
+  "change_acknowledgement_cues": [
+    "i correct", "correction", "i should revise", "i revise", "i update", "i no longer",
+    "i was too absolute", "i overstated", "i overstate", "i walked that back",
+    "adjusting my", "revising my", "i need to qualify"
+  ],
+  "reason_step_markers": [
+    "because", "since", "therefore", "thus", "hence", "the reason", "reasons are",
+    "as a result", "which means", "consequently", "accordingly", "given that",
+    "it follows that", "so that"
+  ],
+  "quote_pairs": ["“”", "‘’", "\"\"", "''", "「」", "『』"]
+}

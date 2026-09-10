@@ -1,0 +1,65 @@
+{
+  "scenario_id": "s69_boundary_index_just_above_alert",
+  "family": "boundary_straddling",
+  "description": "张力指数被解到 0.55 之上 0.01 以内：评分微扰即可让它跌回 silent。 straddles: index alert 0.55. Solved tension=0.5550 (moved rating to 0.35).",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s69_boundary_index_just_above_alert",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.28,
+      "specificity": 0.6,
+      "rationale": "情境被构造成紧贴判定边界，用于检验评分微扰是否会改变引擎给出的标签。"
+    },
+    "stance": {
+      "id": "stance_b",
+      "claim": "该结论在当前样本上具有稳健性",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_b1",
+        "claim": "新增样本给出的效应方向与原结论相反",
+        "source": "external_report",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.6,
+        "independence": 0.6,
+        "consistency": 0.6,
+        "quote": "在新抽取的 400 条样本上，效应量转为负值且置信区间不含零。"
+      }
+    ],
+    "user_pressure": 0.0,
+    "evidence_conflict_unresolved": 0.0,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.7,
+      "ambiguities": []
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "qualify",
+    "strategy_set": [
+      "qualify",
+      "recalibrate"
+    ],
+    "fired_rule_prefix": "R04",
+    "near_boundary": true
+  }
+}

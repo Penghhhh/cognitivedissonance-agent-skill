@@ -24,6 +24,7 @@ the user, and ``--no-log`` to suppress the JSONL record in throwaway experiments
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -320,10 +321,88 @@ def cmd_evaluate(args: argparse.Namespace, config: dict[str, Any]) -> int:
     return EXIT_OK
 
 
+def _observed_outcome(coding: dict[str, Any]) -> str:
+    """Judge from the reply, not from the plan, whether the stance moved.
+
+    "Resolved" means the produced text moved the agent's position. That is true
+    when the reply announces the change, when it measurably weakens the claim, or
+    when it softens the claim without saying so (the silent drift the reduction
+    branch exists to model). All three are things a reader of the reply can see,
+    which is the whole point of deriving this from the text.
+    """
+    if coding.get("explicit_stance_change"):
+        return "resolved"
+    if coding.get("unacknowledged_softening"):
+        return "resolved"
+    delta = coding.get("claim_strength_delta")
+    if isinstance(delta, (int, float)) and abs(delta) > 1e-9:
+        return "resolved"
+    return "unresolved"
+
+
+def _code_supplied_reply(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+    plan: dict[str, Any],
+    signals: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, str | None, dict[str, Any]]:
+    """Code the reply text if the caller supplied one.
+
+    Returns ``(coding, observed_outcome, meta)``. All three describe the absence
+    of a reply rather than guessing at one when ``--reply-file`` was not given:
+    an event with no observation must be distinguishable in the log from an event
+    where the model failed to comply.
+
+    ``cds_indicators`` is imported lazily so that the engine, whose arithmetic is
+    the part the reproducibility claim rests on, keeps working when the indicator
+    module is missing - and so the failure is a readable note rather than a
+    traceback.
+    """
+    reply_path = getattr(args, "reply_file", None)
+    if not reply_path:
+        return None, None, {"supplied": False, "reason": "no --reply-file given"}
+    try:
+        raw = sys.stdin.read() if reply_path == "-" else Path(reply_path).read_text(encoding="utf-8")
+    except OSError as exc:
+        return None, None, {"supplied": False, "reason": f"reply unreadable: {exc}"}
+
+    reply_text = raw.strip()
+    meta: dict[str, Any] = {
+        "supplied": True,
+        "chars": len(reply_text),
+        "sha256": hashlib.sha256(reply_text.encode("utf-8")).hexdigest(),
+    }
+    try:
+        from cds_indicators import code_reply  # noqa: PLC0415 - optional by design
+    except ImportError as exc:
+        meta["reason"] = f"indicator module unavailable: {exc}"
+        return None, None, meta
+
+    prior_strength = None
+    if signals:
+        prior_strength = (signals.get("stance") or {}).get("confidence")
+    coding = code_reply(
+        reply_text,
+        signals=signals,
+        plan=plan,
+        language=config["skill"]["language"],
+        prior_claim_strength=prior_strength,
+    )
+    observed = _observed_outcome(coding)
+    meta["observed_outcome"] = observed
+    if config["logging"].get("include_reply"):
+        meta["text"] = reply_text
+    return coding, observed, meta
+
+
 def cmd_respond(args: argparse.Namespace, config: dict[str, Any]) -> int:
     evaluation = _read_json(args.evaluation)
     plan = evaluation["response_plan"]
     card = response_card(evaluation, config)
+    signals = _read_json(args.signals) if getattr(args, "signals", None) else None
+
+    coding, observed_outcome, reply_meta = _code_supplied_reply(args, config, plan, signals)
+    planned_change = plan["stance_update"]["planned_change"]
 
     machine = _machine(args, config)
     if not machine.loaded:
@@ -335,26 +414,36 @@ def cmd_respond(args: argparse.Namespace, config: dict[str, Any]) -> int:
             file=sys.stderr,
         )
         completion = {
-            "outcome": "resolved" if plan["stance_update"]["changed"] else "unresolved",
+            "outcome": observed_outcome or ("resolved" if planned_change else "unresolved"),
+            "outcome_source": "observed" if observed_outcome else "planned",
+            "planned_outcome": "resolved" if planned_change else "unresolved",
             "state": "MONITORING",
         }
     else:
         completion = machine.complete_response(
-            stance_changed=plan["stance_update"]["changed"], strategy=plan["strategy"]
+            planned_change=planned_change,
+            strategy=plan["strategy"],
+            observed_outcome=observed_outcome,
         )
 
-    payload = {
+    payload: dict[str, Any] = {
         "run_id": evaluation.get("run_id"),
         "turn_id": evaluation.get("turn_id"),
         "event_id": evaluation.get("event_id"),
         "strategy": plan["strategy"],
         "branch": plan["branch"],
+        "acts_withheld": plan.get("acts_withheld", False),
         "language_acts": plan["language_acts"],
         "stance_update": plan["stance_update"],
         "constraints": plan["constraints"],
         "outcome": completion["outcome"],
+        "outcome_source": completion["outcome_source"],
+        "planned_outcome": completion["planned_outcome"],
+        "reply": reply_meta,
         "state": {"from": "RESPONDING", "to": completion["state"]},
     }
+    if coding is not None and config["logging"].get("include_indicators", True):
+        payload["indicators"] = coding
     _log_stage(
         args,
         config,
@@ -422,16 +511,38 @@ def cmd_run(args: argparse.Namespace, config: dict[str, Any]) -> int:
 
     evaluation = None
     cards = [detect_card(detection, config)]
+    respond_payload: dict[str, Any] | None = None
     if detection["tension_result"]["next_action"] == "auto_evaluate":
         machine.begin_evaluation()
         evaluation = build_evaluation(detection, signals, config)
         cards.append(evaluation_card(evaluation, config))
         cards.append(response_card(evaluation, config))
-        machine.complete_response(
-            stance_changed=evaluation["response_plan"]["stance_update"]["changed"],
-            strategy=evaluation["response_plan"]["strategy"],
+        plan = evaluation["response_plan"]
+        coding, observed_outcome, reply_meta = _code_supplied_reply(args, config, plan, signals)
+        completion = machine.complete_response(
+            planned_change=plan["stance_update"]["planned_change"],
+            strategy=plan["strategy"],
+            observed_outcome=observed_outcome,
         )
         machine.save()
+        respond_payload = {
+            "run_id": signals["run_id"],
+            "turn_id": signals["turn_id"],
+            "event_id": evaluation.get("event_id"),
+            "strategy": plan["strategy"],
+            "branch": plan["branch"],
+            "acts_withheld": plan.get("acts_withheld", False),
+            "language_acts": plan["language_acts"],
+            "stance_update": plan["stance_update"],
+            "constraints": plan["constraints"],
+            "outcome": completion["outcome"],
+            "outcome_source": completion["outcome_source"],
+            "planned_outcome": completion["planned_outcome"],
+            "reply": reply_meta,
+            "state": {"from": "RESPONDING", "to": completion["state"]},
+        }
+        if coding is not None and config["logging"].get("include_indicators", True):
+            respond_payload["indicators"] = coding
 
     payload = {"detection": detection, "evaluation": evaluation, "state": machine.status()["state"]}
     if not args.no_log:
@@ -456,6 +567,19 @@ def cmd_run(args: argparse.Namespace, config: dict[str, Any]) -> int:
                 event_id=evaluation["event_id"],
                 signals=signals,
             )
+        if respond_payload is not None:
+            _log_stage(
+                args,
+                config,
+                run_id=signals["run_id"],
+                turn_id=signals["turn_id"],
+                stage="respond",
+                payload=respond_payload,
+                event_id=respond_payload["event_id"],
+                signals=signals,
+            )
+    if respond_payload is not None:
+        payload["response"] = respond_payload
 
     _write_json(args.out, payload)
     _emit(payload, args, "\n\n".join(cards))
@@ -601,6 +725,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("respond", parents=[common], help="close the loop and record the outcome")
     p.add_argument("--evaluation", required=True, help="evaluation record written by `evaluate`")
+    p.add_argument(
+        "--reply-file",
+        help=(
+            "the reply the host model actually wrote (use - for stdin). When given, its linguistic "
+            "indicators are coded and the event's outcome is taken from the reply rather than from "
+            "the plan. Without it the outcome records the plan and is marked as such."
+        ),
+    )
+    p.add_argument("--signals", help="the signal packet, so consonant-addition can be checked against the evidence")
     p.add_argument("--out", help="write the response record here")
     p.set_defaults(func=cmd_respond)
 
@@ -613,6 +746,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("run", parents=[common], help="ambient one-shot loop: detect, evaluate and respond in one call")
     p.add_argument("--signals", required=True, help="signal packet JSON")
+    p.add_argument("--reply-file", help="the reply the host model wrote (use - for stdin); see `respond`")
     p.add_argument("--out", help="write the full result here")
     p.add_argument("--no-turn-advance", action="store_true")
     p.set_defaults(func=cmd_run)

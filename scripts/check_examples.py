@@ -104,6 +104,42 @@ def check_documented_test_count() -> int:
     return 0
 
 
+#: Every generated report must say what it cannot show. The figures in these files
+#: are precise-looking and easy to lift out of context, so the caveat is part of the
+#: artifact rather than a note in a document nobody opens.
+REQUIRED_CAVEATS = {
+    "eval/report.md": "does **not** measure",
+    "eval/sensitivity.md": "What this report cannot show",
+    "eval/arms.md": "What this report cannot show",
+    "eval/perception.md": "cannot show",
+}
+
+
+def check_report_caveats() -> int:
+    """Fail if a generated report lost its "what this cannot show" block.
+
+    ``run_scenarios.py`` already prints its circularity warning into the top of the
+    report it generates, which is the single most honest artifact in the repository.
+    The same discipline is extended to the other three reports here, and enforced,
+    because a caveat that only survives until the next regeneration is not a caveat.
+    """
+    failures = 0
+    for relative, marker in sorted(REQUIRED_CAVEATS.items()):
+        path = REPO_ROOT / relative
+        if not path.exists():
+            print(f"FAIL {relative}: missing (regenerate it)")
+            failures += 1
+            continue
+        if marker not in path.read_text(encoding="utf-8"):
+            print(f"FAIL {relative}: required caveat block is absent (looked for {marker!r}).")
+            print("     A generated report without its caveat reads as a stronger claim")
+            print("     than the method supports. Restore it before committing.")
+            failures += 1
+        else:
+            print(f"ok   {relative}: caveat present")
+    return 1 if failures else 0
+
+
 def main() -> int:
     failures = 0
     for name, want_level, want_channel, want_strategy in EXPECTED:
@@ -133,7 +169,9 @@ def main() -> int:
     print()
     print(f"{len(EXPECTED)} examples match the documented table in examples/README.md")
     documented = check_documented_test_count()
-    return 1 if (failures or documented) else 0
+    print()
+    caveats = check_report_caveats()
+    return 1 if (failures or documented or caveats) else 0
 
 
 if __name__ == "__main__":

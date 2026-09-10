@@ -1,0 +1,69 @@
+{
+  "scenario_id": "s71_boundary_index_just_above_high",
+  "family": "boundary_straddling",
+  "description": "张力指数紧贴 high 阈值上沿，检验高承诺情境下的档位稳定性。 straddles: index high 0.75. Solved tension=0.7550 (moved rating to 0.35).",
+  "config_overrides": {
+    "skill": {
+      "profile": "dissonance_reduction"
+    }
+  },
+  "signals": {
+    "run_id": "eval_s71_boundary_index_just_above_high",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.7086,
+      "specificity": 0.6,
+      "rationale": "情境被构造成紧贴判定边界，用于检验评分微扰是否会改变引擎给出的标签。"
+    },
+    "stance": {
+      "id": "stance_b",
+      "claim": "该指标在历史回测中始终优于基准",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.9,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_b1",
+        "claim": "同一指标在最近两个季度的滚动回测中持续落后于基准",
+        "source": "external_report",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.6,
+        "credibility": 0.6,
+        "recency": 0.6,
+        "independence": 0.6,
+        "consistency": 0.6,
+        "quote": "最近两个季度的滚动回测显示该指标累计跑输基准 6.2 个百分点。"
+      }
+    ],
+    "user_pressure": 0.0,
+    "evidence_conflict_unresolved": 0.0,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.7,
+      "ambiguities": []
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "high",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "trivialize",
+    "strategy_set": [
+      "deny_evidence",
+      "trivialize"
+    ],
+    "fired_rule_prefix": "R07",
+    "near_boundary": true
+  }
+}

@@ -3,7 +3,7 @@ name: cds-skill
 description: Use when an agent's own prior judgement collides with new contradictory information - a stance it asserted earlier that later evidence undercuts, two sources that contradict each other, user pressure toward a conclusion the evidence does not support, or a memory conflicting with what it is about to say. Detects the collision, scores it with an auditable index, and plans a labelled response. Not for ordinary fact-checking, tone editing, or summarising.
 whenToUse: The agent has committed to a position and now faces information that opposes it, and the user wants that collision handled explicitly rather than smoothed over.
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
   license: MIT
   language: zh, en
   requires: python>=3.9 (standard library only)
@@ -48,13 +48,19 @@ python scripts/cds.py validate --signals packet.json     # check a packet before
 python scripts/cds.py config                             # effective config + hash
 ```
 
+Pass the reply you actually wrote and the loop closes on the text, not on the plan:
+
+```bash
+python scripts/cds.py run --signals packet.json --reply-file reply.txt --json
+```
+
 Interactive arms record the user's decision as data, so they use four calls:
 
 ```bash
 python scripts/cds.py --state s.json detect  --signals packet.json   --out detection.json
 python scripts/cds.py --state s.json command 处理     # 'process'
 python scripts/cds.py --state s.json evaluate --detection detection.json --signals packet.json --out evaluation.json
-python scripts/cds.py --state s.json respond  --evaluation evaluation.json
+python scripts/cds.py --state s.json respond  --evaluation evaluation.json --reply-file reply.txt --signals packet.json
 ```
 
 ## The loop
@@ -70,7 +76,11 @@ python scripts/cds.py --state s.json respond  --evaluation evaluation.json
    in `config/cds.config.json` and names the rule that fired.
 5. **Respond.** Realise the `language_acts` in your actual reply. The card's
    `weight` is a plan for your prose, not a replacement for it.
-6. **Log.** Every stage appends to `logs/cds_skill.jsonl`. Leave logging on; a run
+6. **Code.** Hand the reply back with `--reply-file`. `cds_indicators.py` codes the
+   linguistic indicators in `references/indicators.md` against the text, and the
+   event's outcome is taken **from the reply**. Without this step the outcome is
+   just the plan restated, and the log says so (`outcome_source: "planned"`).
+7. **Log.** Every stage appends to `logs/cds_skill.jsonl`. Leave logging on; a run
    without a log is not evidence.
 
 ## Two channels, never merged
@@ -104,7 +114,7 @@ reintroduce it in prose.
 【CDS｜检测】
 状态：认知失调相关冲突张力
 张力指数：0.71 / 阈值 0.55
-评分可动范围：±0.06（同一输入在不同标注下可能跨越阈值）
+评分可动范围：仅 ±0.04（最近阈值 0.75）：同一输入在不同标注下很可能跨越阈值，请勿把本层级当作确定判断
 类型：证据—立场冲突
 通道：失调通道（需要自主选择的立场）
 关键点：
@@ -113,14 +123,20 @@ reintroduce it in prose.
 下一步：环境模式：不阻塞本轮回复，已自动进入评估。
 ```
 
-The `±0.06` line is not decoration. It states how far ratings could move before
-the same packet would land on the other side of the threshold, so no reader
-treats `0.71 / 0.55` as a crisp decision.
+The tolerance figure is **computed from the packet**: the distance from this index
+value to the nearest level boundary. Because the five index weights sum to 1.0, a
+uniform shift of every rating by that amount is exactly what it would take to cross
+— so the line is a real margin, not a decoration. When it falls below
+`transparency.tight_margin` (default 0.05) the card says so in stronger terms, so no
+reader treats `0.71 / 0.55` as a crisp decision. v0.2.0 printed a fixed `±0.06` on
+every card; that was true of almost no packet and is why the number is now derived.
 
 ## Hard constraints
 
 These hold regardless of strategy. They are emitted as machine-checkable codes in
-`response_plan.constraints`:
+`response_plan.constraints`, and the ones decidable from reply text alone are
+actually checked by `cds_indicators.check_constraints`, with per-code violation
+rates reported by `scripts/score_responses.py`:
 
 - `no_fabrication` — never invent evidence, sources or quotations.
 - `no_hidden_chain_of_thought` — auditable key points only.
@@ -140,6 +156,12 @@ These hold regardless of strategy. They are emitted as machine-checkable codes i
 | `detect_only` | detection card, never evaluates |
 | `full` | complete loop |
 | `placebo` | identical cadence, content-free card, no shaping; real numbers still logged |
+| `withhold_acts` | detection **and** evaluation run and are logged in full, but the plan carries no `language_acts` and the card names no branch |
+
+`withhold_acts` is the arm that separates instruction-following from whatever the
+model does on its own: everything except the instruction is held constant, so the
+contrast against `full` is the effect of being told. Report the instructed arm as a
+manipulation check, not as evidence that the model has a reduction-like dynamic.
 
 `skill.interaction`: `ambient` (default, never blocks the turn) or `interactive`
 (pauses for `处理` / `忽略` / `稍后` / `详情` — *process / ignore / later / details*;
@@ -152,11 +174,14 @@ belongs in a secondary condition only.
   rubric for every field the index consumes.
 - `references/construct.md` — what is and is not being simulated, and how this
   differs from prior LLM-dissonance work.
-- `references/indicators.md` — the linguistic indicators each language act maps to.
+- `references/indicators.md` — the linguistic indicators each language act maps to;
+  implemented by `scripts/cds_indicators.py`.
 - `references/cards.md` — card templates and the numeric / non-numeric variants.
 - `references/operations.md` — commands, state machine, troubleshooting.
 - `references/prompts/detect.md`, `evaluate.md`, `respond.md` — the packet-writing
   and reply-writing templates.
+- `config/lexicon.zh.json`, `config/lexicon.en.json` — the coder's lexicons. Data,
+  not code: the inter-rater protocol is what calibrates them.
 
 ## Troubleshooting
 
@@ -164,9 +189,17 @@ belongs in a secondary condition only.
   is below `0.30`, the event is capped by design. Then check the per-type
   threshold in `thresholds_by_type`.
 - **`cds.py evaluate` refuses to run** — it refuses in `off`, `detect_only` and
-  `placebo` arms on purpose; those arms exist to withhold the stage.
+  `placebo` arms on purpose; those arms exist to withhold the stage. It does run in
+  `withhold_acts`, which withholds the *instruction*, not the evaluation.
 - **The state machine looks stuck** — it is not. `AWAITING_USER` has a timeout and
   `advance_turn` logs the event as undecided. Run `cds.py status`.
 - **Numbers differ between runs** — compare `config_hash` in the two log records
   first. If they match and the packets match, the engine output must match; if it
   does not, that is a bug worth reporting.
+- **`indicators` is missing from a respond record** — no `--reply-file` was given,
+  or `logging.include_indicators` is off. An absent coding is recorded as absent
+  rather than guessed, and `outcome_source` will read `planned`.
+- **A strategy I expected is unreachable** — check `eval/arms.md`. Since v0.3.0 the
+  repertoires are disjoint in the rule list, so the adaptive arm will not produce
+  `trivialize` and the reduction arm will not produce `qualify`. The one exception
+  is `hold_under_pressure` via `R02`, which is deliberately unguarded.

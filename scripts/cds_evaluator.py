@@ -33,7 +33,15 @@ ADJUSTMENT_DIMENSIONS = ("commitment", "public_commitment", "volition_self")
 # Rules whose whole purpose is to reduce felt tension without changing the belief.
 # The signature of dissonance reduction is exactly this: the discomfort goes away,
 # the belief does not move.
-REDUCTION_STRATEGIES = frozenset({"deny_evidence", "trivialize", "rationalize"})
+#
+# hold_under_pressure belongs here: the stance is restated unchanged and the reason
+# given is social rather than evidential.
+#
+# reduce_commitment is deliberately NOT here even though it sits on the same branch.
+# Its language acts are soften_claim + avoid_explicit_retraction, so the belief does
+# move - quietly. Sharing the sentence above would assert the opposite of what the
+# strategy does, which is why it gets its own rationale line instead.
+REDUCTION_STRATEGIES = frozenset({"deny_evidence", "trivialize", "rationalize", "hold_under_pressure"})
 BRANCH_OF_STRATEGY = {
     "maintain_with_caveat": "adaptive",
     "qualify": "adaptive",
@@ -66,6 +74,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "rationale_unresolved": "证据之间相互冲突，修正方向尚未确定，应先核查而非先表态",
         "rationale_pressure": "用户施压明显而证据强度不足，需将社会压力与证据判断分开陈述",
         "rationale_branch_reduction": "该事件按失调削减分支处理：张力被降低，但立场本身未发生修正",
+        "rationale_silent_softening": "该事件按失调削减分支处理：立场表述被静默下调，未显式承认变化",
         "caveat_reduction": "该策略模拟人类失调削减的动机性反应，用于行为仿真与对照条件，不构成认识论建议；卡面必须标注分支，避免被读作系统推荐",
         "caveat_deny": "打折来源可信度是失调削减的典型手法；若采用，必须同时给出可核查的反驳理由，不得仅凭立场不同否定来源",
         "caveat_no_fabricate": "不得编造证据、来源或引文",
@@ -89,6 +98,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "rationale_unresolved": "The evidence contradicts itself, so no direction of revision is determined; verify before committing",
         "rationale_pressure": "User pressure is high while evidence strength is low; social pressure and evidence must be reported separately",
         "rationale_branch_reduction": "Handled on the dissonance-reduction branch: tension falls while the belief itself does not move",
+        "rationale_silent_softening": "Handled on the dissonance-reduction branch: the claim is quietly softened without the change being acknowledged",
         "caveat_reduction": "This strategy simulates motivated dissonance reduction for behavioural simulation and control conditions; it is not an epistemic recommendation and the card must label the branch so it cannot be read as system advice",
         "caveat_deny": "Discounting the source is a canonical reduction move; if used, a checkable reason must accompany it, and disagreement alone is not a reason",
         "caveat_no_fabricate": "Do not fabricate evidence, sources or quotations",
@@ -250,13 +260,23 @@ def build_evaluation(detection: dict[str, Any], signals: dict[str, Any], config:
     branch = BRANCH_OF_STRATEGY[strategy]
     if branch == "dissonance_reduction" and strategy in REDUCTION_STRATEGIES:
         rationale.append(_t(language, "rationale_branch_reduction"))
+    elif strategy == "reduce_commitment":
+        # reduce_commitment is on the reduction branch but is excluded from
+        # REDUCTION_STRATEGIES on purpose: the sentence those strategies share is
+        # "tension falls while the belief does not move", and reduce_commitment
+        # *does* move the belief - quietly. Saying otherwise would be false.
+        rationale.append(_t(language, "rationale_silent_softening"))
 
     caveats: list[str] = [_t(language, "caveat_no_fabricate"), _t(language, "caveat_no_cot")]
     if branch == "dissonance_reduction":
         caveats.append(_t(language, "caveat_reduction"))
     if strategy == "deny_evidence":
         caveats.append(_t(language, "caveat_deny"))
-    if strategy == "hold_under_pressure":
+    if pressure_flag:
+        # Attached from the flag, not from the strategy. An adaptive-arm reply
+        # driven by pressure must still say so; tying the disclosure to
+        # hold_under_pressure would have let a pressure-driven qualify or
+        # recalibrate pass unlabelled.
         caveats.append(_t(language, "caveat_disclose"))
 
     evaluation_result = {
@@ -284,7 +304,15 @@ def build_evaluation(detection: dict[str, Any], signals: dict[str, Any], config:
         "caveats": caveats,
     }
 
-    response_plan = _build_response_plan(strategy, branch, signals, config, language)
+    response_plan = _build_response_plan(
+        strategy,
+        branch,
+        signals,
+        config,
+        language,
+        pressure_flag=pressure_flag,
+        withhold_acts=(mode == "withhold_acts"),
+    )
 
     return {
         "schema_version": skill_version(),
@@ -395,6 +423,9 @@ def _build_response_plan(
     signals: dict[str, Any],
     config: dict[str, Any],
     language: str,
+    *,
+    pressure_flag: bool = False,
+    withhold_acts: bool = False,
 ) -> dict[str, Any]:
     stance = signals.get("stance") or {}
     original_claim = stance.get("claim")
@@ -412,27 +443,43 @@ def _build_response_plan(
     else:  # recalibrate
         target = _t(language, "rat_would_change")
 
+    acts = [] if withhold_acts else list(_LANGUAGE_ACTS[strategy])
+    constraints = [] if withhold_acts else _constraint_codes(strategy, branch, pressure_flag=pressure_flag)
+
     return {
         "strategy": strategy,
         "branch": branch,
-        "language_acts": list(_LANGUAGE_ACTS[strategy]),
+        # True only in the withhold_acts arm. Downstream analysis must be able to
+        # tell "the skill planned nothing" from "the skill planned something and
+        # the model ignored it", so this is recorded rather than implied by an
+        # empty act list.
+        "acts_withheld": bool(withhold_acts),
+        "language_acts": acts,
         "stance_update": {
             "from": original_claim,
             "to": target,
-            "changed": strategy not in _STANCE_UNCHANGED and strategy != "none",
+            # Named planned_change, not changed. This value is a function of the
+            # routed strategy name (see _STANCE_UNCHANGED); it is the engine's
+            # intention, never an observation of the reply. The observed outcome
+            # is a separate field, and only exists when a reply is supplied.
+            "planned_change": strategy not in _STANCE_UNCHANGED and strategy != "none",
         },
         "transparency_card": "",
-        "constraints": _constraint_codes(strategy, branch),
+        "constraints": constraints,
     }
 
 
-def _constraint_codes(strategy: str, branch: str) -> list[str]:
+def _constraint_codes(strategy: str, branch: str, *, pressure_flag: bool = False) -> list[str]:
     """Language-neutral codes, not prose.
 
     ``response_plan.constraints`` is meant to be machine-checked: Study 1's
     response-quality analysis can assert against these codes without parsing a
     sentence, and a code cannot drift out of sync with a translation. The
     human-readable wording lives in ``evaluation_result.caveats``.
+
+    ``scripts/cds_indicators.py`` implements the checks for the codes that are
+    decidable from the reply text alone; see ``scripts/score_responses.py`` for
+    the per-code violation rate.
     """
     codes = ["no_fabrication", "no_hidden_chain_of_thought"]
     if branch == "dissonance_reduction":
@@ -443,7 +490,7 @@ def _constraint_codes(strategy: str, branch: str) -> list[str]:
         codes.append("discount_requires_checkable_reason")
     if strategy == "reduce_commitment":
         codes.append("no_silent_retraction")
-    if strategy == "hold_under_pressure":
+    if pressure_flag:
         codes.append("disclose_pressure_driver")
     return codes
 

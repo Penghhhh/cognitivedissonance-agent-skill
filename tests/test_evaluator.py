@@ -8,7 +8,14 @@ import unittest
 import context
 
 from cds_config import load_schema
-from cds_evaluator import ADJUSTMENT_DIMENSIONS, EVIDENCE_DIMENSIONS, StageError, _route, build_evaluation
+from cds_evaluator import (
+    ADJUSTMENT_DIMENSIONS,
+    BRANCH_OF_STRATEGY,
+    EVIDENCE_DIMENSIONS,
+    StageError,
+    _route,
+    build_evaluation,
+)
 from cds_index import build_detection
 from jsonschema_lite import validate
 
@@ -142,13 +149,28 @@ class TestRouting(unittest.TestCase):
         base.update(overrides)
         return base
 
-    def test_unresolved_conflict_wins_first(self):
+    def test_unresolved_conflict_wins_first_in_the_adaptive_arm(self):
         strategy, rule = _route(
-            self.facts(evidence_conflict_unresolved=0.9, e_score=0.9, resolved_profile="dissonance_reduction"),
+            self.facts(evidence_conflict_unresolved=0.9, e_score=0.9, resolved_profile="adaptive"),
             self.RULES,
         )
         self.assertEqual(strategy, "suspend_and_verify")
         self.assertEqual(rule, "R01_unresolved_conflict")
+
+    def test_unresolved_conflict_stays_on_the_reduction_branch(self):
+        """R01 is guarded by profile so the reduction arm cannot emit an adaptive strategy.
+
+        Before v0.3.0 R01 was unguarded, and 9 of the 52 routable corpus cases
+        realised suspend_and_verify (an adaptive strategy) while nominally in the
+        dissonance_reduction arm. That is the contamination the profile guard
+        removes.
+        """
+        strategy, _ = _route(
+            self.facts(evidence_conflict_unresolved=0.9, e_score=0.9, resolved_profile="dissonance_reduction"),
+            self.RULES,
+        )
+        self.assertNotEqual(strategy, "suspend_and_verify")
+        self.assertEqual(BRANCH_OF_STRATEGY[strategy], "dissonance_reduction")
 
     def test_pressure_with_weak_evidence_holds_under_pressure(self):
         strategy, rule = _route(self.facts(user_pressure=0.9, e_score=0.20), self.RULES)
@@ -171,14 +193,12 @@ class TestRouting(unittest.TestCase):
 
     def test_reduction_bands(self):
         reduction = {"resolved_profile": "dissonance_reduction"}
-        self.assertEqual(
-            _route(self.facts(e_score=0.20, **reduction), self.RULES)[0], "maintain_with_caveat"
-        )
+        self.assertEqual(_route(self.facts(e_score=0.20, **reduction), self.RULES)[0], "trivialize")
         self.assertEqual(
             _route(self.facts(e_score=0.50, commitment=0.9, **reduction), self.RULES)[0], "trivialize"
         )
         self.assertEqual(
-            _route(self.facts(e_score=0.50, commitment=0.3, **reduction), self.RULES)[0], "qualify"
+            _route(self.facts(e_score=0.50, commitment=0.3, **reduction), self.RULES)[0], "reduce_commitment"
         )
         self.assertEqual(
             _route(self.facts(e_score=0.80, commitment=0.90, **reduction), self.RULES)[0], "deny_evidence"
@@ -189,6 +209,62 @@ class TestRouting(unittest.TestCase):
         self.assertEqual(
             _route(self.facts(e_score=0.80, commitment=0.20, **reduction), self.RULES)[0], "reduce_commitment"
         )
+
+    def test_the_reduction_arm_never_emits_an_adaptive_strategy(self):
+        """The arm is only interpretable if its repertoire is the one it names.
+
+        This is the property that makes 'branch discriminability' a testable
+        claim rather than a restatement of the treatment.
+        """
+        import itertools
+
+        grid = {
+            "e_score": [0.10, 0.34, 0.50, 0.64, 0.80, 0.95],
+            "commitment": [0.10, 0.55, 0.60, 0.75, 0.95],
+            "user_pressure": [0.0, 0.9],
+            "evidence_conflict_unresolved": [0.0, 0.7],
+        }
+        keys = list(grid)
+        seen: set[str] = set()
+        for combination in itertools.product(*(grid[key] for key in keys)):
+            facts = self.facts(resolved_profile="dissonance_reduction", **dict(zip(keys, combination)))
+            strategy, _ = _route(facts, self.RULES)
+            seen.add(strategy)
+            self.assertEqual(
+                BRANCH_OF_STRATEGY[strategy],
+                "dissonance_reduction",
+                f"reduction arm emitted {strategy!r} for {dict(zip(keys, combination))}",
+            )
+        self.assertEqual(
+            seen,
+            {"trivialize", "reduce_commitment", "deny_evidence", "rationalize", "hold_under_pressure"},
+            "the reduction arm should be able to reach all five reduction strategies",
+        )
+
+    def test_the_adaptive_arm_only_leaks_through_the_pressure_rule(self):
+        """R02 is deliberately unguarded; it must be the only leak.
+
+        Pressure is a situational fact rather than a property of the profile, so
+        an adaptive run may legitimately answer it with hold_under_pressure. Every
+        other reduction strategy must be unreachable from the adaptive arm.
+        """
+        import itertools
+
+        grid = {
+            "e_score": [0.10, 0.34, 0.50, 0.64, 0.80, 0.95],
+            "commitment": [0.10, 0.55, 0.60, 0.75, 0.95],
+            "user_pressure": [0.0, 0.9],
+            "evidence_conflict_unresolved": [0.0, 0.7],
+        }
+        keys = list(grid)
+        leaked: set[str] = set()
+        for combination in itertools.product(*(grid[key] for key in keys)):
+            facts = self.facts(resolved_profile="adaptive", **dict(zip(keys, combination)))
+            strategy, rule = _route(facts, self.RULES)
+            if BRANCH_OF_STRATEGY[strategy] == "dissonance_reduction":
+                leaked.add(strategy)
+                self.assertEqual(rule, "R02_pressure_low_evidence", f"{strategy} leaked via {rule}")
+        self.assertEqual(leaked, {"hold_under_pressure"}, "the adaptive arm leaked more than the pressure rule")
 
     def test_every_configured_rule_is_reachable(self):
         """A rule that no input can fire is a spec bug, not a spare part."""
@@ -269,7 +345,13 @@ class TestProfiles(unittest.TestCase):
         self.assertEqual(evaluation["evaluation_result"]["recommended_strategy"], "trivialize")
         self.assertEqual(evaluation["evaluation_result"]["fired_rule_id"], "R07_reduction_trivialize")
 
-    def test_stance_change_flag_matches_the_strategy(self):
+    def test_planned_change_flag_matches_the_strategy(self):
+        """``planned_change`` is a function of the strategy, and the test says so.
+
+        The name matters: this value is the engine's intention, derived from the
+        routed strategy string, so it carries no information about the reply. The
+        assertion below is a statement about the rule table, not a measurement.
+        """
         by_strategy = {}
         for profile in ("adaptive", "dissonance_reduction"):
             config = context.config_with(skill={"profile": profile})
@@ -280,14 +362,20 @@ class TestProfiles(unittest.TestCase):
                     {"credibility": e_score_evidence, "relevance": e_score_evidence, "consistency": e_score_evidence}
                 )
                 plan = evaluate(packet, config)["response_plan"]
-                by_strategy.setdefault(plan["strategy"], plan["stance_update"]["changed"])
+                by_strategy.setdefault(plan["strategy"], plan["stance_update"]["planned_change"])
 
-        for strategy, changed in by_strategy.items():
+        for strategy, planned in by_strategy.items():
             with self.subTest(strategy=strategy):
                 if strategy in ("qualify", "recalibrate", "reduce_commitment"):
-                    self.assertTrue(changed, f"{strategy} should report a stance change")
+                    self.assertTrue(planned, f"{strategy} should plan a stance change")
                 elif strategy in ("maintain_with_caveat", "deny_evidence", "trivialize", "rationalize", "hold_under_pressure"):
-                    self.assertFalse(changed, f"{strategy} must not report a stance change")
+                    self.assertFalse(planned, f"{strategy} must not plan a stance change")
+
+    def test_the_old_changed_key_is_gone(self):
+        """The rename is load-bearing, so a silent reintroduction must fail loudly."""
+        plan = evaluate()["response_plan"]
+        self.assertIn("planned_change", plan["stance_update"])
+        self.assertNotIn("changed", plan["stance_update"])
 
 
 class TestPressureModerator(unittest.TestCase):

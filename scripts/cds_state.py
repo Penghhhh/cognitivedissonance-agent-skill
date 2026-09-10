@@ -478,21 +478,47 @@ class StateMachine:
         self.save()
         return {"event_id": active["event_id"], "state": self.state}
 
-    def complete_response(self, *, stance_changed: bool, strategy: str) -> dict[str, Any]:
+    def complete_response(
+        self,
+        *,
+        planned_change: bool,
+        strategy: str,
+        observed_outcome: str | None = None,
+    ) -> dict[str, Any]:
+        """Close the cycle.
+
+        ``planned_change`` is what the engine intended: it is a function of the
+        routed strategy name and carries no information about the reply.
+        ``observed_outcome`` is what a coder found in the reply - pass it when a
+        reply was supplied and coded. When it is None the event records the plan
+        outcome and marks the observation as absent, so a log analysis can tell
+        "nobody looked" from "the model did not comply". Reporting a plan
+        outcome as though it were an observation is the circularity this
+        parameter exists to prevent.
+        """
         if self.state not in ("EVALUATING", "RESPONDING"):
             raise StateError(f"respond requires state EVALUATING or RESPONDING, got {self.state}")
         self._set_state("RESPONDING", "response_produced")
         active = self.active_event
-        outcome = "resolved" if stance_changed else "unresolved"
+        planned_outcome = "resolved" if planned_change else "unresolved"
+        outcome = observed_outcome if observed_outcome is not None else planned_outcome
         if active is not None:
             active["status"] = outcome
             active["outcome"] = outcome
+            active["outcome_source"] = "observed" if observed_outcome is not None else "planned"
+            active["planned_outcome"] = planned_outcome
             active["strategy"] = strategy
         self.data["active_event_id"] = None
         self.data["await_deadline_turn"] = None
         self._set_state("MONITORING", "cycle_complete")
         self.save()
-        return {"event_id": active["event_id"] if active else None, "outcome": outcome, "state": self.state}
+        return {
+            "event_id": active["event_id"] if active else None,
+            "outcome": outcome,
+            "outcome_source": "observed" if observed_outcome is not None else "planned",
+            "planned_outcome": planned_outcome,
+            "state": self.state,
+        }
 
     # ---- introspection ----------------------------------------------------
 

@@ -1,0 +1,65 @@
+{
+  "scenario_id": "s72_boundary_escore_below_weak_edge",
+  "family": "boundary_straddling",
+  "description": "证据分被解到 0.35 之下 0.01 以内：adaptive 与 reduction 两条路径在此处分岔。 straddles: e_score 0.35. Solved e_score=0.3450 (moved rating to {'relevance': 0.2984, 'credibility': 0.3901, 'recency': 0.3251, 'independence': 0.2251, 'consistency': 0.4518}).",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s72_boundary_escore_below_weak_edge",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.6,
+      "specificity": 0.6,
+      "rationale": "情境被构造成紧贴判定边界，用于检验评分微扰是否会改变引擎给出的标签。"
+    },
+    "stance": {
+      "id": "stance_b",
+      "claim": "现有材料足以支持继续采用该结论",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.7,
+      "public_commitment": 0.6,
+      "volition": 0.9,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_b1",
+        "claim": "一份样本量很小的观察性研究给出了相反方向的提示",
+        "source": "external_report",
+        "carries_conflict": true,
+        "novelty": 0.6,
+        "relevance": 0.2984,
+        "credibility": 0.3901,
+        "recency": 0.3251,
+        "independence": 0.2251,
+        "consistency": 0.4518,
+        "quote": "该研究仅纳入 18 名受试者，未报告效应量。"
+      }
+    ],
+    "user_pressure": 0.0,
+    "evidence_conflict_unresolved": 0.0,
+    "consistency_gate": {
+      "internal_contradiction": 0.0
+    },
+    "perception": {
+      "confidence": 0.7,
+      "ambiguities": []
+    }
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "alert",
+    "channel": "dissonance",
+    "gate_applied": false,
+    "next_action": "auto_evaluate",
+    "strategy": "maintain_with_caveat",
+    "strategy_set": [
+      "maintain_with_caveat",
+      "qualify"
+    ],
+    "fired_rule_prefix": "R03",
+    "near_boundary": false
+  }
+}

@@ -79,3 +79,23 @@ detector that never sees negatives cannot have its false-positive rate measured.
 - [`dialogue_reduction.md`](dialogue_reduction.md) — the same conflict under the
   `dissonance_reduction` profile, showing what changes and why the branch label
   matters.
+
+## `coding_pairs/` — input for the response scorer
+
+The two dialogues above are the only replies in the repository that a model actually
+wrote, so they double as the worked input for `scripts/score_responses.py`:
+`{pair_id, reply_text, evaluation, signals}` per file, the reply extracted from the
+dialogue and the evaluation produced by the real engine.
+
+```bash
+python scripts/score_responses.py --pairs examples/coding_pairs --write-report
+```
+
+That regenerates `eval/responses.md`, which is what those two replies actually code
+as. They are **illustrative, not collected data** — two replies cannot support a rate,
+and the report says so. What they do support is checking that the harness works, and
+it caught something on the first run: `disclose_pressure_driver` fails on the
+reduction dialogue, whose reply never mentions the user's insistence.
+
+The files are derived and could be regenerated, but they are committed so that
+`eval/responses.md` is reproducible without a model in the loop.

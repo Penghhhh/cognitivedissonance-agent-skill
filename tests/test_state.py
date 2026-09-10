@@ -290,13 +290,14 @@ class TestQueue(unittest.TestCase):
 
 
 class TestOutcomes(unittest.TestCase):
-    def test_complete_response_marks_resolved_when_the_stance_moves(self):
+    def test_complete_response_marks_resolved_when_the_plan_moves_the_stance(self):
         machine = fresh()
         machine.advance_turn()
         machine.ingest_detection(detect(context.base_packet()))
         machine.begin_evaluation()
-        completion = machine.complete_response(stance_changed=True, strategy="qualify")
+        completion = machine.complete_response(planned_change=True, strategy="qualify")
         self.assertEqual(completion["outcome"], "resolved")
+        self.assertEqual(completion["outcome_source"], "planned")
         self.assertEqual(machine.state, "MONITORING")
         self.assertIsNone(machine.data["active_event_id"])
 
@@ -305,8 +306,39 @@ class TestOutcomes(unittest.TestCase):
         machine.advance_turn()
         machine.ingest_detection(detect(context.base_packet()))
         machine.begin_evaluation()
-        completion = machine.complete_response(stance_changed=False, strategy="trivialize")
+        completion = machine.complete_response(planned_change=False, strategy="trivialize")
         self.assertEqual(completion["outcome"], "unresolved")
+
+    def test_an_observed_outcome_overrides_the_plan_and_says_so(self):
+        """A supplied observation must be distinguishable from a plan echo.
+
+        Without this, a log analysis cannot tell "the model complied" from
+        "nobody looked at the reply", and the loop's terminal variable silently
+        reverts to being a restatement of the routed strategy.
+        """
+        machine = fresh()
+        machine.advance_turn()
+        machine.ingest_detection(detect(context.base_packet()))
+        machine.begin_evaluation()
+        completion = machine.complete_response(
+            planned_change=True, strategy="qualify", observed_outcome="unresolved"
+        )
+        self.assertEqual(completion["outcome"], "unresolved")
+        self.assertEqual(completion["outcome_source"], "observed")
+        self.assertEqual(completion["planned_outcome"], "resolved")
+        event = machine.data["events"][-1]
+        self.assertEqual(event["outcome_source"], "observed")
+        self.assertEqual(event["planned_outcome"], "resolved")
+
+    def test_planned_outcome_is_recorded_even_without_an_observation(self):
+        machine = fresh()
+        machine.advance_turn()
+        machine.ingest_detection(detect(context.base_packet()))
+        machine.begin_evaluation()
+        machine.complete_response(planned_change=False, strategy="trivialize")
+        event = machine.data["events"][-1]
+        self.assertEqual(event["outcome_source"], "planned")
+        self.assertEqual(event["planned_outcome"], "unresolved")
 
     def test_begin_evaluation_requires_the_right_state(self):
         machine = fresh()

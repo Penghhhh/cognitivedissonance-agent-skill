@@ -4,13 +4,147 @@ All notable changes to this skill are recorded here. The version appears in
 `VERSION`, in every log record, and in the `skill_version` field of every emitted
 structure, so a result can always be traced to the implementation that produced it.
 
-## [Unreleased]
+## [0.3.0] — 2026-09-11
+
+The measurement release. v0.2.0 was an unusually careful engine attached to almost no
+measurement: the reply was never read, the indicators were specified and not
+implemented, and the loop's terminal variable was a restatement of the plan. This
+release adds the observation half and fixes the defects that a careful reader would
+have found in the meantime. Reasoning for each change is in
+[`docs/design-rationale.md`](docs/design-rationale.md) §7.
+
+### Added
+
+- **`scripts/cds_indicators.py`** — a deterministic, stdlib-only coder for the
+  fifteen indicator variables in `references/indicators.md`, the measurement layer
+  Study 1 was specified around and did not have. It implements the scheme's ambiguity
+  rules as explicit branches: the condition-less conditional is a recorded *failed
+  act*, the `source_discount` / `source_quality_mention` boundary is clause-scoped in
+  both directions, hedges inside quotations are excluded, and `importance_denial`
+  requires the concession to come first. `plan` is recorded but never consulted, so
+  coding stays blind to condition. Every coded value is traceable to a clause and a
+  lexicon entry through the `_evidence` trace. 115 tests.
+- **`config/lexicon.zh.json`, `config/lexicon.en.json`** — the coder's lexicons, as
+  data rather than code. Each carries a `_provenance` block stating that the entries
+  are project-authored, that coverage is unvalidated, and that the inter-rater
+  protocol is what calibrates them. They are not presented as linguistic authority.
+- **`scripts/score_responses.py`** — act-realisation rate per act, constraint
+  violation rate per code, permission for a third status (`not_checked`) that is not
+  a pass, and the planned-versus-observed agreement rate. This produces the headline
+  Study 1 numbers; `indicators.md` specified them and nothing computed them.
+- **`scripts/score_signals.py`** — the perception scorer that `run_scenarios.py`'s
+  docstring and `design-rationale.md` had promised and the repository did not
+  contain. Reports per-dimension MAE/RMSE/bias, categorical agreement, tolerance
+  agreement, and — the number a reviewer will actually ask for — the *decision-level*
+  agreement when the model's packet and the gold packet are run through the same
+  engine, with per-mismatch attribution to the dimensions that deviated. 112 tests,
+  including a round-trip identity test: feeding the gold packets back in must yield
+  zero error and zero decision mismatches.
+- **`scripts/check_arms.py`** and **`eval/arms.md`** — measures whether each profile
+  realises the repertoire it names, with CI enforcing a ceiling on the one deliberate
+  leak. See "Fixed" below for why this was necessary.
+- **`skill.mode: withhold_acts`** — a fifth ablation arm. Detection and evaluation run
+  and are logged in full; only the `language_acts` and the branch label are withheld.
+  It is the arm that separates instruction-following from the model's own treatment
+  of contradiction, because everything except the instruction is held constant.
+- **`--reply-file` on `run` and `respond`**, plus `--signals` on `respond`. The reply
+  is coded, and the event's outcome is taken from the text.
+- **`outcome_source` and `planned_outcome`** on every respond record, so an event with
+  no observation is distinguishable from one where the model failed to comply.
+- **`transparency.tight_margin`** (default `0.05`) — the margin at or below which the
+  detection card escalates its tolerance wording.
+- **`logging.include_reply`** (default `false`) and **`logging.include_indicators`**
+  (default `true`). Reply text is participant data, so storing it is opt-in.
+- **A `boundary_straddling` family of ten scenarios** (`s68`–`s77`), solved onto the
+  decision edges: index within 0.01 of 0.55 and 0.75, `E_score` within 0.01 of 0.35
+  and 0.65, `commitment` within 0.001 of 0.60 and 0.75.
+- **Tolerant labels.** `strategy_set` now records every strategy reachable by moving a
+  rated input by `LABEL_TOLERANCE` (0.05), and `expect.near_boundary` flags the cases
+  where that changes the answer. 26 of 77 cases carry more than one accepted label.
+- **A discriminant check** in `eval/sensitivity.md`: `commitment` is a term in both the
+  tension index and adjustment cost, so the report now measures their correlation on
+  the corpus (Pearson r = 0.720) instead of assuming two constructs where there may be
+  one.
+- **A caveat guard in CI.** `check_examples.py` fails if any generated report loses its
+  "what this cannot show" block, extending the discipline `run_scenarios.py` already
+  applied to `eval/report.md`.
+- `tests/test_score_responses.py` (49 tests) and `tests/test_indicators.py` (115).
 
 ### Fixed
 
-- **A gated event was labelled as dissonance on its own card.** `detect_card`
-  selected its headline between the `indeterminacy` and `dissonance` labels only, so
-  an event capped by the volition floor (`channel == "none"`) fell through to
+- **The two experimental arms were not disjoint.** `R01_unresolved_conflict` and
+  `R02_pressure_low_evidence` carried no profile guard, and `R06`/`R08` mapped
+  reduction-profile events onto `maintain_with_caveat` and `qualify` — both adaptive
+  strategies. Measured over the corpus, **32.7% of events in the `dissonance_reduction`
+  arm realised an adaptive-branch strategy.** That undermines the design's own
+  evidence criterion 2 (behavioural distinctness) and the test `indicators.md` calls
+  "the single most direct test of whether the two repertoires are behaviourally
+  distinct". Every repertoire-drawing rule is now guarded, the reduction arm's
+  weak-evidence bands route to reduction strategies (`trivialize`, `reduce_commitment`),
+  and **`eval/arms.md` reports 0.0% cross-branch for the reduction arm and 1.6% for the
+  adaptive arm.** `R02` is left unguarded on purpose — pressure is a situational fact,
+  not a property of the profile — which is why the rate is measured and CI-enforced
+  rather than asserted to be zero.
+- **The card's rating tolerance was a hard-coded constant presented as a packet-relative
+  fact.** `DISAGREEMENT_TOLERANCE = 0.06` was printed on every detection card, while
+  `references/cards.md` and `SKILL.md` both described it as how far *this* packet's
+  ratings could move. For the repository's own example, whose real margins are 0.04 and
+  0.16, the claim was false; across the corpus, 29 of 52 routed cases had a true margin
+  below 0.06, one of them by a factor of 46. The figure is now computed — the distance
+  from the index to the nearest level boundary, which is exactly a uniform rating shift
+  because the five index weights sum to 1.0 — and the card escalates its wording when
+  the margin is tight. **This was the one place the "every number is auditable"
+  commitment was broken.**
+- **`eval/sensitivity.md` presented a structural zero as robustness.** The report
+  published `strategy flip rate 0.000` for every index weight under the heading "the
+  sweep that tests it", without saying that no routing rule reads `tension` — so the
+  zero was guaranteed by construction. It now says so. Separately,
+  `sensitivity.py` already computed routing boundary proximity *precisely* to stop a
+  zero flip rate being over-read, printed it to stdout, and omitted it from the report
+  it wrote. It is now written into the report unconditionally, together with the
+  corpus-design caveat. The evidence-dimension profiles in the new boundary family are
+  deliberately **unequal**, because a case whose dimensions are all equal has a weighted
+  mean invariant to the weights and can never be moved by a weight sweep — which is how
+  the old corpus produced zero everywhere. The flip rate is now non-zero (3.3% for
+  `independence` at ±0.05).
+- **The loop's terminal variable was the plan, not the behaviour.** `cds.py` recorded
+  `outcome` from `plan["stance_update"]["changed"]`, which was
+  `strategy not in _STANCE_UNCHANGED` — a lookup on the routed strategy *string*. The
+  response field is renamed **`planned_change`**, the outcome can now come from the
+  reply, and `outcome_source` records which. A documented claim was also false about
+  the code: `prompts/respond.md` said `unresolved` "is the signature of dissonance
+  reduction", but the adaptive strategies `maintain_with_caveat` and
+  `suspend_and_verify` also produced it while the silently-drifting reduction strategy
+  `reduce_commitment` produced `resolved`.
+- **`README.md` was mojibake.** Twenty-one lines had been transcoded (UTF-8 read as
+  GBK), including the language-policy table and the sample output block — the two parts
+  a Chinese-speaking reader most needs. Every other file, including all 77 Chinese
+  scenario files, was intact. The sample card is now real output pasted from a run.
+- **Documentation described things that did not exist.** `cds_cards.py` documented a
+  `show_disagreement_band` config key found in no config, schema or code path;
+  `run_scenarios.py` and `design-rationale.md` named `scripts/score_signals.py`, which
+  was absent; and both `README.md` and `operations.md` claimed a bare clone would not
+  be discovered because the skill directory must equal the frontmatter `name`. That is
+  the Agent Skills convention and Claude Code enforces it, but DeepSeek Harness reads
+  `name` from the frontmatter and never compares it to the directory — the instruction
+  made users run an installer they did not need.
+- **`REDUCTION_STRATEGIES` disagreed with the documented repertoire.** It listed three
+  of the five reduction strategies, so `hold_under_pressure` never received the
+  rationale sentence explaining what the branch means. `reduce_commitment` is correctly
+  excluded — the shared sentence says the belief does not move, and that strategy moves
+  it quietly — but nothing said so, and it now has its own rationale line.
+- **`disclose_pressure_driver` was attached to one strategy only.** An adaptive-arm
+  reply driven by pressure is exactly the case the constraint exists for, and it was the
+  one case that did not carry it. The code is now attached from the pressure flag.
+- **`no_fabrication` could not be checked and said it could.** The response scorer's
+  first implementation compared quotations against the signal packet's one-line stance
+  claim, which flagged an agent paraphrasing its own prior position as a fabrication —
+  a false positive on the constraint whose entire purpose is to catch invented sources.
+  A packet is not a conversation, so the check now requires `--context` and reports
+  `not_checked` without one.
+- **A gated event was labelled as dissonance on its own card.** `detect_card` selected
+  its headline between the `indeterminacy` and `dissonance` labels only, so an event
+  capped by the volition floor (`channel == "none"`) fell through to
   "认知失调相关冲突张力" — while the `通道` line was suppressed at the same time, so
   nothing on the card indicated that the gate had fired. The card now carries its own
   `gated` headline, prints the engine's `gate.detail` verbatim in place of the channel
@@ -27,12 +161,35 @@ structure, so a result can always be traced to the implementation that produced 
   `__pycache__`, so leftover artefacts cannot change it. Verified both ways: exit 0
   against the current README, exit 1 against a deliberately wrong figure.
 
-### Added
+### Changed
 
-- `tests/test_cards.py` — 13 tests over the detection card's labelling rules,
-  covering the gate, both channels, both languages, the `numeric_cards: false`
-  variant, the un-gated cases that must stay unchanged, and the documentation guards
-  above (the script-level count check and the `references/cards.md` label).
+- The corpus grew from 67 to **77 scenarios** and every `expect` block was recomputed,
+  because the v0.3.0 rule change makes the old labels describe the old rules. The
+  recomputation script was deliberately **not** committed: a standing flag whose only
+  purpose is to make the corpus agree with the engine would defeat the guard that
+  `eval/README.md`'s "do not copy it from a run" instruction exists to provide. The
+  procedure and its conditions are recorded in `eval/README.md` under "Regenerating".
+  No existing expectation changed value — the contamination was in how a *forced* arm
+  routed, not in how the corpus's own configs route.
+- `response_plan` gained `acts_withheld`; `stance_update.changed` became
+  `planned_change`; `StateMachine.complete_response` takes `planned_change` and an
+  optional `observed_outcome`; `schemas/evaluation.schema.json` follows.
+- `references/indicators.md`'s constraint table is no longer aspirational: the codes
+  decidable from reply text are checked by `score_responses.py`, and the ones that
+  cannot be decided there report `not_checked` rather than passing.
+- `thresholds.low` is documented as dead. It is validated (`low < alert < high`) and
+  echoed into every detection record, and no decision reads it — the level bands are
+  `silent` / `alert` / `high`, decided by `alert` and `high` alone. Left in place rather
+  than removed, because dropping a config key breaks saved configs, but recorded so it
+  is not mistaken for a working threshold.
+
+### Notes
+
+- The suite is now **431 stdlib unittest tests**, up from 149.
+- The inter-rater protocol in `references/codebook.md` remains the blocking item. The
+  coder, the perception scorer and the response scorer all now produce numbers, and the
+  interpretation of every one of them depends on a reliability estimate that has not
+  been measured.
 
 ## [0.2.0] — 2026-09-10
 

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import math
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -42,7 +43,7 @@ for _stream in (sys.stdout, sys.stderr):
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from cds_config import REPO_ROOT, ConfigError, check_semantics, load_config  # noqa: E402
+from cds_config import REPO_ROOT, ConfigError, check_semantics, load_config, write_text  # noqa: E402
 from cds_evaluator import StageError, build_evaluation  # noqa: E402
 from cds_index import build_detection  # noqa: E402
 from run_scenarios import deep_merge, load_scenarios  # noqa: E402
@@ -51,7 +52,10 @@ REPORT_PATH = REPO_ROOT / "eval" / "sensitivity.md"
 
 
 def _renormalise(weights: dict[str, float]) -> dict[str, float]:
-    total = sum(weights.values())
+    # fsum so the divisor is identical on every interpreter: this feeds the
+    # perturbed weight vectors the report is generated from, and a one-ulp change
+    # in the divisor reaches the level boundary the sweep is measuring.
+    total = math.fsum(weights.values())
     if total <= 0:
         return {key: 0.0 for key in weights}
     return {key: value / total for key, value in weights.items()}
@@ -529,7 +533,7 @@ def main(argv: list[str] | None = None) -> int:
             for row in structural_rows
         ]
         lines.append("")
-        REPORT_PATH.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+        write_text(REPORT_PATH, "\n".join(lines))
         print()
         print(f"wrote {REPORT_PATH}")
 

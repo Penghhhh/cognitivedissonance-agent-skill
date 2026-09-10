@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import unittest
 
 import context
@@ -262,6 +263,52 @@ class TestDeterminism(unittest.TestCase):
     def test_timestamp_does_not_change_the_event_id(self):
         stamped = context.base_packet(detected_at="2026-01-01T00:00:00Z")
         self.assertEqual(build_event_id(context.base_packet()), build_event_id(stamped))
+
+
+class TestSummationIsInterpreterIndependent(unittest.TestCase):
+    """The index must not depend on the interpreter's summation algorithm.
+
+    CPython 3.12 replaced builtin ``sum``'s naive loop with Neumaier compensated
+    summation, so the same term vector can land one ulp either side of a level
+    boundary on 3.9 and 3.12. Here the term vector totals exactly ``0.75`` in
+    decimal, which is also ``thresholds.high``, so a naive accumulation decides the
+    level by rounding error rather than by arithmetic: on 3.9 it returns
+    ``0.7499999999999999`` and the level silently drops to ``alert``. The index uses
+    ``math.fsum``, which is exactly rounded and identical on both versions.
+    """
+
+    def _ratings_from_s43(self) -> tuple[dict, dict]:
+        """s43's ratings with its novelty weight perturbed as the sweep perturbs it.
+
+        Weights are renormalised exactly as ``sensitivity.evaluator_weight_sweep``
+        does for its ``novelty +`` row, which is the row this defect was found on.
+        """
+        config = context.config_with()
+        weights = dict(config["index"]["weights"])
+        weights["novelty"] = weights["novelty"] + 0.05
+        total = math.fsum(weights.values())
+        config["index"]["weights"] = {name: value / total for name, value in weights.items()}
+
+        packet = context.base_packet(
+            relation={"opposition": 0.85, "specificity": 0.7},
+            stance={"commitment": 0.70, "volition": 0.85, "self_relevance": 0.90},
+            evidence=[{**context.base_packet()["evidence"][0], "novelty": 0.60}],
+        )
+        return packet, config
+
+    def test_raw_index_is_exactly_rounded(self):
+        packet, config = self._ratings_from_s43()
+        terms = build_terms(packet, config)
+        # 0.35*0.85 + 0.25*0.70 + 0.20*(0.85*0.90) + 0.12*0.70 + 0.1238...*0.60
+        self.assertEqual(math.fsum(term["contribution"] for term in terms.values()), 0.75)
+        detection = build_detection(packet, config)
+        self.assertEqual(detection["tension_result"]["tension"], 0.75)
+
+    def test_a_term_vector_exactly_on_the_high_threshold_reads_high(self):
+        packet, config = self._ratings_from_s43()
+        detection = build_detection(packet, config)
+        self.assertEqual(detection["tension_result"]["tension"], config["thresholds"]["high"])
+        self.assertEqual(detection["tension_result"]["level"], "high")
 
 
 class TestDetectionSchema(unittest.TestCase):

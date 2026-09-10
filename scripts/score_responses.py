@@ -65,7 +65,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from cds_config import REPO_ROOT, load_config  # noqa: E402
+from cds_config import REPO_ROOT, load_config, write_text  # noqa: E402
 from cds_indicators import INDICATOR_NAMES, code_reply, expected_indicators  # noqa: E402
 
 REPORT_PATH = REPO_ROOT / "eval" / "responses.md"
@@ -491,7 +491,7 @@ def main(argv: list[str] | None = None) -> int:
         print("written with logging.include_reply: true. Both are produced by running")
         print("the skill with --reply-file; see references/operations.md.")
         if args.write_report:
-            REPORT_PATH.write_text(render(summarise([]), []), encoding="utf-8", newline="\n")
+            write_text(REPORT_PATH, render(summarise([]), []))
             print(f"wrote {REPORT_PATH}")
         return 0
 
@@ -525,7 +525,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     if args.write_report:
-        REPORT_PATH.write_text(render(summary, rows), encoding="utf-8", newline="\n")
+        write_text(REPORT_PATH, render(summary, rows))
         print()
         print(f"wrote {REPORT_PATH}")
 

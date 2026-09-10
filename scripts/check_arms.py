@@ -48,7 +48,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from cds_config import REPO_ROOT, load_config  # noqa: E402
+from cds_config import REPO_ROOT, load_config, write_text  # noqa: E402
 from cds_evaluator import BRANCH_OF_STRATEGY, StageError, build_evaluation  # noqa: E402
 from cds_index import build_detection  # noqa: E402
 
@@ -229,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
                         for row in summary["cross_examples"]
                     ]
             lines.append("")
-        REPORT_PATH.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+        write_text(REPORT_PATH, "\n".join(lines))
         print(f"wrote {REPORT_PATH}")
 
     if failures:

@@ -98,7 +98,7 @@ for _stream in (sys.stdout, sys.stderr):
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from cds_config import REPO_ROOT, config_hash, load_config, load_schema  # noqa: E402
+from cds_config import REPO_ROOT, config_hash, load_config, load_schema, write_text  # noqa: E402
 from jsonschema_lite import validate  # noqa: E402
 from run_scenarios import load_scenarios, run_scenario  # noqa: E402
 
@@ -977,7 +977,7 @@ def write_report(result: dict[str, Any], path: Path = REPORT_PATH, stamp: str | 
         for name in ALL_DIMENSIONS:
             lines.append(f"| `{name}` | {DIMENSION_ANCHORS[name]} |")
         lines.append("")
-        path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+        write_text(path, "\n".join(lines))
         return path
 
     lines += [
@@ -1076,7 +1076,7 @@ def write_report(result: dict[str, Any], path: Path = REPORT_PATH, stamp: str | 
     lines += _coverage_lines(result)
     lines.append("")
 
-    path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    write_text(path, "\n".join(lines))
     return path
 
 

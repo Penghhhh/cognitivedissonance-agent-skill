@@ -22,6 +22,7 @@ reproduce any decision from the config file alone.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from cds_config import canonical_hash, skill_version
@@ -132,7 +133,7 @@ def _recompute_weights(weights: dict[str, float], present: list[str]) -> dict[st
     zero would silently punish sparse packets, and the dimensions dropped are
     reported so the choice is visible in the log.
     """
-    total = sum(weights[name] for name in present)
+    total = math.fsum(weights[name] for name in present)
     if total <= 0:
         return {name: 0.0 for name in present}
     return {name: weights[name] / total for name in present}
@@ -160,7 +161,6 @@ def build_evaluation(detection: dict[str, Any], signals: dict[str, Any], config:
     effective_weights = _recompute_weights(evaluator_config["evidence_weights"], present_dims)
 
     evidence_detail: dict[str, dict[str, float]] = {}
-    evidence_score = 0.0
     for name in present_dims:
         contribution = float(raw_dims[name]) * effective_weights[name]  # type: ignore[arg-type]
         evidence_detail[name] = {
@@ -168,7 +168,10 @@ def build_evaluation(detection: dict[str, Any], signals: dict[str, Any], config:
             "weight": effective_weights[name],
             "contribution": contribution,
         }
-        evidence_score += contribution
+    # fsum for the same reason as the tension index: ``e_score`` is compared to
+    # routing boundaries, and ``sum``'s result stopped being version-stable when
+    # CPython 3.12 adopted compensated summation for builtin ``sum``.
+    evidence_score = math.fsum(entry["contribution"] for entry in evidence_detail.values())
 
     # ---- stance side ------------------------------------------------------
     _, _, volition_self = volition_self_value(stance if stance else None)
@@ -189,7 +192,7 @@ def build_evaluation(detection: dict[str, Any], signals: dict[str, Any], config:
         }
         for name in ADJUSTMENT_DIMENSIONS
     }
-    adjustment_cost = sum(entry["contribution"] for entry in adjustment_cost_detail.values())
+    adjustment_cost = math.fsum(entry["contribution"] for entry in adjustment_cost_detail.values())
 
     # Disjoint inputs on purpose: maintain_score answers "how defensible is
     # holding?", recalibrate_score answers "how much would revising buy?". Sharing

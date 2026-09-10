@@ -61,7 +61,7 @@ result than the corpus can support.
 
 - routed cases: 61
 - `e_score` boundaries in the rule list: [0.35, 0.45, 0.65]
-- nearest boundary, min / median: 0.0013 / 0.0500
+- nearest boundary, min / median: 0.0012 / 0.0500
 - cases within 0.05 of a boundary: 26
 
 A non-trivial share of cases sit close to a boundary, so the zero flip

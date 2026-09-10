@@ -26,6 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import context  # noqa: E402
+from cds_config import write_text  # noqa: E402
 
 import score_signals as scorer  # noqa: E402
 
@@ -71,7 +72,7 @@ def conflict_free_packet(packet):
 
 def write_packet(directory, name, packet):
     path = Path(directory) / f"{name}.json"
-    path.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
+    write_text(path, json.dumps(packet, ensure_ascii=False, indent=2))
     return path
 
 
@@ -502,7 +503,7 @@ class TestScoreDirectory(unittest.TestCase):
     def test_malformed_json_is_reported_as_unreadable(self):
         scenarios = gold_scenarios()
         with context.scratch_dir() as tmp:
-            (tmp / "broken.json").write_text("{not json", encoding="utf-8", newline="\n")
+            write_text(tmp / "broken.json", "{not json")
             result = scorer.score(tmp, context.BASE_CONFIG, scenarios=scenarios)
         self.assertEqual(result["counts"]["unreadable"], 1)
         self.assertEqual(result["counts"]["files"], 1)

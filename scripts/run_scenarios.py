@@ -40,7 +40,14 @@ for _stream in (sys.stdout, sys.stderr):
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from cds_config import REPO_ROOT, ConfigError, check_semantics, config_hash, load_config  # noqa: E402
+from cds_config import (  # noqa: E402
+    REPO_ROOT,
+    ConfigError,
+    check_semantics,
+    config_hash,
+    load_config,
+    write_text,
+)
 from cds_evaluator import StageError, build_evaluation  # noqa: E402
 from cds_index import build_detection  # noqa: E402
 
@@ -360,7 +367,7 @@ def write_report(rows: list[dict[str, Any]], summary: dict[str, Any], base_confi
         lines.append("None.")
     lines.append("")
 
-    REPORT_PATH.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    write_text(REPORT_PATH, "\n".join(lines))
 
 
 def main(argv: list[str] | None = None) -> int:

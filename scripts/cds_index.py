@@ -50,6 +50,7 @@ rather than "dissonance".
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from cds_config import canonical_hash, skill_version
@@ -252,7 +253,15 @@ def build_detection(signals: dict[str, Any], config: dict[str, Any]) -> dict[str
     members = carrying_evidence(signals)
 
     terms = build_terms(signals, config)
-    raw_index = sum(term["contribution"] for term in terms.values())
+    # fsum, not sum: the level below is assigned by a bare ``>=`` against a
+    # threshold, so the accumulation algorithm must not be part of the answer.
+    # CPython 3.12 replaced ``sum``'s naive loop with Neumaier compensated
+    # summation, and a term vector that is exactly a threshold in decimal can land
+    # one ulp either side of it: the same corpus therefore routed ``s43`` to
+    # ``alert`` on 3.9 and to ``high`` on 3.12. ``fsum`` is exactly rounded and is
+    # the same function on every version, which is what the reproducibility claim
+    # in this module needs.
+    raw_index = math.fsum(term["contribution"] for term in terms.values())
 
     volition, self_relevance, volition_self = volition_self_value(stance)
     gates = config["index"]["gates"]

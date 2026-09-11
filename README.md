@@ -290,27 +290,40 @@ be read as an observation of the produced text.
 
 ## Install as a skill
 
-The repository *is* a skill bundle — `SKILL.md` plus the folders beside it — so
-installing it means copying it into the folder your harness scans for skills. The
-installer picks that folder for you:
+Installing just copies the skill into the folder your harness scans for skills.
+Clone once, run one command, verify — three steps, and that is all:
+
+```bash
+git clone https://github.com/Penghhhh/cognitivedissonance-agent-skill.git
+cd cognitivedissonance-agent-skill
+```
+
+Now run **one** of these, depending on where you want the skill to work:
 
 | Where you want it | Windows | macOS / Linux |
 |---|---|---|
-| DeepSeek Harness, this project: `<project>/.dsh/skills/` | `./install.ps1 -Target dsh-project` | `./install.sh dsh-project` |
-| DeepSeek Harness, all projects: `$DSH_HOME/skills/` (default `~/.dsh`) | `./install.ps1 -Target dsh-user` | `./install.sh dsh-user` |
-| Claude Code: `~/.claude/skills/` | `./install.ps1 -Target claude-user` | `./install.sh claude-user` |
-| Any `~/.agents` harness: `$DSH_AGENTS_HOME/skills/` | `./install.ps1 -Target agents-user` | `./install.sh agents-user` |
+| **Every project (recommended)** — lands in `~/.dsh/skills/cds-skill` | `./install.ps1 -Target dsh-user` | `./install.sh dsh-user` |
+| **One project only** — lands in `<project>/.dsh/skills/cds-skill` | `./install.ps1 -Target dsh-project -ProjectRoot "<project>"` | `PROJECT_ROOT="<project>" ./install.sh dsh-project` |
+| Claude Code — lands in `~/.claude/skills/cds-skill` | `./install.ps1 -Target claude-user` | `./install.sh claude-user` |
+| Any `~/.agents` harness — lands in `~/.agents/skills/cds-skill` | `./install.ps1 -Target agents-user` | `./install.sh agents-user` |
 
-The copy is always a folder called `cds-skill`, not `cognitivedissonance-agent-skill`:
-the repository and the skill have different names, and some harnesses require the
-folder to match the `name` in the frontmatter. (DeepSeek Harness does not — it reads
-`name` from the frontmatter and never compares it to the folder — so on DSH a plain
-clone dropped under `<project>/.dsh/skills/` is discovered as it stands. The installer
-stays the portable option.)
+`<project>` means the folder you open in DeepSeek Harness — your workspace root, not
+this clone.
 
-Re-run with `-Force` (PowerShell) or `FORCE=1` (shell) to replace an existing install,
-and use `-ProjectRoot` / `PROJECT_ROOT` to target a project other than the current
-directory.
+> **The one trap.** A bare `dsh-project` install (no `-ProjectRoot` /
+> `PROJECT_ROOT`) targets *the folder you are standing in*, and the clone step above
+> leaves you standing inside the clone — so the skill lands in `<clone>/.dsh/skills/`,
+> one level below your real project, where the harness never looks. If `/cds-skill`
+> does not show up after installing, this is almost certainly why.
+
+**Verify.** The installer's last output line is a `selftest` command; run it and you
+should see `selftest OK`. Then start a new harness session (or refresh the page) and
+type `/cds-skill` — see
+[Turning it on](#turning-it-on-user-invoked-or-always-on) for what happens next.
+
+Two details worth knowing: the installed folder is always named `cds-skill` (the
+`name` in the skill's frontmatter), never after the repository; and re-installing
+over an existing copy requires `-Force` (PowerShell) or `FORCE=1` (shell).
 
 ### Turning it on: user-invoked, or always on
 

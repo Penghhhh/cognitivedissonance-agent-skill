@@ -21,7 +21,8 @@
       "commitment": 0.75,
       "public_commitment": 0.6,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该结论可以直接用于下一阶段决策"
     },
     "evidence": [
       {

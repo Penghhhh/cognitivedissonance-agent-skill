@@ -21,7 +21,8 @@
       "commitment": 0.6,
       "public_commitment": 0.55,
       "volition": 0.75,
-      "self_relevance": 0.8
+      "self_relevance": 0.8,
+      "anchor": "上周的转化率大约是 4%"
     },
     "evidence": [
       {

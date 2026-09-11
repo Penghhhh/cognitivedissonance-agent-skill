@@ -21,7 +21,8 @@
       "commitment": 0.7,
       "public_commitment": 0.6,
       "volition": 0.8,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该方案的评估结论是可靠的"
     },
     "evidence": [
       {

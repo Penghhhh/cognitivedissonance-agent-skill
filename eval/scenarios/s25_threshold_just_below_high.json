@@ -21,7 +21,8 @@
       "commitment": 0.8,
       "public_commitment": 0.7,
       "volition": 0.8,
-      "self_relevance": 0.75
+      "self_relevance": 0.75,
+      "anchor": "这个结论已经在全部数据集上复核通过"
     },
     "evidence": [
       {

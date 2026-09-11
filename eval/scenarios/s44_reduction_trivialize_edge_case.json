@@ -25,7 +25,8 @@
       "commitment": 0.65,
       "public_commitment": 0.55,
       "volition": 0.8,
-      "self_relevance": 0.85
+      "self_relevance": 0.85,
+      "anchor": "这个异常只是偶发情况，不必处理"
     },
     "evidence": [
       {

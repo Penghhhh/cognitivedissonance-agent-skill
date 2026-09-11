@@ -5,7 +5,8 @@ Everything needed to run, install, debug and reproduce the skill.
 ## Commands
 
 ```bash
-python scripts/cds.py guard    --signals triage.json --card-only # screen one sparse packet
+python scripts/cds.py guard    --type evs --screen "opp=high,commit=high,vol=high,self=high,spec=high,nov=high" --stance "..." --anchor "..." --evidence "..." --ask
+python scripts/cds.py guard    --signals triage.json --card-only # screen one hand-written sparse packet
 python scripts/cds.py run      --signals packet.json            # ambient: full loop, one call
 python scripts/cds.py detect   --signals packet.json            # stage 1 only
 python scripts/cds.py evaluate --detection d.json --signals packet.json
@@ -22,17 +23,73 @@ output is **not** the card-plus-JSON the others print:
 
 | `guard` flag | Effect |
 |---|---|
-| `--signals PATH` | the **sparse** packet; only `relation` is required by `schemas/signals.schema.json` |
+| `--type` | `evidence_vs_stance` \| `evidence_vs_evidence` \| `user_hint_vs_stance` \| `memory_vs_current` \| `none` (short: `evs`, `eve`, `uhs`, `mvc`) |
+| `--screen` | the six index terms as bands: `"opp=high,commit=high,vol=high,self=high,spec=high,nov=high"`. Bands are `none`/`low`/`mid`/`high` = `0.00`/`0.30`/`0.60`/`0.85`; decimals also work. Separators are comma, semicolon or whitespace, all equivalent |
+| `--stance`, `--evidence` | the two sides. `--evidence` is repeatable |
+| `--anchor` | **required** for `evs`, `uhs`, `mvc`: the verbatim span the position is read off. See "The extraction rule" below |
+| `--source` | where the stance came from: `prior_conversation` (default), `user_message`, `memory`, `tool_output`, `system_prompt`, `normative_prior` |
+| `--norm` | with `--source normative_prior`: a short clause naming the mainstream norm |
+| `--signals PATH` | screen a stored packet instead, or `-` to read one from stdin. Mutually exclusive with the inline flags |
+| `--ask` | on `surface`, print the card, then `CDS_ASK {...}` (the chooser) and `CDS_AUDIT <one line>` |
 | `--card-only` | print the card and nothing else — an empty string when there is nothing to show, i.e. when the decision is `silent` or the user step is withheld (`next_action: log_only`) |
 | `--json` | print the whole guard record instead of the one-line hint |
 | `--out PATH` | write the guard record to a file |
 | `--no-turn-advance` | do not advance the turn counter |
 
+The inline route is the v0.5.0 default and the reason the stage is cheap: six band
+words on a command line instead of nine decimals in a file. `--signals` is kept
+because the eval corpus, the test suite and anyone reproducing a stored run all
+speak packet, and a screening path that could not accept a stored packet would make
+the guard unreproducible from the log.
+
 On the silent path — the common path, and the one the stage exists for — the entire
-output is one line, `CDS_GUARD silent`, and no card is rendered at all. The record is
-never lost: it goes to the JSONL log on every screening, `--json` prints it and `--out`
-writes it. It validates against `schemas/guard.schema.json` and embeds the full
+output is one line, `CDS_GUARD silent`, and **no card module is imported at all**,
+which is where most of the per-turn cost used to go. The record is never lost: it
+goes to the JSONL log on every screening, `--json` prints it and `--out` writes it.
+It validates against `schemas/guard.schema.json` and embeds the full
 `DetectionResult`, so a single screening line is self-contained.
+
+### The extraction rule, and the anchor
+
+The agent has no opinions of its own. Every position the engine reasons about is
+read off a span that is already in the context, and `stance.anchor` is that span.
+For `evidence_vs_stance`, `user_hint_vs_stance` and `memory_vs_current` the anchor is
+required: the inline CLI refuses without it, the guard stays silent and records
+`stance_without_context_anchor`, and `build_detection` caps the index under the
+`anchor_required` gate. `guard.require_anchor: false` restores the pre-v0.5.0
+behaviour, which is what produced cards announcing that "what I said earlier" had
+been contradicted on a first turn where nothing had been said.
+
+A `system_prompt` stance is exempt from the anchor requirement — the assignment is
+the span — and it is kept out of the dissonance channel by the volition floor
+instead. The two rules are separate and must not be conflated.
+
+The single exemption is `stance.source: "normative_prior"`, which requires
+`stance.normative_basis` naming the norm (e.g. 「不得对平民实施暴力」). It travels on
+the `normative` channel, whose severity is the raw `opposition` rather than the
+tension index: a norm was not chosen (`volition_self` is zero) and was not asserted
+by the agent (`commitment` does not apply), so the index would score a perfectly
+clear norm conflict at about 0.45 and it could never clear a threshold. The channel
+is labelled 「主流规范冲突」 and is never reported as cognitive dissonance.
+
+### Stopping the turn, and the one-line audit note
+
+`cds.py guard --ask` prints, in order: the card, `CDS_ASK {...}`, and
+`CDS_AUDIT <line>`. `CDS_ASK` is a structure the host model hands to its question
+tool — `question`, three `options` with `id`/`label`/`description`, `free_text: true`
+and `stop: true` — so the card does not have to spell out each option and the user is
+never trapped in a three-way choice. `CDS_AUDIT` is the only sentence the reply is
+allowed to say about the component:
+
+```text
+CDS 已记录 · 事件 cds_evt_ab12cd34ef56 · 日志 logs/cds_skill.jsonl
+```
+
+Both are rendered by the engine rather than composed by the model, which is the only
+way the note stays one line. `transparency.audit_note: "off"` silences it. The
+`--ask` output exists because "show the card and wait" was a prose instruction, and
+what a host model did with a prose instruction was finish its answer first and append
+the card to it.
 
 `detect` also takes `--brief`, which prints one line instead of the detection card. It
 belongs to the escalation path: the guard card has already named the two claims and the
@@ -91,25 +148,35 @@ Screening runs on every turn; the full loop runs only after the user asks for it
 is the arrangement the component is designed around, because a component that costs a
 full packet and three cards on every ordinary turn is one a user switches off.
 
-1. **Write the sparse packet.** A valid signal packet with only the index terms filled
-   in: `relation.type`, `relation.opposition`, `relation.specificity`,
-   `stance.{commitment, public_commitment, volition, self_relevance}`,
-   `evidence[].novelty`, `user_pressure`, `evidence_conflict_unresolved`. Leave out
-   `quote`, the five evidence-quality ratings (`relevance`, `credibility`, `recency`,
-   `independence`, `consistency`), `consistency_gate` and `perception`.
-   `references/prompts/triage.md` gives the anchors and the `type` decision tree.
+1. **Rate six bands and name the two sides.** Since v0.5.0 this is a command line,
+   not a file: `--screen "opp=high,commit=high,vol=high,self=high,spec=high,nov=high"`
+   plus `--stance`, `--anchor` and `--evidence`. If you would rather hand the engine
+   a JSON packet, that still works and is the same object: a valid signal packet with
+   only the index terms filled in — `relation.type`, `relation.opposition`,
+   `relation.specificity`, `stance.{commitment, public_commitment, volition,
+   self_relevance}`, `evidence[].novelty`, `user_pressure`,
+   `evidence_conflict_unresolved` — leaving out `quote`, the five evidence-quality
+   ratings (`relevance`, `credibility`, `recency`, `independence`, `consistency`),
+   `consistency_gate` and `perception`. `references/prompts/triage.md` gives the band
+   definitions and the `type` decision tree.
 2. **Screen it.**
 
    ```bash
-   python scripts/cds.py guard --signals triage.json --state cds-state.json --card-only
+   python scripts/cds.py guard --type evs \
+     --screen "opp=high,commit=high,vol=high,self=high,spec=high,nov=high" \
+     --stance "该方案在当前规模下是可靠的" \
+     --anchor "第 3 轮我说：该方案在当前规模下是可靠的" \
+     --evidence "新的压测报告显示该方案在目标规模下大面积失效" \
+     --state cds-state.json --ask
    ```
 
 3. **If it is silent, answer normally and show nothing.** `CDS_GUARD silent` — an empty
    string under `--card-only` — means the user sees no card and hears no mention of the
    conflict; the screening is logged either way. This is the majority of turns, and it
    costs one command.
-4. **If it is a card, show it verbatim and wait.** Do not evaluate, and do not answer
-   the original question in the same message.
+4. **If it is a card, show it verbatim, raise `CDS_ASK`, and stop.** Do not evaluate,
+   and do not answer the original question in the same message. The card is the last
+   thing in the turn.
 5. **On 处理 (*process*), record the decision.**
 
    ```bash
@@ -326,9 +393,10 @@ record.
 | `thresholds` | `low` / `alert` / `high` |
 | `thresholds_by_type` | per-conflict-type alert overrides |
 | `channels.indeterminacy` | the ungated second channel |
+| `channels.normative` | the third channel (v0.5.0): a mainstream value norm the agent holds as a baseline. Severity is the raw `opposition`, not the index — see "The extraction rule" above |
 | `evaluator.*` | evidence weights, cost weights, the ordered rule list |
 | `consistency_gate` | self-contradiction reporting, independent of dissonance |
-| `guard.*` | the screening stage: `enabled`, `policy`, `surface_threshold`, `min_opposition`, `cooldown_turns`, `dismiss_memory`, `resurface_novelty`, `max_surfaces_per_run` |
+| `guard.*` | the screening stage: `enabled`, `policy`, `surface_threshold`, `min_opposition`, `require_anchor`, `stop_and_ask`, `cooldown_turns`, `dismiss_memory`, `resurface_novelty`, `max_surfaces_per_run` |
 | `state.*` | queue bound and timeouts |
 | `transparency.*` | which cards are shown, and in which `card_style` |
 | `logging.*` | JSONL path and whether signals are embedded |
@@ -344,7 +412,9 @@ machine with no third-party library present, and it must be hashable. See
 | `guard.enabled` | `false` removes the screening stage: no card, no question, and the full loop runs whenever `detect` is called — the v0.3.0 cadence, though not its card rendering, which `transparency.card_style` selects |
 | `guard.policy` | `ask` (show the card and wait for the user's decision) / `auto` (surface and evaluate without asking — the v0.3.0 ambient cadence) / `log_only` (record the conflict and take no user step). `ask` and `auto` render a card when the decision is `surface`; `log_only` renders nothing, because the user step is withheld and a card for it would make "record, never show" a documentation claim rather than a property of the code. Only `ask` waits for an answer |
 | `guard.surface_threshold` | the interruption bar. **Refused at load time if it falls below any alert threshold** |
-| `guard.min_opposition` | a second floor: an event can clear the index on commitment and volition while the two claims barely conflict |
+| `guard.min_opposition` | a second floor: an event can clear the index on commitment and volition while the two claims barely conflict. On the `normative` channel it is the only content bar, because the index cannot express a value-norm conflict |
+| `guard.require_anchor` | v0.5.0, and `true` by default. A stance-carrying packet must name the verbatim span the position was read off. Without one the guard stays silent (`stance_without_context_anchor`) and `build_detection` caps the index under the `anchor_required` gate. `false` reproduces pre-v0.5.0 behaviour, which is what produced a card announcing that "what I said earlier" had been contradicted on a first turn where nothing had been said |
+| `guard.stop_and_ask` | v0.5.0, and `true` by default. When the guard surfaces, the card ends the turn: the host model asks and waits rather than finishing its answer first. `cds.py guard --ask` emits the chooser as a structure the harness can hand to an interactive question tool |
 | `guard.cooldown_turns` | turns before the guard may surface again; `0` disables the cooldown |
 | `guard.dismiss_memory` | whether a dismissed conflict stays down |
 | `guard.resurface_novelty` | the novelty at which a dismissed conflict may return, i.e. when it is no longer the same objection restated |
@@ -556,7 +626,7 @@ data exists.
 
 ### Screenings that stayed silent
 
-Nine `reasons` values hold a screening back, and they are checked in the order below.
+Ten `reasons` values hold a screening back, and they are checked in the order below.
 The first failure is the recorded reason, so a single value says what failed first, not
 what was the only thing wrong. The three session inhibitors are checked last and only
 after the packet has cleared every content bar, so a screening they hold back is always
@@ -568,7 +638,8 @@ instead names the policy that released the card: `policy_ask_user`,
 |---|---|
 | `arm_inert` | `skill.mode: off`, or `guard.enabled: false`. The record is still written and still embeds the computed detection, but no policy is applied and nothing downstream runs |
 | `no_conflict_perceived` | `relation.type` is `none`: the packet itself says nothing clashed |
-| `gated_not_dissonance` | the volition floor capped the index and the channel is not `indeterminacy`. A conflict against a stance the agent did not freely choose is not dissonance, and the guard does not ask a user about a construct it has just declined to count |
+| `stance_without_context_anchor` | v0.5.0, and the first content check for a reason. The packet names a position and cannot point at the span it was read off. The agent has no opinions of its own, so there is nothing to have a conflict about; the event is still recorded, so a packet that *should* have been anchored is a measurable miss rather than a silent drop. Set `guard.require_anchor: false` to screen the old way |
+| `gated_not_dissonance` | a gate capped the index and the channel is neither `indeterminacy` nor `normative`. A conflict against a stance the agent did not freely choose is not dissonance, and the guard does not ask a user about a construct it has just declined to count |
 | `below_alert_threshold` | the index is below `thresholds.alert` (or the applicable per-type override). Real enough to log, not real enough to record as an event |
 | `below_surface_threshold` | above every alert threshold but below `guard.surface_threshold`. This is the marginal-but-real case: recorded, deliberately not shown |
 | `opposition_below_floor` | the index cleared, but `opposition` is below `guard.min_opposition`: the two claims barely conflict |

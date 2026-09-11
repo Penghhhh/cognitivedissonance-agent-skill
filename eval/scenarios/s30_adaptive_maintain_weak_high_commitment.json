@@ -21,7 +21,8 @@
       "commitment": 0.7,
       "public_commitment": 0.65,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "这个判断有充分依据，可以据此推进"
     },
     "evidence": [
       {

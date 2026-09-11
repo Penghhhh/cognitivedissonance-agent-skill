@@ -16,7 +16,8 @@
     "commitment": 0.70,
     "public_commitment": 0.65,
     "volition": 0.90,
-    "self_relevance": 0.90
+    "self_relevance": 0.90,
+    "anchor": "现有材料不足以支持该结论（第 4 轮我给出的判断）"
   },
   "evidence": [
     {

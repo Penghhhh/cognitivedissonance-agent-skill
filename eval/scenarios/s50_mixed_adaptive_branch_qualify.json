@@ -25,7 +25,8 @@
       "commitment": 0.3,
       "public_commitment": 0.2,
       "volition": 0.7,
-      "self_relevance": 0.8
+      "self_relevance": 0.8,
+      "anchor": "我猜这个接口的瓶颈在数据库"
     },
     "evidence": [
       {

@@ -70,6 +70,8 @@ _LABELS: dict[str, dict[str, str]] = {
         "detect": "检测",
         "dissonance": "认知失调相关冲突张力",
         "indeterminacy": "证据不确定性（非失调）",
+        "normative": "主流规范冲突（非失调）",
+        "anchor": "原文出处",
         "gated": "已检测到冲突，未计入失调（缺少自主选择的立场）",
         "gate": "门控",
         "state": "状态",
@@ -126,6 +128,8 @@ _LABELS: dict[str, dict[str, str]] = {
         "detect": "detection",
         "dissonance": "cognitive-dissonance-related conflict tension",
         "indeterminacy": "evidential indeterminacy (not dissonance)",
+        "normative": "mainstream-norm conflict (not dissonance)",
+        "anchor": "source span",
         "gated": "conflict detected, not counted as dissonance (no freely chosen stance)",
         "gate": "gate",
         "state": "state",
@@ -433,6 +437,7 @@ _TYPE_PLAIN = {
 _CLAIM_LABELS = {
     "zh": {
         "stance": "我先前的说法",
+        "norm": "主流规范",
         "evidence": "新出现的信息",
         "evidence_1": "来源一的说法",
         "evidence_2": "来源二的说法",
@@ -443,6 +448,7 @@ _CLAIM_LABELS = {
     },
     "en": {
         "stance": "what I said earlier",
+        "norm": "a mainstream norm",
         "evidence": "the new information",
         "evidence_1": "what source one says",
         "evidence_2": "what source two says",
@@ -462,23 +468,31 @@ _PLAIN = {
         # interruption bar and the detection card against the level bar, and calling
         # both of them "判定线" would make a user who sees both cards think one of
         # the numbers had changed.
-        "guard_magnitude": "初步冲突检测大小：{value}（提示门槛 {threshold}，{word}）",
+        "guard_magnitude": "冲突大小：{value}（门槛 {threshold}，{word}）",
+        "guard_magnitude_normative": "与规范的冲突程度：{value}（门槛 {threshold}，{word}）",
         "guard_magnitude_no_number": "初步冲突检测大小：{word}",
         "guard_magnitude_word": "明显",
         "guard_magnitude_word_mid": "较明显",
         "guard_magnitude_word_edge": "刚好过线",
         "guard_magnitude_word_below": "未达门槛",
         "guard_ask": "是否进入评估？",
-        "guard_ask_process": "· 回复「处理」→ 我评估证据分量、权衡要不要调整立场，并给出应对策略",
-        "guard_ask_ignore": "· 回复「忽略」→ 我按普通对话继续，之后不再就同一处冲突打扰你",
-        "guard_ask_later": "· 回复「稍后」→ 先记下，等出现更新的信息时再提",
+        "guard_ask_process": "· 回复「处理」→ 我评估证据分量，并给出应对策略",
+        "guard_ask_ignore": "· 回复「忽略」→ 按普通对话继续，不再就同一处冲突打扰你",
+        "guard_ask_later": "· 回复「稍后」→ 先记下，出现更新信息时再提",
+        "guard_option_process": "处理",
+        "guard_option_ignore": "忽略",
+        "guard_option_later": "稍后",
         "guard_auto": "已自动进入评估（当前配置不等待你的决定）。",
         "guard_log_only": "该条件只记录、不进入评估。",
         "guard_detect_header": "确认存在上下文矛盾冲突",
         "guard_detect_header_indeterminacy": "发现证据之间自相矛盾（不是认知失调）",
         "guard_detect_header_gated": "已检测到冲突，未计入失调（缺少自主选择的立场）",
-        "guard_meaning": "这是哪一类问题：{type}——{meaning}",
+        "guard_detect_header_normative": "发现输入内容与主流规范冲突（不是认知失调）",
+        "guard_meaning": "类别：{type}——{meaning}",
         "guard_meaning_gated": "这是哪一类问题：{type}——但该立场不是我自主选择的，因此本事件不计入失调。",
+        "guard_meaning_normative": "这是哪一类问题：输入内容与主流价值规范「{basis}」冲突。规范是我的底线判断，不是我自主选择的立场，因此不按认知失调处理。",
+        "guard_anchor_echo": "依据原文：{anchor}",
+        "audit_line": "CDS 已记录 · 事件 {event} · 日志 {path}",
         "eval_header": "该不该调整立场",
         "eval_step1": "① 新证据的分量：{band}",
         "eval_step1_weighted": "① 新证据的分量：{band}（{score}）",
@@ -526,23 +540,31 @@ _PLAIN = {
         "guard_header": "conflict found in the current context",
         "guard_placebo_header": "one confirmation needed this turn",
         "guard_placebo_body": "(no conflict content this turn; the same cadence is kept.)",
-        "guard_magnitude": "initial conflict reading: {value} (interruption bar {threshold}, {word})",
+        "guard_magnitude": "conflict reading: {value} (bar {threshold}, {word})",
+        "guard_magnitude_normative": "how directly the input attacks the norm: {value} (bar {threshold}, {word})",
         "guard_magnitude_no_number": "initial conflict reading: {word}",
         "guard_magnitude_word": "clear",
         "guard_magnitude_word_mid": "fairly clear",
         "guard_magnitude_word_edge": "just over the bar",
         "guard_magnitude_word_below": "below the bar",
         "guard_ask": "Evaluate this?",
-        "guard_ask_process": "- reply 'process' -> I weigh the evidence and the cost of changing position, then give a strategy",
-        "guard_ask_ignore": "- reply 'ignore' -> I carry on as an ordinary turn and do not raise this conflict again",
-        "guard_ask_later": "- reply 'later' -> noted; I raise it again only if newer information arrives",
+        "guard_ask_process": "- reply 'process' -> I weigh the evidence and give a strategy",
+        "guard_ask_ignore": "- reply 'ignore' -> I carry on as an ordinary turn; this conflict is not raised again",
+        "guard_ask_later": "- reply 'later' -> noted; raised again only if newer information arrives",
+        "guard_option_process": "process",
+        "guard_option_ignore": "ignore",
+        "guard_option_later": "later",
         "guard_auto": "Evaluation started automatically (this configuration does not wait for your decision).",
         "guard_log_only": "This condition is recorded only; evaluation does not run.",
         "guard_detect_header": "conflict confirmed in the current context",
         "guard_detect_header_indeterminacy": "the evidence contradicts itself (not dissonance)",
         "guard_detect_header_gated": "conflict detected, not counted as dissonance (no freely chosen stance)",
-        "guard_meaning": "what this is: {type} - {meaning}",
+        "guard_detect_header_normative": "the input conflicts with a mainstream norm (not dissonance)",
+        "guard_meaning": "type: {type} - {meaning}",
         "guard_meaning_gated": "what this is: {type} - but the position was not freely chosen, so this event is not counted as dissonance.",
+        "guard_meaning_normative": "what this is: the input conflicts with the mainstream value norm \"{basis}\". That is a baseline I hold, not a position I chose, so it is not treated as cognitive dissonance.",
+        "guard_anchor_echo": "read off: {anchor}",
+        "audit_line": "CDS recorded - event {event} - log {path}",
         "eval_header": "should the position move?",
         "eval_step1": "(1) weight of the new evidence: {band}",
         "eval_step1_weighted": "(1) weight of the new evidence: {band} ({score})",
@@ -1231,9 +1253,14 @@ def guard_card(result: dict[str, Any], config: dict[str, Any], *, numeric: bool 
     show_numbers = config["skill"]["numeric_cards"] if numeric is None else numeric
     show_scores = show_numbers and config["transparency"]["include_scores"]
 
+    # The severity the interruption bar was applied to. On the normative channel
+    # this is the raw opposition rather than the index, for the reason given in
+    # `cds_guard.run_guard`; the card prints whichever reading actually drove the
+    # decision instead of a number that did not.
+    severity = float(result.get("severity", result["tension"]))
     tension = float(result["tension"])
     threshold = float(result["surface_threshold"])
-    word = _magnitude_word(tension, threshold, language)
+    word = _magnitude_word(severity, threshold, language)
     event = (result.get("detection") or {}).get("conflict_event") or {}
 
     if result.get("placebo"):
@@ -1245,6 +1272,8 @@ def guard_card(result: dict[str, Any], config: dict[str, Any], *, numeric: bool 
             headline = plain["guard_detect_header_gated"]
         elif channel == "indeterminacy":
             headline = plain["guard_detect_header_indeterminacy"]
+        elif channel == "normative":
+            headline = plain["guard_detect_header_normative"]
         else:
             headline = plain["guard_header"]
         lines = [f"【CDS｜{labels['detect']}】{headline}"]
@@ -1256,8 +1285,8 @@ def guard_card(result: dict[str, Any], config: dict[str, Any], *, numeric: bool 
 
         if show_scores:
             lines.append(
-                plain["guard_magnitude"].format(
-                    value=f"{tension:.2f}", threshold=f"{threshold:.2f}", word=word
+                (plain["guard_magnitude_normative"] if channel == "normative" else plain["guard_magnitude"]).format(
+                    value=f"{severity:.2f}", threshold=f"{threshold:.2f}", word=word
                 )
             )
         else:
@@ -1267,11 +1296,23 @@ def guard_card(result: dict[str, Any], config: dict[str, Any], *, numeric: bool 
         # the guard can surface a gated event on the indeterminacy channel, and a
         # line that called the position self-chosen would contradict the gate
         # printed two lines below it.
-        lines.append(
-            (plain["guard_meaning_gated"] if result.get("gated") else plain["guard_meaning"]).format(
-                type=type_name, meaning=type_meaning
+        if channel == "normative":
+            basis = (event.get("stance") or {}).get("normative_basis") or type_meaning
+            lines.append(plain["guard_meaning_normative"].format(basis=basis))
+        else:
+            lines.append(
+                (plain["guard_meaning_gated"] if result.get("gated") else plain["guard_meaning"]).format(
+                    type=type_name, meaning=type_meaning
+                )
             )
-        )
+
+        # v0.5.0. The card shows what the claim was *read off*, so the user can check
+        # the extraction rather than take the tool's word that they said it. It is
+        # one line, and on the extraction path it is the line that makes the whole
+        # feature auditable.
+        anchor = (event.get("stance") or {}).get("anchor")
+        if anchor and not result.get("gated"):
+            lines.append(plain["guard_anchor_echo"].format(anchor=_excerpt(str(anchor), 80)))
 
         # The guard card is also what the user reads after consenting, so it carries
         # the same gate-labelling rule as the full detection card.
@@ -1315,6 +1356,72 @@ def guard_card(result: dict[str, Any], config: dict[str, Any], *, numeric: bool 
 # --------------------------------------------------------------------------
 # Public entry points
 # --------------------------------------------------------------------------
+
+
+def ask_payload(result: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    """The chooser the host model should raise when the guard surfaces.
+
+    v0.5.0. v0.4.0 described the choice in prose inside the card and left the host
+    model to work out what to do with it; what that produced in practice was a card
+    appended to the end of a finished answer. A turn that is supposed to stop has to
+    say so in a form a harness can act on, so the three options are emitted as a
+    structure the host can hand to an interactive question tool, together with an
+    explicit ``stop`` flag and ``free_text`` set to true so a user who wants to
+    answer in their own words is never trapped in a three-way choice.
+
+    Returns ``{}`` when there is nothing to ask.
+    """
+    if result.get("decision") != "surface" or not result.get("asks_user"):
+        return {}
+    language = config["skill"]["language"]
+    plain = _plain(language)
+    return {
+        "question": plain["guard_ask"],
+        "options": [
+            {
+                "id": "process",
+                "label": plain["guard_option_process"],
+                "description": plain["guard_ask_process"].lstrip("·- ").strip(),
+            },
+            {
+                "id": "ignore",
+                "label": plain["guard_option_ignore"],
+                "description": plain["guard_ask_ignore"].lstrip("·- ").strip(),
+            },
+            {
+                "id": "later",
+                "label": plain["guard_option_later"],
+                "description": plain["guard_ask_later"].lstrip("·- ").strip(),
+            },
+        ],
+        "free_text": True,
+        "stop": True,
+        "resume_on": {"process": "evaluate", "ignore": "ordinary_turn", "later": "suspend"},
+    }
+
+
+def audit_line(payload: dict[str, Any], config: dict[str, Any]) -> str:
+    """One line naming where this turn was recorded, and nothing else.
+
+    v0.5.0. v0.4.0 let the host model describe the audit in its own words at the end
+    of a reply, and models are generous with words: the result was a paragraph about
+    stages, channels and logs attached to an answer about something else entirely.
+    The engine renders the line instead, so the reply carries one fixed sentence and
+    the simulation stops sounding like a compliance report.
+
+    ``transparency.audit_note: "off"`` silences it for a condition that must not
+    mention the component at all.
+    """
+    if str(config.get("transparency", {}).get("audit_note", "one_line")) == "off":
+        return ""
+    detection = payload.get("detection") if isinstance(payload.get("detection"), dict) else None
+    event_id = None
+    if detection:
+        event_id = (detection.get("conflict_event") or {}).get("event_id")
+    event_id = event_id or payload.get("event_id") or payload.get("conflict_key") or "-"
+    log_path = str(config.get("logging", {}).get("path") or "logs/cds_skill.jsonl")
+    language = config["skill"]["language"]
+    return _plain(language)["audit_line"].format(event=event_id, path=log_path)
 
 
 def detect_card(

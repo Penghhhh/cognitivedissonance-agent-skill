@@ -21,7 +21,8 @@
       "commitment": 0.55,
       "public_commitment": 0.5,
       "volition": 0.7,
-      "self_relevance": 0.85
+      "self_relevance": 0.85,
+      "anchor": "这次延迟上升与上周的发布有关"
     },
     "evidence": [
       {

@@ -265,7 +265,13 @@ class TestGuardRecord(unittest.TestCase):
 
     def test_escalation_hint_distinguishes_the_paths(self):
         surface = run_guard(context.base_packet(), context.BASE_CONFIG, history=fresh_history())
-        self.assertIn("wait for the user decision", escalation_hint(surface))
+        # The hint is a *stop* instruction, not a display instruction. v0.4.0 said
+        # "show the card and wait for the user decision", and what a host model did
+        # with that was finish its answer and append the card to it.
+        hint = escalation_hint(surface)
+        self.assertIn("STOP", hint)
+        self.assertIn("wait", hint)
+        self.assertIn("Do not write the answer first", hint)
 
         silent_packet = context.base_packet(relation={"type": "none", "opposition": 0.0, "specificity": 0.0})
         silent_packet.pop("evidence")
@@ -318,6 +324,8 @@ class TestSparsePackets(unittest.TestCase):
         "stance": {
             "id": "stance_001",
             "claim": "该方案在当前规模下是可行的",
+            "source": "prior_conversation",
+            "anchor": "第 3 轮我说：该方案在当前规模下是可行的",
             "commitment": 0.70,
             "public_commitment": 0.60,
             "volition": 0.85,

@@ -11,7 +11,7 @@
       "additionalProperties": false,
       "required": ["role", "text"],
       "properties": {
-        "role": { "type": "string", "enum": ["stance", "evidence", "memory", "current", "user_hint"] },
+        "role": { "type": "string", "enum": ["stance", "norm", "evidence", "memory", "current", "user_hint"], "description": "Which side of the conflict this claim is. 'norm' marks a mainstream value norm, the one sanctioned position that is not extracted from the conversation; it is labelled separately so a reader can never mistake a baseline norm for a judgement the agent formed." },
         "text": { "type": "string", "minLength": 1 },
         "source": { "type": ["string", "null"] },
         "evidence_id": { "type": ["string", "null"] }
@@ -46,7 +46,10 @@
             "confidence": { "type": ["number", "null"] },
             "commitment": { "type": "number" },
             "public_commitment": { "type": "number" },
-            "source": { "type": ["string", "null"] }
+            "source": { "type": ["string", "null"] },
+            "anchored": { "type": "boolean", "description": "False when the packet named a position it could not point at in the context, which is what the anchor_required gate reacts to. Emitted with the stance so a log reader can separate 'no conflict' from 'a conflict about a position nobody ever stated'." },
+            "anchor": { "type": ["string", "null"], "description": "The verbatim span the claim was read off, carried into the record so the extraction is checkable after the fact rather than only at the moment of screening." },
+            "normative_basis": { "type": ["string", "null"], "description": "With source=normative_prior, the mainstream norm the judgement rests on. Present so a reader can see which norm was invoked instead of being told one was." }
           }
         },
         "evidence_ids": { "type": "array", "items": { "type": "string" } },
@@ -95,7 +98,7 @@
           "required": ["applied", "rule"],
           "properties": {
             "applied": { "type": "boolean" },
-            "rule": { "type": "string", "enum": ["volition_floor", "none"] },
+            "rule": { "type": "string", "enum": ["volition_floor", "anchor_required", "none"], "description": "'anchor_required' (v0.5.0) means the packet named a position it could not point at in the context. The agent has no opinions of its own, so such a position is not treated as one it held: the index is capped and the guard will not interrupt a user for it." },
             "floor": { "type": ["number", "null"] },
             "cap": { "type": ["number", "null"] },
             "detail": { "type": ["string", "null"] }
@@ -107,15 +110,15 @@
     "tension_result": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["index_version", "tension", "level", "channel", "channel_levels", "indeterminacy", "threshold_alert", "threshold_high", "threshold_low", "threshold_source", "key_points", "uncertainty", "next_action"],
+      "required": ["index_version", "tension", "level", "channel", "channel_levels", "indeterminacy", "normative", "threshold_normative_alert", "threshold_normative_high", "threshold_alert", "threshold_high", "threshold_low", "threshold_source", "key_points", "uncertainty", "next_action"],
       "properties": {
         "index_version": { "type": "string" },
         "tension": { "type": "number", "minimum": 0, "maximum": 1, "description": "The CDS Tension Index. A constructed index over rated signals, not a measurement of any internal state; the name is retained from v0.1 for continuity only." },
-        "level": { "type": "string", "enum": ["silent", "alert", "high"], "description": "The higher of the two channels' levels." },
+        "level": { "type": "string", "enum": ["silent", "alert", "high"], "description": "The higher of the three channels' levels." },
         "channel": {
           "type": "string",
-          "enum": ["dissonance", "indeterminacy", "none"],
-          "description": "Which channel raised the card. 'dissonance' is the gated index and requires a freely chosen, self-relevant stance. 'indeterminacy' means the evidence contradicts itself rather than the agent, which is a decision problem and is labelled as such on the card. The two are never merged into one 'dissonance' verdict."
+          "enum": ["dissonance", "normative", "indeterminacy", "none"],
+          "description": "Which channel raised the card. 'dissonance' is the gated index and requires a freely chosen, self-relevant stance. 'normative' (v0.5.0) is the third channel: an input that attacks a mainstream value norm the agent holds as a baseline. A norm is not freely chosen, so it can never clear the volition gate, and the direction is fully determinate, so it is not indeterminacy either. It is labelled as a norm conflict and never reported as cognitive dissonance. 'indeterminacy' means the evidence contradicts itself rather than the agent, which is a decision problem. The three are never merged into one verdict."
         },
         "channel_levels": {
           "type": "object",
@@ -123,10 +126,14 @@
           "required": ["dissonance", "indeterminacy"],
           "properties": {
             "dissonance": { "type": "string", "enum": ["silent", "alert", "high"] },
+            "normative": { "type": "string", "enum": ["silent", "alert", "high"], "description": "Level of the value-norm channel. Silent for every packet whose stance is not a normative prior, and the dissonance level is forced silent for every packet whose stance is one, so the two can never both read as alert." },
             "indeterminacy": { "type": "string", "enum": ["silent", "alert", "high"] }
           }
         },
         "indeterminacy": { "type": "number", "minimum": 0, "maximum": 1, "description": "The raw evidence_conflict_unresolved rating, reported alongside the index so the two channels can be told apart in the log." },
+        "normative": { "type": "number", "minimum": 0, "maximum": 1, "description": "The raw opposition rating, which is the normative channel's severity measure. Reported separately because the index cannot express a value-norm conflict: volition_self is zero for a norm and commitment describes a position the agent asserted, so the index would score a perfectly clear norm conflict below every alert threshold." },
+        "threshold_normative_alert": { "type": "number", "minimum": 0, "maximum": 1 },
+        "threshold_normative_high": { "type": "number", "minimum": 0, "maximum": 1 },
         "threshold_low": { "type": "number" },
         "threshold_alert": { "type": "number" },
         "threshold_high": { "type": "number" },

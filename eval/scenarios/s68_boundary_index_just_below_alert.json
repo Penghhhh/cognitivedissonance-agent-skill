@@ -21,7 +21,8 @@
       "commitment": 0.7,
       "public_commitment": 0.6,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该模型在生产环境中的推理延迟稳定在可接受区间"
     },
     "evidence": [
       {

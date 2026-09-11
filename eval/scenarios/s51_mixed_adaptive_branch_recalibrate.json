@@ -25,7 +25,8 @@
       "commitment": 0.5,
       "public_commitment": 0.4,
       "volition": 0.8,
-      "self_relevance": 0.85
+      "self_relevance": 0.85,
+      "anchor": "我们这个假设在真实数据上成立"
     },
     "evidence": [
       {

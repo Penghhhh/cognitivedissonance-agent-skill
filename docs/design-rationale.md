@@ -772,3 +772,169 @@ every screening is logged with its decision, its reason and the detection that p
 it, so the distribution of held-back conflicts — and how close each of them came to the
 bar — is readable from the `guard` records. The false-negative rate that distribution
 implies has not been measured, and this document does not claim it is small.
+
+## 9. What changed in v0.5.0, and why
+
+v0.4.0 fixed the cost of the loop and the readability of the cards. Using it produced
+four further defects, and three of them are the same defect seen from different sides:
+**the component talked about itself too much, and it was willing to have opinions.**
+
+The changes below are ordered by how much they matter, not by how much code they
+touched.
+
+### 9.1 The agent invented positions, and then reported conflicts against them
+
+The worst of the four. On a first turn, with nothing asserted anywhere in the
+conversation, the component produced a card announcing that "what I said earlier" had
+been contradicted by the user's message. It had not. Nothing in the design licensed
+this, but nothing forbade it either: the screening packet asked for `stance.claim` and
+a `stance.source`, and both can be produced for a position that exists only in the
+perceiver's summary of what the conversation was *about*. The result is the opposite of
+an audit — a tool manufacturing a disagreement and reporting it with the engine's
+authority behind it, in the one artefact a user is asked to trust.
+
+The fix is a rule rather than a check. **The agent has no opinions of its own.** Every
+position the engine reasons about is *extracted* from the context, and `stance.anchor`
+is the verbatim span it was read off. For `evidence_vs_stance`, `user_hint_vs_stance`
+and `memory_vs_current` the anchor is required at three separate points, because each
+covers a different way the bad packet could arrive:
+
+| Where | What it does |
+|---|---|
+| the inline CLI | refuses to build the packet at all: `--anchor is required` |
+| `cds_guard` | stays silent and records `stance_without_context_anchor` |
+| `cds_index` | caps the event under the `anchor_required` gate |
+
+The cap is the same `non_dissonant_cap` the volition gate uses, so a packet that
+scored 0.71 raw is recorded as 0.40 and travels no channel. It is capped rather than
+rejected so the turn is still logged and the false negative is countable, exactly as
+§8.2 argues for the interruption bar.
+
+`guard.require_anchor: false` restores the old behaviour for reproduction, and the
+corpus carries a fixture for the failure: `s78_neutrality_unanchored_stance`, whose
+`expect` block asserts `gate_applied: true`, `channel: none`, `level: silent`.
+
+The 77 pre-existing gold packets gained an `anchor` equal to the claim as extracted.
+The corpus stores rated packets rather than transcripts, so there is no longer span to
+quote; saying so plainly is better than synthesising a plausible-looking quotation,
+which would have put invented context into the gold data. The rule's bite is on
+model-produced packets, which is where it was needed.
+
+### 9.2 A mainstream value norm is not dissonance, and needed its own channel
+
+The extraction rule has exactly one exception, and it is the one a research instrument
+cannot extract: a baseline value norm — torture is wrong, violence against civilians is
+wrong — that the agent holds without a conversation ever mentioning it. Users asked for
+extreme and anti-mainstream inputs to be caught on a moral baseline, and the existing
+machinery could not do it.
+
+It could not, because `volition_self` is the product of free choice and self-relevance,
+and a norm scores zero on both. The volition gate would cap every norm conflict at 0.40
+forever. Loosening the gate was not an option: it is what keeps assigned positions out
+of the dissonance channel (§1.2), and it is worth more than this feature. So the norm
+travels on a **third channel**, `normative`, which is:
+
+- **not dissonance**, because a norm is not freely chosen, and calling it dissonance
+  would repeat the v0.1 error §1.3 documents;
+- **not indeterminacy**, because the direction is perfectly determinate;
+- **measured on `opposition`**, not on the index, for the same reason the gate blocks
+  it: two of the index's five terms are inapplicable by construction, so a perfectly
+  clear norm conflict scores about 0.45 and could never clear a 0.55 threshold. The
+  record says which reading was used (`severity_basis: "normative_opposition"`), so a
+  log analysis never compares a norm conflict's severity against an index threshold.
+
+It carries `stance.normative_basis`, a short clause naming the norm, which the card
+prints. `s79_normative_prior_mainstream_norm` covers it.
+
+### 9.3 The card arrived after the answer, which made it a footnote
+
+v0.4.0's instruction was "show the card and wait for the user decision". It was prose,
+and prose did not survive contact with a chat loop: the host model finished its answer
+and appended the card to the end of it. By the time the user was asked whether to go
+further, they had already read the conclusion the question was supposed to precede.
+
+An instruction that must stop a turn has to be machine-readable, so `guard --ask` now
+emits the choice as a structure — `CDS_ASK`, with `question`, three `options` carrying
+`id`/`label`/`description`, `free_text: true` and `stop: true` — and the hint line
+reads `STOP: end the turn on the card above ... Do not write the answer first`. A
+harness with an interactive question tool passes the structure straight through; one
+without prints the card and ends the turn. Free text is explicitly allowed, so the user
+is never trapped in a three-way choice.
+
+The option descriptions moved *into* the chooser, which is what lets the card stay
+short: the test suite asserts the guard card costs less attention than the detection
+card that may follow it, and that assertion survived the addition of a line to the card
+because the option lines gave up more than the anchor line added.
+
+### 9.4 The screen was still a JSON file, and the skill was still 14 KB of context
+
+Two costs remained after v0.4.0, and neither of them was in the Python.
+
+**`SKILL.md` is in context on every turn.** At 14.4 KB it was the largest single
+per-turn cost of the component, paid even on turns with no conflict at all, and paid
+by the *model* rather than by the process. It is now 9.3 KB — a 35% cut, roughly 1.3k
+tokens of context on every turn by the usual ~4 characters per token for English
+prose. The reference list, the ablation-arm table, the hard-constraint list and the
+troubleshooting table moved to `references/`, where they are read only when a turn
+escalates. What stayed is what the silent path needs — the extraction rule, the silent
+check, the one-line command, the obedience table, and the two output rules.
+
+**The screening packet was nine decimals in a file.** This is where the perceived
+slowness came from, and it was never the engine. v0.4.0 asked the host model to
+author a JSON object — nine ratings, quoted keys, two invented claim ids — and write
+it to a temporary file, then run a command that read it back. In generated tokens that
+is a few hundred output tokens and an extra tool call per screened turn; at typical
+decode speeds that is seconds, and it is the model's time, not the machine's.
+`--screen` now takes six coarse bands inline
+(`opp=high,commit=high,...`, with `none|low|mid|high` = `0.00|0.30|0.60|0.85`), so a
+screening turn is one command and no file. All six are required, because a defaulted
+term is a decision the engine made without being told it was making one. Banding costs
+resolution and that cost is deliberate: this is a gate, not a measurement, and the
+precise rating is still made once on the escalation path. `--signals` still accepts a
+stored packet, including on stdin, so every recorded run stays reproducible.
+
+**What the Python change is worth, stated honestly.** `scripts/cds.py` no longer
+imports `cds_cards` (67 KB of string tables), the evaluator or the state machine at
+module scope, so a `CDS_GUARD silent` call touches the index and the guard and nothing
+else. Measured with `-X importtime` over the two trees, that removes about **3 ms** of
+import self-time out of roughly 60 ms, on a process whose total wall clock is around
+85 ms — of which about 60 ms is interpreter and site start-up and cannot be moved by
+anything in this repository. The change is worth keeping because a screening turn
+should not load card-rendering code it will not use, but it is **not** why the
+component felt slow, and no claim in this document should be read as saying the engine
+was ever the bottleneck. The bottleneck was the tokens the host model had to spend
+producing a packet, and the context the skill occupied while doing it.
+
+In-process, for the record: `build_detection` plus `run_guard` on a sparse packet is
+about **0.25 ms**, and rendering the card, the chooser and the audit line together is
+about **0.01 ms**. The arithmetic half of this repository is not a cost.
+
+### 9.5 The reply explained the audit
+
+v0.4.0 let the host model describe the log in its own words at the end of a reply, and
+models are generous with words: the result was a paragraph about stages, channels and
+audit records attached to an answer about something else. This is a fidelity problem
+before it is a verbosity problem — a participant reading it is reminded that they are
+talking to an instrument, which is precisely the state Study 2 wants them not to be in.
+
+The engine renders the sentence now, and the model copies it verbatim:
+`CDS 已记录 · 事件 cds_evt_… · 日志 logs/cds_skill.jsonl`, one line, as the last line of
+the reply, saying nothing else about the component.
+`transparency.audit_note: "off"` removes it for an arm that must not mention the
+component at all.
+
+### 9.6 What did not change
+
+The index, its weights, the volition gate, the thresholds, the routing rules, the
+evaluator, the indicator coder and all 77 pre-existing scenarios. `eval/results.csv`
+reports the same `level`, `channel` and `strategy` for every one of them; only the
+`config_hash` column moved, because the config gained a `channels.normative` block and
+two `guard` keys, and the `anchor` field was added to their stance blocks. Two
+scenarios were added (`s78`, `s79`) for the two new rules, bringing the corpus to 79.
+
+The extraction rule is the one change here that constrains what the model may say
+rather than what the engine computes, and it is worth being explicit that it is a
+**design commitment, not a measurement**: the repository has no evidence that anchored
+packets are more accurate than unanchored ones. What it does have is the failure that
+motivated the rule, reproduced as a fixture, and the fact that the failure is now
+impossible to produce through the screening path without also being visible in the log.

@@ -21,7 +21,8 @@
       "commitment": 0.75,
       "public_commitment": 0.7,
       "volition": 0.85,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "这条流程目前不需要任何改动"
     },
     "evidence": [
       {

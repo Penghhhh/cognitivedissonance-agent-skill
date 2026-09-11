@@ -21,7 +21,8 @@
       "commitment": 0.6,
       "public_commitment": 0.55,
       "volition": 0.8,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该模型适用于我们支持的全部语种"
     },
     "evidence": [
       {

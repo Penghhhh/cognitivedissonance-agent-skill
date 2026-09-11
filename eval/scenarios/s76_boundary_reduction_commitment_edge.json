@@ -25,7 +25,8 @@
       "commitment": 0.599,
       "public_commitment": 0.6,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该判断在团队内部已经对外公布并据此排期"
     },
     "evidence": [
       {

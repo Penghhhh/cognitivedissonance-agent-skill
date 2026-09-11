@@ -13,7 +13,8 @@
     "commitment": 0.65,
     "public_commitment": 0.55,
     "volition": 0.85,
-    "self_relevance": 0.90
+    "self_relevance": 0.90,
+    "anchor": "该方案在当前规模下是可靠的（第 3 轮我给出的结论）"
   },
   "evidence": [
     {

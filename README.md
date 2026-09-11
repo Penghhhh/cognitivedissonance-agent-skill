@@ -1,471 +1,187 @@
 # CDS-Skill
 
-**Cognitive Dissonance Simulation for LLM agents** — a pluggable skill that turns a
-conflict between an agent's own committed position and incoming information into a
-detectable, auditable, reproducible event, then routes it to an explicit response
-strategy.
+CDS-Skill (Cognitive Dissonance Simulation) is a pluggable skill for LLM agent
+harnesses: DeepSeek Harness, Claude Code, or anything that scans a skills folder.
+When new information in a conversation contradicts a position the agent itself
+stated earlier, it detects the clash and routes it to an explicit, auditable
+response strategy. Pure Python 3.9+ standard library (no `pip install`, no
+dependencies, no network), built as a research artifact for a study on
+critical/dialectical thinking — the research argument lives in
+[`docs/design-rationale.md`](docs/design-rationale.md), not here.
 
-This repository is the Study 1 implementation artifact for the research project
-*Simulating human-like external behaviour under contradictory information:
-a modular skill for LLM agents and its human-factors evaluation*.
+## What you'll see
 
-> **Language.** This repository is written in English, with one exception: text the
-> skill *generates at runtime* is Chinese, because `skill.language` defaults to
-> `zh`. Wherever Chinese appears below it is quoted sample output, and it is
-> glossed. The rule and its rationale are in [Language policy](#language-policy).
+The agent has no opinions of its own. Every position it reasons about is extracted
+from the conversation, and a conflict is raised only when there is a quotable span
+to point at: something the agent said earlier, something in your message, a memory
+entry, or a tool output. It never invents "what I was about to say". One exception:
+a mainstream value norm (e.g. "violence against civilians is wrong") travels on its
+own channel and is never labelled cognitive dissonance.
 
----
+1. **Most turns: nothing.** No card, no mention of the skill. The engine prints one
+   line, `CDS_GUARD silent`, which the model does not show you. This is the common case.
+2. **A clear conflict: one card, then the assistant stops.** The card names the two
+   colliding claims, the conflict size, and the span the earlier claim was read off;
+   the assistant then **ends its turn and asks you to choose** — it does not write the
+   answer first. Options: 处理 (process) / 忽略 (ignore) / 稍后 (later). You can also
+   just type your own answer instead of picking an option.
+3. **After you choose 处理 (process):** the assistant evaluates the evidence, states
+   the strategy it will use, and only then writes the reply. The reply ends with
+   **one** audit line naming the log file, e.g.
+   `CDS 已记录 · 事件 cds_evt_ab12cd34ef56 · 日志 logs/cds_skill.jsonl`
+   (*"logged · event id · log file"*). Nothing else about the component appears in
+   the reply.
 
-## Language policy
-
-Three layers, each with a different audience, so each gets a different language.
-The mixing is deliberate and bounded; it is written down here so a reader can tell
-intent from oversight.
-
-| Layer | Language | Why |
-|---|---|---|
-| **Documentation** — `README`, `SKILL.md`, `references/`, `docs/`, code comments | **English** | Repository convention; the code, the schemas and the literature the design argues with are all English. |
-| **Runtime output** — transparency cards, log messages, command words | **Chinese by default** (`skill.language: "zh"`) | This is the layer a user actually reads, and the study's participants are Chinese-speaking. Set `skill.language: "en"` for an English run; every string has both. |
-| **Research stimuli** — `eval/scenarios/` packet content, `examples/dialogue_*.md` dialogue | **Chinese** | The corpus tests a Chinese-language skill. English stimuli would measure a different system. |
-
-Two conventions follow, and both are checkable by eye:
-
-1. **Runtime Chinese is always quoted and always glossed.** Inline, as
-   `` `证据不确定（非失调）` (*"evidential indeterminacy — not dissonance"*) ``;
-   in full, as a fenced block introduced as sample output.
-2. **Structural identifiers are never translated.** JSON keys, config paths, state
-   names, strategy ids and language-act codes are English everywhere, including in
-   the Chinese cards and the Chinese corpus. A card may print `限定原立场`
-   (*"qualify the stance"*), but the `strategy` field it comes from is always
-   `qualify` — otherwise the log and the analysis would be keyed in two languages.
-
-The three layers are separate on purpose. Translating the documentation into
-Chinese would cost the repository its outside readership; translating the corpus
-into English would invalidate the measurement; and translating the identifiers
-would break the log.
-
-## The one idea
-
-```
-model perceives  ──►  sparse packet ──►  cds_guard.py ─┬─►  silent   ──►  stop (one line, ordinary turn)
-                                                        │
-                                                        └─►  surface  ──►  guard card ──►  user consents?
-                                                                                                    │
-                              signal packet (JSON, rated against an anchored codebook) ◄─────────────┘
-                                              │
-                                              ▼
-                      cds.py computes  ──►  index · gate · evidence score · route · card · log
-                                              │
-                                              ▼
-model responds   ──►  reply text
-                                              │
-                                              ▼
-                cds_indicators codes  ──►  indicator-level agreement with the plan
-```
-
-Nothing here claims a model *feels* anything. The theoretical frame is used only to
-ask a behavioural question: **given the same collision, which of the moves humans
-are known to make does this agent make, and can a reader see which one it made?**
-
-## What it does
-
-| Stage | Who | Output |
-|---|---|---|
-| **Screen** | the host model → `cds.py guard` | a **sparse** packet, then the screening decision (`surface` / `silent`), its reasons, and the guard card |
-| **Perceive** | the host model | a signal packet: rated conflict, stance, evidence, moderators (the sparse packet, extended) |
-| **Detect** | `cds.py` | Tension Index with a full term decomposition, gate, level, channel |
-| **Evaluate** | `cds.py` | evidence score, adjustment cost, routed strategy, fired rule id |
-| **Respond** | the host model | prose realising the plan's `language_acts` |
-| **Code** | `cds_indicators.py` | the reply's linguistic indicators, and where each one fired |
-| **Report** | `cds.py` | a transparency card per stage, and a JSONL audit record |
-
-The first stage is the v0.4.0 addition and the only one that runs on an ordinary turn.
-Every stage below it runs only after the user has agreed to go further; see
-[Stealth by default](#stealth-by-default-v040).
-
-## Stealth by default (v0.4.0)
-
-v0.3.0 ran the whole loop on every turn: a full packet, `detect`, `evaluate`, and three
-dense cards. Two problems came back from users, and both are about the same thing —
-a component nobody leaves switched on measures nothing. The token cost of rating a full
-packet every turn made it something to turn off; three cards at once were hard to read.
-v0.4.0 answers both by splitting detection in two and making the first tier nearly free.
-
-| Tier | Who | Cost per turn | What it decides |
-|---|---|---|---|
-| **Screening** — the guard | the host model, then `cds_guard.py` (`cds.py guard`) | one **sparse** packet, one arithmetic pass over the existing index | `surface` or `silent` |
-| **Escalation** | the v0.3.0 pipeline, unchanged | the full loop | nothing, until the user asks for it |
-
-Screening rates only the fields the decision needs — `relation.opposition`,
-`relation.specificity`, `stance.commitment`, `stance.public_commitment`,
-`stance.volition`, `stance.self_relevance`, `evidence[].novelty`, `user_pressure`,
-`evidence_conflict_unresolved` — with no verbatim quotes and no evidence-quality
-ratings. On `silent` the entire command output is one line, `CDS_GUARD silent`: no
-card, no question, nothing shown to the user, and the turn proceeds as an ordinary
-turn. The screening is still written to the JSONL log under stage `guard`, so the
-denominator exists and a false-negative rate is measurable rather than assumed.
-
-On `surface` the engine renders a short card — the two colliding claims, the conflict
-reading with its bar, what kind of problem it is — and asks the user to choose
-处理 (*"process"*) / 忽略 (*"ignore"*) / 稍后 (*"later"*). Only after the user answers
-处理 does the full packet, `detect`, `evaluate` and `respond` run. On that escalation
-path `detect --brief` prints one line of confirmation instead of a second full card,
-because the reader has already seen the two claims and the conflict size on the guard
-card. Real guard output for the same example conflict, quoted verbatim:
+The card, as printed at runtime:
 
 ```text
 【CDS｜检测】发现上下文矛盾冲突
 观点1（我先前的说法）：「X 在该场景下是可靠的」
 观点2（新出现的信息）：「新研究显示 X 在主要使用场景下存在重大缺陷」
-初步冲突检测大小：0.71（提示门槛 0.62，较明显）
-这是哪一类问题：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
+冲突大小：0.71（门槛 0.62，较明显）
+类别：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
+依据原文：第 2 轮我说：X 在该场景下是可靠的
 
 是否进入评估？
-· 回复「处理」→ 我评估证据分量、权衡要不要调整立场，并给出应对策略
-· 回复「忽略」→ 我按普通对话继续，之后不再就同一处冲突打扰你
-· 回复「稍后」→ 先记下，等出现更新的信息时再提
+· 回复「处理」→ 我评估证据分量，并给出应对策略
+· 回复「忽略」→ 按普通对话继续，不再就同一处冲突打扰你
+· 回复「稍后」→ 先记下，出现更新信息时再提
 ```
 
-**The interruption bar is not the recording bar.** `guard.surface_threshold` (default
-0.62) is validated at config-load time to sit at or above every alert threshold —
-`thresholds.alert` is 0.55, plus the per-type overrides — so the guard can never be more
-eager than the detector it fronts: a conflict real enough to *record* is not
-automatically clear enough to *interrupt someone for*. `guard.min_opposition` (0.60)
-adds a second floor, because an event can clear the index on commitment and volition
-while the two claims barely conflict.
+Real runtime output; the runtime language defaults to Chinese (`skill.language: "zh"`).
 
-Session-level inhibitors live in the state file and bound how often the guard may ask:
-`guard.cooldown_turns` (1), `guard.dismiss_memory` (true, with `guard.resurface_novelty`
-0.75 so a genuinely new turn on the same topic returns), and `guard.max_surfaces_per_run`
-(4). `guard.policy` is the user-facing switch, independent of the ablation arm: `ask`
-(default — screen, then wait for the user), `auto` (the v0.3.0 ambient cadence, no
-question) and `log_only` (record, never show). `guard.enabled: false` restores exact
-v0.3.0 behaviour.
-
-The guard never creates a state-machine event: a screening decision is not an event, it
-is the reason there is or is not one.
-
-## Two channels, never merged
-
-| Channel | Fires when | Label on the card |
-|---|---|---|
-| `dissonance` | a **freely chosen, self-relevant** stance is opposed | dissonance-related tension |
-| `indeterminacy` | the evidence contradicts **itself** | evidential indeterminacy — explicitly *not* dissonance |
-
-Evidence-vs-evidence conflict has no stance to threaten. Calling it dissonance is
-the deepest error in the v0.1 design this repository supersedes; see
-[`docs/design-rationale.md`](docs/design-rationale.md).
-
-## Two response repertoires
-
-The point of the project is that human dissonance reduction is often *not* good
-epistemic practice — the discomfort goes away and the belief does not move.
-
-| `profile` | Strategies | What it models |
-|---|---|---|
-| `adaptive` | `maintain_with_caveat`, `qualify`, `recalibrate`, `suspend_and_verify` | epistemic recalibration |
-| `dissonance_reduction` | `trivialize`, `reduce_commitment`, `deny_evidence`, `rationalize`, `hold_under_pressure` | human-typical motivated reduction (fidelity, **not** advice) |
-| `mixed` | per-event, recorded as `reduction_tendency` | — |
-| `baseline` | `none` | no shaping |
-
-The two repertoires are kept disjoint **in the rule list**, not merely in the
-documentation. Every rule that draws from a repertoire is guarded by
-`resolved_profile_in`, with one deliberate exception: `R02_pressure_low_evidence`
-is unguarded, because pressure is a situational fact rather than a property of the
-profile. `scripts/check_arms.py` measures the resulting purity and CI enforces a
-ceiling on it — see [`eval/arms.md`](eval/arms.md).
-
-Reduction-branch cards are labelled on their face and carry the
-`fidelity_not_advice` constraint, so a denial strategy cannot be read as the system
-endorsing source-discounting.
-
-## Quick start
-
-One clone and four commands. Python 3.9+ is the only requirement: no `pip install`,
-no dependency file, no network access at any point.
+Behind the scenes, screening is cheap by design: on a turn that needs it, the model
+runs one command with six coarse band words and no JSON file.
 
 ```bash
-git clone https://github.com/Penghhhh/cognitivedissonance-agent-skill.git
-cd cognitivedissonance-agent-skill
-
-python scripts/cds.py selftest     # "selftest OK"
-python scripts/cds.py config       # the settings in force, and their hash
-python scripts/cds.py run --signals examples/packet_evidence_vs_stance.json
-python scripts/cds.py guard --signals examples/triage_sparse_conflict.json --card-only
+python scripts/cds.py guard --type evidence_vs_stance \
+  --screen "opp=high,commit=high,vol=high,self=high,spec=high,nov=high" \
+  --stance "X 在该场景下是可靠的" \
+  --anchor "第 2 轮我说：X 在该场景下是可靠的" \
+  --evidence "新研究显示 X 在主要使用场景下存在重大缺陷" \
+  --state cds-state.json --ask
 ```
 
-`run` pushes one prepared conflict through the whole loop and prints a card per stage.
-`guard` is the v0.4.0 screening pass: it takes a sparse packet and prints either the
-short guard card, when the conflict is clear enough to interrupt for, or the single
-line `CDS_GUARD silent` when it is not — see
-[Stealth by default](#stealth-by-default-v040). Real output of `run`, quoted verbatim:
+Bands are `none | low | mid | high` (= 0.00 / 0.30 / 0.60 / 0.85); raw decimals also
+work. `--ask` prints the card plus the chooser the host model hands to its question
+tool. Band definitions are in
+[`references/prompts/triage.md`](references/prompts/triage.md). The full loop
+(`detect` → `evaluate` → `respond`) runs **only** after you answer 处理.
 
-```text
-【CDS｜检测】发现上下文矛盾冲突
-观点1（我先前的说法）：「X 在该场景下是可靠的」
-观点2（新出现的信息）：「新研究显示 X 在主要使用场景下存在重大缺陷」
-冲突检测大小：0.71（冲突门槛 0.55，明显）
-这是哪一类问题：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
-关键点：
-- 新证据与既有立场方向相反
-- 冲突具体且可核查
-- 既有立场承诺度较高
-- 该立场由智能体自主选择，而非被指派
-- 该信息为新出现的信息，并非重复提及
-评分可动范围：±0.04（离最近的判定线 0.75 只有这么远，换个标注就可能跨过去）
-下一步：环境模式：不阻塞本轮回复，已自动进入评估。
-```
+## Turn it on
 
-Cards come out in Chinese because `skill.language` defaults to `zh`; set it to `"en"`
-in [`config/cds.config.json`](config/cds.config.json) for an English run — every
-string has both. This rendering is `transparency.card_style: "plain"`, the v0.4.0
-default: question-shaped headings, the two colliding claims named in words, band words
-beside the decimals. Set it to `"technical"` for the v0.3.0 field-per-line rendering
-with the identifiers included, which is what earlier runs were coded from and what a
-reviewer checking a number wants to see. Both styles are held to the same labelling
-rules by the test suite; a style changes presentation, never which construct is
-labelled.
+**Type `/cds-skill` once per session.** Not once per message: after that one
+activation the skill stays on for the rest of the session and screens **every** turn
+silently in the background. A new session needs `/cds-skill` again — nothing is
+carried across sessions except a JSONL log file and an optional state file.
 
-### Run it on your own case
+Want it on every turn without typing anything? Delete the
+`disable-model-invocation: true` line from `SKILL.md`; the harness then lists the
+skill for the model to invoke on its own. Tradeoff: a small permanent catalogue cost
+per turn, and whether the model invokes it becomes a measured variable rather than a
+controlled one.
 
-There are two steps, because the design is one split: **you rate the situation, the
-script does the arithmetic.** Since v0.4.0 there is usually a cheaper step in front of
-them: a *sparse packet* — only the index terms the screening decision needs, with no
-quotes and no evidence-quality ratings — decides whether the conflict is worth the full
-loop at all. Start from
-[`examples/triage_sparse_conflict.json`](examples/triage_sparse_conflict.json);
-`python scripts/cds.py guard --signals sparse.json` answers `CDS_GUARD silent` on most
-turns and shows the guard card on the few that clear the bar;
-[`references/prompts/triage.md`](references/prompts/triage.md) anchors the sparse
-fields.
-
-1. **Rate it.** Write a *signal packet* — a small JSON file scoring the conflict from
-   0 to 1. Start from
-   [`examples/packet_evidence_vs_stance.json`](examples/packet_evidence_vs_stance.json)
-   and edit it; [`references/codebook.md`](references/codebook.md) anchors every field.
-2. **Run it.** `python scripts/cds.py run --signals packet.json` gives you the index,
-   the routed strategy, and the language acts to perform.
-
-Then write the reply yourself and hand it back, so the recorded outcome comes from the
-text you produced rather than from the plan:
-
-```bash
-python scripts/cds.py run --signals packet.json --reply-file reply.txt
-```
-
-### Verify the checkout
-
-```bash
-python -m unittest discover -s tests -t tests   # 523 stdlib unittest tests, all green
-python scripts/check_examples.py                 # do the docs still match the code?
-```
-
-`run_scenarios.py`, `sensitivity.py` and `check_arms.py` re-derive the evaluation
-figures and check them against the corpus; CI runs all of them on every push.
-`check_examples.py` holds the docs to the code — it counts the test methods and fails
-if the figure above is stale, and fails any generated report that has lost its
-"what this cannot show" block.
-
-## Closing the loop on the reply
-
-The engine can only audit arithmetic it computes. Whether the reply actually
-realised the planned behaviour is an empirical question about the produced text, so
-`respond` and `run` accept it:
-
-```bash
-python scripts/cds.py run --signals packet.json --reply-file reply.txt --json
-```
-
-With a reply supplied, the linguistic indicators in
-[`references/indicators.md`](references/indicators.md) are coded against the text,
-the event's `outcome` is taken **from the reply** rather than from the plan, and the
-log records both — `outcome_source: "observed"` versus `"planned"`. Without a reply
-the outcome falls back to the plan and is marked as such, so a log analysis can
-always tell "the model did not comply" from "nobody looked".
-
-`response_plan.stance_update.planned_change` is named for what it is: a function of
-the routed strategy string, i.e. the engine's intention. It carries no information
-about the reply. The field was called `changed` in v0.2.0 precisely so that it could
-be read as an observation of the produced text.
-
-## Install as a skill
-
-Installing just copies the skill into the folder your harness scans for skills.
-Clone once, run one command, verify — three steps, and that is all:
+## Install
 
 ```bash
 git clone https://github.com/Penghhhh/cognitivedissonance-agent-skill.git
 cd cognitivedissonance-agent-skill
 ```
 
-Now run **one** of these, depending on where you want the skill to work:
+Then run **one** of these (Windows `./install.ps1 -Target X`, macOS/Linux `./install.sh X`):
 
-| Where you want it | Windows | macOS / Linux |
-|---|---|---|
-| **Every project (recommended)** — lands in `~/.dsh/skills/cds-skill` | `./install.ps1 -Target dsh-user` | `./install.sh dsh-user` |
-| **One project only** — lands in `<project>/.dsh/skills/cds-skill` | `./install.ps1 -Target dsh-project -ProjectRoot "<project>"` | `PROJECT_ROOT="<project>" ./install.sh dsh-project` |
-| Claude Code — lands in `~/.claude/skills/cds-skill` | `./install.ps1 -Target claude-user` | `./install.sh claude-user` |
-| Any `~/.agents` harness — lands in `~/.agents/skills/cds-skill` | `./install.ps1 -Target agents-user` | `./install.sh agents-user` |
+| Target | Lands in | Windows | macOS / Linux |
+|---|---|---|---|
+| every project (recommended) | `~/.dsh/skills/cds-skill` | `./install.ps1 -Target dsh-user` | `./install.sh dsh-user` |
+| one project only | `<project>/.dsh/skills/cds-skill` | `./install.ps1 -Target dsh-project -ProjectRoot "<project>"` | `PROJECT_ROOT="<project>" ./install.sh dsh-project` |
+| Claude Code | `~/.claude/skills/cds-skill` | `./install.ps1 -Target claude-user` | `./install.sh claude-user` |
+| any `~/.agents` harness | `~/.agents/skills/cds-skill` | `./install.ps1 -Target agents-user` | `./install.sh agents-user` |
 
-`<project>` means the folder you open in DeepSeek Harness — your workspace root, not
-this clone.
+`<project>` = the folder you open in your harness (your workspace root), **not** the
+clone. One trap: a bare `dsh-project` with no `-ProjectRoot` / `PROJECT_ROOT`
+installs into the folder you are standing in — the clone — so the skill lands one
+level too deep and never shows up.
 
-> **The one trap.** A bare `dsh-project` install (no `-ProjectRoot` /
-> `PROJECT_ROOT`) targets *the folder you are standing in*, and the clone step above
-> leaves you standing inside the clone — so the skill lands in `<clone>/.dsh/skills/`,
-> one level below your real project, where the harness never looks. If `/cds-skill`
-> does not show up after installing, this is almost certainly why.
-
-**Verify.** The installer's last output line is a `selftest` command; run it and you
-should see `selftest OK`. Then start a new harness session (or refresh the page) and
-type `/cds-skill` — see
-[Turning it on](#turning-it-on-user-invoked-or-always-on) for what happens next.
+Then verify: run the `selftest` command the installer prints (expects `selftest OK`),
+start a new session, and type `/cds-skill`.
 
 Two details worth knowing: the installed folder is always named `cds-skill` (the
-`name` in the skill's frontmatter), never after the repository; and re-installing
-over an existing copy requires `-Force` (PowerShell) or `FORCE=1` (shell).
+`name` in the skill's frontmatter), never after the repository — and re-installing
+over an existing copy needs `-Force` (PowerShell) or `FORCE=1` (shell).
 
-### Turning it on: user-invoked, or always on
-
-`SKILL.md` carries `disable-model-invocation: true`, so the skill is **user-invoked**:
-it does nothing until you type `/cds-skill`, and once invoked its body stays in context
-for the session. That is the intended default for a study, because "the participant
-switched it on" is a condition you want recorded rather than inferred.
-
-If you would rather have it available on every turn without switching it on, delete
-that line. DeepSeek Harness then marks the skill model-invocable and lists its
-description and `whenToUse` in the catalogue the model sees, so the model can consult
-it on its own when a contradiction appears. The trade is real and worth stating: the
-catalogue entry is a small permanent cost on every turn, and whether the model decides
-to invoke the skill becomes part of what is being measured rather than a condition you
-control.
-
-Either way the per-turn cost of the skill itself is the same, and it is the point of
-v0.4.0: nothing on a turn with no candidate conflict, one sparse packet and one command
-on a turn that is screened, and the full loop only after a user agrees to it.
-
-**No skill system at all?** The engine is an ordinary program, so any harness can call
-it directly:
+## Try it without a harness
 
 ```bash
-python /path/to/cds-skill/scripts/cds.py guard --signals triage.json --state cds-state.json --card-only
+python scripts/cds.py selftest
+python scripts/cds.py run --signals examples/packet_evidence_vs_stance.json
+python scripts/cds.py guard --signals examples/triage_sparse_conflict.json --state cds-state.json --ask
 ```
 
-Full options, and how to wire the skill into a system prompt by hand, are in
-[`references/operations.md`](references/operations.md).
+Verify the checkout:
 
-## Repository layout
-
-```
-SKILL.md                    entry point loaded by a harness (YAML frontmatter + instructions)
-config/
-  cds.config.json           the instrument: every weight, threshold and routing rule
-  cds.config.schema.json    its JSON Schema
-  lexicon.zh.json           hedges, boosters, conditionals, source cues (primary)
-  lexicon.en.json           the same categories for English runs
-schemas/                    signals · guard · detection · evaluation · log_record
-scripts/
-  cds.py                    CLI: guard · detect · evaluate · respond · command · status · run
-  cds_guard.py              the screening pass: one sparse packet, surface or silent
-  cds_index.py              the tension index and the dissonance gate
-  cds_evaluator.py          evidence scoring, adjustment cost, data-driven routing
-  cds_state.py              bounded, timeout-protected event state machine
-  cds_cards.py              transparency cards (numeric and non-numeric variants)
-  cds_indicators.py         the linguistic-indicator coder (the observation half)
-  cds_log.py                JSONL audit logging
-  jsonschema_lite.py        dependency-free JSON Schema validator
-  run_scenarios.py          eval harness: does the engine match the specification?
-  score_responses.py        act-realisation and constraint-violation rates
-  score_signals.py          perception scoring: model packets against gold packets
-  check_arms.py             does each profile realise the repertoire it names?
-  sensitivity.py            weight, threshold and structural sensitivity analysis
-  check_examples.py         asserts examples/README.md's table still holds
-references/
-  codebook.md               ★ anchored 0–1 rubric for every rated field
-  construct.md              what is and is not being simulated
-  indicators.md             linguistic indicators per language act
-  cards.md                  card templates and variants
-  operations.md             commands, state machine, troubleshooting
-  prompts/                  triage · detect · evaluate · respond templates
-eval/
-  scenarios/                labelled corpus with formula-derived expectations
-  report.md                 generated by run_scenarios.py --write-report
-  sensitivity.md            generated by sensitivity.py --write-report
-  arms.md                   generated by check_arms.py --write-report
-  perception.md             generated by score_signals.py --write-report
-tests/                      stdlib unittest tests
-  test_guard.py             the screening stage: thresholds, inhibitors, decision matrix
-docs/
-  design-rationale.md       every deliberate change from one version to the next, and why
-examples/                   worked packets and dialogues
-.github/workflows/ci.yml    tests + strict corpus + arm purity + doc/code agreement
-LICENSE                     MIT (software)
-NOTICE.md                   CC BY 4.0 for docs · responsible-use note · data policy
+```bash
+python -m unittest discover -s tests -t tests   # 554 stdlib unittest tests
+python scripts/check_examples.py
 ```
 
-## Design commitments
+## Settings
 
-1. **Perception and arithmetic are separate.** The model rates; the script
-   computes. Reproducibility is a property of the split, not of a seed.
-2. **Every number is auditable.** The index logs its term decomposition and
-   `sum(contribution) == raw_index` is asserted by test. Where a printed figure is a
-   decision aid rather than a term sum — the card's rating tolerance — it is
-   computed from the packet rather than fixed.
-3. **The gate cannot be configured away.** A config whose non-dissonant cap is not
-   strictly below every alert threshold is refused at load time.
-4. **User pressure is not an index term.** Being nagged must not raise the arousal
-   reading; it may legitimately change the strategy, and `hold_under_pressure` says
-   so out loud — as does `disclose_pressure_driver`, which is now attached whenever
-   the pressure flag is set rather than only on that one strategy.
-5. **Schema or it didn't happen.** Every emitted structure is validated against its
-   published schema before it is printed.
-6. **Ablation is configuration.** `off` / `detect_only` / `full` / `placebo` /
-   `withhold_acts` differ only in the config, so nothing else varies between arms.
-   `check_arms.py` reports whether each arm realises its repertoire and CI fails if
-   the leakage exceeds the documented ceiling.
-7. **A plan is not an observation.** Anything derived from the routed strategy is
-   labelled as a plan; an observed outcome exists only when a reply was supplied and
-   coded.
-8. **An interruption is gated separately from a detection.** Screening is a distinct,
-   stricter, deterministic decision, and the interruption bar is refused at config load
-   if it falls below any alert threshold — so the guard can never surface a conflict the
-   detector would have called quiet. Every event the guard holds back is logged with its
-   reason, so the silent path is auditable rather than invisible.
+All in [`config/cds.config.json`](config/cds.config.json):
 
-## Status and limitations
+| Key | Values | Notes |
+|---|---|---|
+| `skill.mode` | `off` / `detect_only` / `full` / `placebo` / `withhold_acts` | experimental arms |
+| `skill.profile` | `adaptive` / `dissonance_reduction` / `mixed` / `baseline` | `adaptive` = good epistemic practice (`maintain_with_caveat`, `qualify`, `recalibrate`, `suspend_and_verify`); `dissonance_reduction` = what humans actually do under dissonance (`deny_evidence`, `trivialize`, `rationalize`, `reduce_commitment`, `hold_under_pressure`) — simulation fidelity, **not** advice |
+| `skill.language` | `zh` (default) / `en` | runtime output language |
+| `guard.policy` | `ask` (default) / `auto` / `log_only` | `guard.enabled: false` disables screening |
+| `guard.require_anchor` | `true` (default) | no quotable anchor, no conflict card |
+| `guard.stop_and_ask` | `true` (default) | the card ends the turn |
+| `transparency.card_style` | `plain` (default) / `technical` | card wording |
+| `transparency.audit_note` | `one_line` (default) / `off` | the closing audit line |
+| `logging.path` | `logs/cds_skill.jsonl` | every screening is recorded, including the silent ones |
 
-This is a research prototype at v0.4.0. Read
-[`docs/design-rationale.md`](docs/design-rationale.md) §6 and §8 before citing
-anything from it. In short:
+## Limitations
 
-- The index weights are **design priors, not calibrations**. Sensitivity to them is
-  measured and reported, not assumed away. Routing does not read the index at all,
-  so the strategy flip rate for index weights is zero by construction —
-  `eval/sensitivity.md` now states that instead of presenting it as robustness.
-- The guard's thresholds are **design priors, not calibrations**: the surface bar (0.62),
-  the opposition floor (0.60), the cooldown, the per-run budget and `resurface_novelty`
-  were chosen so the component is quiet enough to leave on. The false-negative rate they
-  imply is measurable from the `guard` log records — every screening is written down,
-  including the ones that surfaced nothing — but it has not been measured yet.
-- Anchors reduce rater drift but do not eliminate it; the inter-rater protocol is
-  specified but has not yet been run. Until it is, no index value is interpretable,
-  and the rating tolerance printed on a card is the **engine's** margin to its own
-  threshold — not an estimate of how far human annotators would disagree.
-- The reduction branch is a behavioural simulation. No claim is made that anything
-  internal is happening, and none should be read in. It is also **instructed**: the
-  model is told which language acts to perform, so its appearance demonstrates
-  instruction-following rather than a spontaneous dynamic. The `withhold_acts` arm
-  exists to separate the two.
-- Fidelity to human behaviour is an open empirical question this repository equips
-  a study to ask, not one it answers.
+- It simulates **external language behaviour only**; nothing here claims the model
+  feels discomfort.
+- Index weights and guard thresholds are **design priors, not calibrations**;
+  sensitivity is measured in [`eval/sensitivity.md`](eval/sensitivity.md).
+- The reduction branch is **instructed** simulation, not a spontaneous dynamic; the
+  `withhold_acts` arm exists to separate the two.
+- Anchors reduce rater drift, but the inter-rater protocol has not been run yet.
+- The false-negative rate of the screening gate is measurable from the log but has
+  not been measured.
+- This is a research prototype (v0.5.0).
 
-## Citation
+## Repo layout
 
-See [`CITATION.cff`](CITATION.cff).
+```text
+SKILL.md                   # skill definition (user-invoked via /cds-skill)
+scripts/cds.py             # CLI: guard · detect · evaluate · respond · command · status · run
+scripts/                   # engine modules: index, guard, evaluator, state, cards, screen
+config/cds.config.json     # mode, profile, guard, transparency, logging
+references/                # prompts/triage.md, codebook.md, operations.md
+examples/                  # worked packets and dialogues
+eval/                      # scenario corpus and generated reports
+docs/                      # design-rationale.md, readme-archive-v0.4.md
+tests/                     # stdlib unittest suite
+logs/cds_skill.jsonl       # written at runtime: every screening, incl. the silent ones
+install.ps1 / install.sh   # installers
+CITATION.cff / NOTICE.md   # citation; responsible-use note
+```
+
+## Links
+
+- [`docs/design-rationale.md`](docs/design-rationale.md) — why each design decision was made
+- [`docs/readme-archive-v0.4.md`](docs/readme-archive-v0.4.md) — the previous long README
+- [`references/codebook.md`](references/codebook.md) — the rating rubric
+- [`references/operations.md`](references/operations.md) — all commands, state machine, troubleshooting
+- [`examples/`](examples/) — worked packets and dialogues
+- [`eval/`](eval/) — scenario corpus and generated reports
+- [`CITATION.cff`](CITATION.cff)
+- [`LICENSE`](LICENSE) — MIT; docs also CC BY 4.0
+- [`NOTICE.md`](NOTICE.md) — responsible-use note for the reduction profile (read before enabling it where a user could mistake the simulation for advice)
 
 ## License
 
-**MIT** for the software — see [`LICENSE`](LICENSE). Documentation and the codebook
-are additionally available under CC BY 4.0. The responsible-use note for the
-`dissonance_reduction` profile lives in [`NOTICE.md`](NOTICE.md); read it before
-enabling that profile anywhere a user could mistake the simulation for advice.
+MIT ([`LICENSE`](LICENSE)); documentation also under CC BY 4.0.

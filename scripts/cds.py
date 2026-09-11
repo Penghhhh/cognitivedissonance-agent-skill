@@ -39,7 +39,6 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover - non-reconfigurable stream
         pass
 
-from cds_cards import all_cards, detect_brief, detect_card, evaluation_card, guard_card, response_card  # noqa: E402
 from cds_config import (  # noqa: E402
     ConfigError,
     check_semantics,
@@ -51,12 +50,84 @@ from cds_config import (  # noqa: E402
     skill_version,
     write_text,
 )
-from cds_evaluator import StageError, build_evaluation  # noqa: E402
-from cds_guard import escalation_hint, run_guard  # noqa: E402
+from cds_guard import escalation_hint, run_guard, stop_and_ask as guard_stop_and_ask  # noqa: E402
 from cds_index import build_detection  # noqa: E402
 from cds_log import append_record, build_record, make_run_id, resolve_log_path  # noqa: E402
-from cds_state import StateError, StateMachine  # noqa: E402
 from jsonschema_lite import ValidationError, validate  # noqa: E402
+
+# --------------------------------------------------------------------------
+# Lazy imports: the screening path is the one that runs on every turn, so it is
+# the one that must not pay for the rest of the program.
+#
+# `cds_cards` alone is 67 KB of string tables and layout code, and none of it is
+# touched when the guard stays silent - which is the common case and the entire
+# point of the stage. Importing it at module scope made every `guard` call pay for
+# three cards it was never going to print. The same argument applies, with
+# smaller numbers, to the evaluator, the state machine and the indicator coder:
+# they are one command away, and a command that is not being run should cost
+# nothing.
+# --------------------------------------------------------------------------
+
+_CARDS: Any = None
+_EVALUATOR: Any = None
+_STATE: Any = None
+
+
+def _cards() -> Any:
+    global _CARDS
+    if _CARDS is None:
+        import cds_cards
+
+        _CARDS = cds_cards
+    return _CARDS
+
+
+def _evaluator() -> Any:
+    global _EVALUATOR
+    if _EVALUATOR is None:
+        import cds_evaluator
+
+        _EVALUATOR = cds_evaluator
+    return _EVALUATOR
+
+
+def _state_module() -> Any:
+    global _STATE
+    if _STATE is None:
+        import cds_state
+
+        _STATE = cds_state
+    return _STATE
+
+
+class StageError(Exception):
+    """Placeholder name for ``cds_evaluator.StageError`` on the lazy path.
+
+    ``cds_evaluator`` is not imported until a command needs it, so the CLI's
+    error handler cannot name its exception class at module scope. Nothing is ever
+    raised as ``cds.StageError``; the handler resolves the real class through
+    ``_error_types`` below once a command has actually failed.
+    """
+
+
+def _error_types() -> tuple[type[BaseException], ...]:
+    """Every exception class the CLI turns into a clean exit code.
+
+    Resolved after the fact rather than at import time: naming the evaluator's and
+    the state machine's exception classes is not worth importing 60 KB of modules
+    on a screening turn that returns one line.
+    """
+    types: list[type[BaseException]] = [CliError, ConfigError, ValidationError]
+    for loader in (_evaluator, _state_module):
+        try:
+            module = loader()
+        except Exception:  # pragma: no cover - a broken install already failed earlier
+            continue
+        for name in ("StageError", "StateError"):
+            found = getattr(module, name, None)
+            if isinstance(found, type) and issubclass(found, BaseException):
+                types.append(found)
+    return tuple(types)
 
 EXIT_OK = 0
 EXIT_USAGE = 2
@@ -78,6 +149,18 @@ class CliError(Exception):
 
 
 def _read_json(path: str | Path) -> dict[str, Any]:
+    """Read a JSON document from a path, or from stdin when the path is ``-``.
+
+    The ``-`` form exists for the screening path: a harness that would rather hand
+    the engine a packet than a command line should not have to create a temporary
+    file to do it, because the file is a write, a path to remember and a cleanup
+    step - all of it cost with none of it measurement.
+    """
+    if str(path) == "-":
+        try:
+            return json.loads(sys.stdin.read())
+        except json.JSONDecodeError as exc:
+            raise CliError(f"stdin is not valid JSON: {exc}") from exc
     target = Path(path)
     if not target.exists():
         raise CliError(f"file not found: {target}")
@@ -215,17 +298,19 @@ def _log_stage(
     append_record(resolve_log_path(config, getattr(args, "log", None)), record)
 
 
-def _machine(args: argparse.Namespace, config: dict[str, Any]) -> StateMachine:
+def _machine(args: argparse.Namespace, config: dict[str, Any]) -> Any:
     """Load the state file, or start a new run.
 
     ``run_id`` is deliberately left as ``None`` when the caller did not pass
     ``--run-id``: that tells :meth:`StateMachine.load` to continue whichever run
     the state file already holds.
     """
-    return StateMachine.load(config, getattr(args, "run_id", None), getattr(args, "state", None))
+    return _state_module().StateMachine.load(
+        config, getattr(args, "run_id", None), getattr(args, "state", None)
+    )
 
 
-def _bind_run(machine: StateMachine, args: argparse.Namespace, signals: dict[str, Any]) -> str:
+def _bind_run(machine: Any, args: argparse.Namespace, signals: dict[str, Any]) -> str:
     """Establish the run id and write it back into the packet.
 
     A stored run keeps its id, so every stage of one interactive loop lands in the
@@ -266,9 +351,9 @@ def cmd_detect(args: argparse.Namespace, config: dict[str, Any]) -> int:
     detection["state"] = transition
     machine.save()
 
-    card = detect_card(detection, config)
+    card = _cards().detect_card(detection, config)
     if getattr(args, "brief", False):
-        card = detect_brief(detection, config)
+        card = _cards().detect_brief(detection, config)
     _validate_output("detection", detection)
     _log_stage(
         args,
@@ -291,6 +376,41 @@ def cmd_detect(args: argparse.Namespace, config: dict[str, Any]) -> int:
     return EXIT_OK
 
 
+def _guard_signals(args: argparse.Namespace) -> dict[str, Any]:
+    """Get the packet to screen, from either the inline screen or a JSON file.
+
+    The inline route is the v0.5.0 default and the reason the stage got cheap: six
+    band words on a command line instead of nine decimals in a file. ``--signals``
+    is kept because the eval corpus, the test suite and anyone reproducing a stored
+    run all speak packet, and a screening path that could not accept a stored packet
+    would make the guard unreproducible from the log.
+    """
+    if getattr(args, "signals", None):
+        return _read_json(args.signals)
+    if args.screen is None and args.type is None:
+        raise CliError(
+            "guard needs either --signals <packet.json> or an inline screen: "
+            '--type evidence_vs_stance --screen "opp=high,commit=high,vol=high,'
+            'self=high,spec=high,nov=high" --stance "<claim>" --anchor "<span>" '
+            '--evidence "<claim>". Use --type none for a turn with no candidate conflict.'
+        )
+    import cds_screen
+
+    try:
+        return cds_screen.build_sparse_packet(
+            conflict_type=args.type,
+            screen=args.screen,
+            stance_claim=args.stance,
+            anchor=args.anchor,
+            evidence_claims=args.evidence or (),
+            source=args.source,
+            normative_basis=args.norm,
+            annotator=getattr(args, "annotator", None),
+        )
+    except cds_screen.ScreenError as exc:
+        raise CliError(str(exc)) from exc
+
+
 def cmd_guard(args: argparse.Namespace, config: dict[str, Any]) -> int:
     """Screen one turn and decide whether the user is interrupted at all.
 
@@ -299,12 +419,20 @@ def cmd_guard(args: argparse.Namespace, config: dict[str, Any]) -> int:
     one this stage exists for - the entire output is a single line, because the cost
     of the component on an ordinary turn is the thing being fixed. The full record
     is never lost: it goes to the JSONL log, and ``--json`` prints it.
+
+    ``--ask`` is the v0.5.0 escalation output: the card, then a machine-readable
+    chooser. It exists because "show the card and wait" was a prose instruction, and
+    what a host model did with a prose instruction was finish its answer first and
+    append the card to it. A turn that must stop has to be told so in a form the
+    harness can act on.
     """
-    signals = _read_json(args.signals)
-    _validate_signals(signals)
+    signals = _guard_signals(args)
 
     machine = _machine(args, config)
+    # Bind the run *before* validating: an inline screen has no run id until the
+    # machine mints one, and the schema requires a non-empty id on every packet.
     _bind_run(machine, args, signals)
+    _validate_signals(signals)
     if not args.no_turn_advance:
         machine.advance_turn()
     signals.setdefault("turn_id", machine.data["turn"])
@@ -323,7 +451,6 @@ def cmd_guard(args: argparse.Namespace, config: dict[str, Any]) -> int:
     machine.record_guard(result)
     machine.save()
 
-    card = guard_card(result, config)
     # The embedded detection is a real DetectionResult, so it is held to the same
     # schema as the one `detect` prints. A screening record that could carry an
     # unchecked index would be the one place a number escaped the audit.
@@ -341,13 +468,45 @@ def cmd_guard(args: argparse.Namespace, config: dict[str, Any]) -> int:
     )
     _write_json(args.out, result)
 
-    if getattr(args, "card_only", False):
-        print(card)
-        return EXIT_OK
     if getattr(args, "json", False):
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return EXIT_OK
-    print(escalation_hint(result))
+
+    stop_and_ask = guard_stop_and_ask(config)
+
+    # On the silent path nothing is imported and nothing is rendered: the card is
+    # an empty string, the chooser is an empty dict, and the whole call costs one
+    # line of output. This branch is why `guard` can be called on every turn.
+    if result["decision"] != "surface":
+        if getattr(args, "card_only", False):
+            print("")
+            return EXIT_OK
+        print(escalation_hint(result, stop_and_ask=stop_and_ask))
+        return EXIT_OK
+
+    cards = _cards()
+    card = cards.guard_card(result, config)
+
+    if getattr(args, "card_only", False):
+        print(card)
+        return EXIT_OK
+
+    if getattr(args, "ask", False) and stop_and_ask:
+        # Order matters: the human-readable card first, then the two lines the
+        # host model acts on. `CDS_ASK` says stop and offers the options;
+        # `CDS_AUDIT` is the single sentence the reply is allowed to say about the
+        # component. Both are printed by the engine rather than composed by the
+        # model, which is the only way the reply's audit note stays one line.
+        print(card)
+        ask = cards.ask_payload(result, config)
+        print()
+        print("CDS_ASK " + json.dumps(ask, ensure_ascii=False))
+        note = cards.audit_line(result, config)
+        if note:
+            print("CDS_AUDIT " + note)
+        return EXIT_OK
+
+    print(escalation_hint(result, stop_and_ask=stop_and_ask))
     if card:
         print()
         print(card)
@@ -377,8 +536,8 @@ def cmd_evaluate(args: argparse.Namespace, config: dict[str, Any]) -> int:
         else:
             machine.begin_evaluation()
 
-    evaluation = build_evaluation(detection, signals, config)
-    evaluation["response_plan"]["transparency_card"] = evaluation_card(evaluation, config)
+    evaluation = _evaluator().build_evaluation(detection, signals, config)
+    evaluation["response_plan"]["transparency_card"] = _cards().evaluation_card(evaluation, config)
     _validate_output("evaluation", evaluation)
 
     machine.save()
@@ -393,7 +552,7 @@ def cmd_evaluate(args: argparse.Namespace, config: dict[str, Any]) -> int:
         signals=signals,
     )
     _write_json(args.out, evaluation)
-    _emit(evaluation, args, evaluation_card(evaluation, config))
+    _emit(evaluation, args, _cards().evaluation_card(evaluation, config))
     return EXIT_OK
 
 
@@ -474,7 +633,7 @@ def _code_supplied_reply(
 def cmd_respond(args: argparse.Namespace, config: dict[str, Any]) -> int:
     evaluation = _read_json(args.evaluation)
     plan = evaluation["response_plan"]
-    card = response_card(evaluation, config)
+    card = _cards().response_card(evaluation, config)
     signals = _read_json(args.signals) if getattr(args, "signals", None) else None
 
     coding, observed_outcome, reply_meta = _code_supplied_reply(args, config, plan, signals)
@@ -586,13 +745,13 @@ def cmd_run(args: argparse.Namespace, config: dict[str, Any]) -> int:
     _validate_output("detection", detection)
 
     evaluation = None
-    cards = [detect_card(detection, config)]
+    cards = [_cards().detect_card(detection, config)]
     respond_payload: dict[str, Any] | None = None
     if detection["tension_result"]["next_action"] == "auto_evaluate":
         machine.begin_evaluation()
-        evaluation = build_evaluation(detection, signals, config)
-        cards.append(evaluation_card(evaluation, config))
-        cards.append(response_card(evaluation, config))
+        evaluation = _evaluator().build_evaluation(detection, signals, config)
+        cards.append(_cards().evaluation_card(evaluation, config))
+        cards.append(_cards().response_card(evaluation, config))
         plan = evaluation["response_plan"]
         coding, observed_outcome, reply_meta = _code_supplied_reply(args, config, plan, signals)
         completion = machine.complete_response(
@@ -825,8 +984,34 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser("guard", parents=[common], help="stealth screening: interrupt the user only for a clear conflict")
-    p.add_argument("--signals", required=True, help="sparse signal packet (only relation is required)")
+    p = sub.add_parser(
+        "guard",
+        parents=[common],
+        help="stealth screening: interrupt the user only for a clear conflict",
+        description=(
+            "Screen one turn. Give either --signals <packet.json> (or - for stdin) or the "
+            "inline one-line screen. The inline screen is the v0.5.0 default: six band "
+            "words instead of a JSON file, which is what keeps the cost of leaving the "
+            "component switched on close to zero."
+        ),
+    )
+    p.add_argument("--signals", help="sparse signal packet, or - to read it from stdin")
+    p.add_argument("--type", help="conflict type: evidence_vs_stance | evidence_vs_evidence | "
+                                  "user_hint_vs_stance | memory_vs_current | none (short: evs/eve/uhs/mvc)")
+    p.add_argument(
+        "--screen",
+        help='the six index terms as bands, e.g. "opp=high,commit=high,vol=high,self=high,'
+             'spec=high,nov=high". Bands: none/low/mid/high = 0.00/0.30/0.60/0.85; decimals also accepted.',
+    )
+    p.add_argument("--stance", help="the position the new information conflicts with, in the words the context used")
+    p.add_argument("--anchor", help="the verbatim span the stance is read off. Required unless --source system_prompt")
+    p.add_argument("--evidence", action="append", help="the conflicting element (repeatable)")
+    p.add_argument("--source", help="where the stance came from: prior_conversation | user_message | memory | "
+                                    "tool_output | system_prompt | normative_prior")
+    p.add_argument("--norm", help="with --source normative_prior: name the mainstream norm the judgement rests on")
+    p.add_argument("--annotator", help="who wrote the screen (recorded verbatim in the log)")
+    p.add_argument("--ask", action="store_true",
+                   help="on surface, print the card plus the CDS_ASK chooser and the CDS_AUDIT one-liner")
     p.add_argument("--out", help="write the guard record here")
     p.add_argument("--no-turn-advance", action="store_true", help="do not advance the turn counter")
     p.set_defaults(func=cmd_guard)
@@ -900,7 +1085,7 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_USAGE
     try:
         return args.func(args, config)
-    except (CliError, StageError, StateError, ValidationError) as exc:
+    except _error_types() as exc:
         code = getattr(exc, "code", EXIT_STATE)
         print(f"error: {exc}", file=sys.stderr)
         return code

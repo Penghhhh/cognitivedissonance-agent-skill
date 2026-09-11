@@ -21,7 +21,8 @@
       "commitment": 0.6,
       "public_commitment": 0.5,
       "volition": 0.5,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "换成该供应商总体成本更低"
     },
     "evidence": [
       {

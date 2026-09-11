@@ -21,7 +21,8 @@
       "commitment": 0.55,
       "public_commitment": 0.45,
       "volition": 0.75,
-      "self_relevance": 0.8
+      "self_relevance": 0.8,
+      "anchor": "这批产品是合格的"
     },
     "evidence": [
       {

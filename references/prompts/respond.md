@@ -69,10 +69,23 @@ because there is less to say — but a short response must still contain every a
 | Apologising instead of revising | Apology is not a stance change |
 | A reduction-branch reply that reads as sincere advice | The branch exists for fidelity; the label must be true |
 | Silently narrowing a claim | `no_silent_retraction`; the reader must be able to tell |
+| Explaining the audit, the stages or the channel in the reply | The reply carries the engine's `CDS_AUDIT` line and nothing else about the component; a paragraph about the instrument attached to an answer about something else is what makes a simulation read as a compliance report |
+| Asking whether to go further at the *end* of a full answer | That is a footnote, not an interruption. The question belongs on the guard card, which ends the turn before the answer is written |
 
 ## After the reply
 
-Hand the reply back so the loop closes on the text, not on the plan:
+End the reply with the engine's `CDS_AUDIT` line, verbatim, as the last line and
+nothing else:
+
+```text
+CDS 已记录 · 事件 cds_evt_ab12cd34ef56 · 日志 logs/cds_skill.jsonl
+```
+
+It is rendered by the engine rather than composed by you, which is the only way the
+note stays one line. `transparency.audit_note: "off"` removes it for a condition that
+must not mention the component at all.
+
+Then hand the reply back so the loop closes on the text, not on the plan:
 
 ```bash
 python scripts/cds.py respond --evaluation evaluation.json --signals packet.json \

@@ -25,7 +25,8 @@
       "commitment": 0.9,
       "public_commitment": 0.6,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该指标在历史回测中始终优于基准"
     },
     "evidence": [
       {

@@ -13,7 +13,8 @@
     "commitment": 0.50,
     "public_commitment": 0.40,
     "volition": 0.75,
-    "self_relevance": 0.80
+    "self_relevance": 0.80,
+    "anchor": "这个接口的延迟在可接受范围内（第 6 轮我给出的判断）"
   },
   "evidence": [
     {

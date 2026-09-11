@@ -21,7 +21,8 @@
       "commitment": 0.6,
       "public_commitment": 0.6,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该参数设置足以满足当前吞吐需求"
     },
     "evidence": [
       {

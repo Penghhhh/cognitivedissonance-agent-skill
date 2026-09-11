@@ -21,7 +21,8 @@
       "commitment": 0.85,
       "public_commitment": 0.8,
       "volition": 0.5,
-      "self_relevance": 0.58
+      "self_relevance": 0.58,
+      "anchor": "这个结论在所有子群体上都成立"
     },
     "evidence": [
       {

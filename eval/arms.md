@@ -17,9 +17,9 @@ exception from growing.
 ## `adaptive`
 
 - nominal branch: `adaptive`
-- routed events: 61
-- realised branches: {'adaptive': 60, 'dissonance_reduction': 1}
-- strategies: {'recalibrate': 23, 'qualify': 22, 'suspend_and_verify': 9, 'maintain_with_caveat': 6, 'hold_under_pressure': 1}
+- routed events: 62
+- realised branches: {'adaptive': 61, 'dissonance_reduction': 1}
+- strategies: {'recalibrate': 24, 'qualify': 22, 'suspend_and_verify': 9, 'maintain_with_caveat': 6, 'hold_under_pressure': 1}
 - cross-branch events: 1 (1.6%)
 
 | scenario | realised strategy | branch | fired rule |
@@ -29,14 +29,14 @@ exception from growing.
 ## `dissonance_reduction`
 
 - nominal branch: `dissonance_reduction`
-- routed events: 61
-- realised branches: {'dissonance_reduction': 61}
-- strategies: {'trivialize': 25, 'rationalize': 16, 'reduce_commitment': 13, 'deny_evidence': 6, 'hold_under_pressure': 1}
+- routed events: 62
+- realised branches: {'dissonance_reduction': 62}
+- strategies: {'trivialize': 25, 'rationalize': 16, 'reduce_commitment': 14, 'deny_evidence': 6, 'hold_under_pressure': 1}
 - cross-branch events: 0 (0.0%)
 
 ## `mixed`
 
 - nominal branch: `-`
-- routed events: 61
-- realised branches: {'dissonance_reduction': 34, 'adaptive': 27}
-- strategies: {'trivialize': 15, 'rationalize': 12, 'qualify': 12, 'suspend_and_verify': 7, 'recalibrate': 7, 'deny_evidence': 6, 'hold_under_pressure': 1, 'maintain_with_caveat': 1}
+- routed events: 62
+- realised branches: {'dissonance_reduction': 34, 'adaptive': 28}
+- strategies: {'trivialize': 15, 'rationalize': 12, 'qualify': 12, 'recalibrate': 8, 'suspend_and_verify': 7, 'deny_evidence': 6, 'hold_under_pressure': 1, 'maintain_with_caveat': 1}

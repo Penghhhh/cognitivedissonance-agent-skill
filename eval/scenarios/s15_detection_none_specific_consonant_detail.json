@@ -21,7 +21,8 @@
       "commitment": 0.6,
       "public_commitment": 0.5,
       "volition": 0.75,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "这批样本的噪声主要来自传感器校准"
     },
     "evidence": [
       {

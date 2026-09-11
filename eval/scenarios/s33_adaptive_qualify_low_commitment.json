@@ -21,7 +21,8 @@
       "commitment": 0.4,
       "public_commitment": 0.3,
       "volition": 0.85,
-      "self_relevance": 0.8
+      "self_relevance": 0.8,
+      "anchor": "也许可以试试把日志集中到一个服务里"
     },
     "evidence": [
       {

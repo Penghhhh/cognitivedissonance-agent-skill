@@ -11,7 +11,7 @@
       "additionalProperties": false,
       "required": ["role", "text"],
       "properties": {
-        "role": { "type": "string", "enum": ["stance", "evidence", "memory", "current", "user_hint"] },
+        "role": { "type": "string", "enum": ["stance", "norm", "evidence", "memory", "current", "user_hint"] },
         "text": { "type": "string", "minLength": 1 },
         "source": { "type": ["string", "null"] },
         "evidence_id": { "type": ["string", "null"] }
@@ -57,6 +57,8 @@
 
     "surface_threshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "The bar for interrupting a user, which the config forces to sit at or above every alert threshold. A recording bar and an interruption bar are different questions and must not be the same number." },
     "min_opposition": { "type": "number", "minimum": 0, "maximum": 1 },
+    "severity": { "type": "number", "minimum": 0, "maximum": 1, "description": "The reading the interruption bar was applied to, and the one the card prints. Equal to `tension` on the dissonance and indeterminacy channels; on the normative channel it is the raw opposition, because the index cannot express a value-norm conflict." },
+    "severity_basis": { "type": "string", "enum": ["tension_index", "normative_opposition"], "description": "Which of the two readings `severity` is, stated rather than inferred so a log analysis never compares a norm conflict's severity against an index threshold." },
 
     "conflict_key": {
       "type": "string",
@@ -64,9 +66,9 @@
       "description": "Deterministic identity of the claim pair, used by the dismissal memory. Distinct from `event_id`, which includes the turn and therefore changes on every restatement."
     },
     "conflict_type": { "type": "string", "enum": ["none", "evidence_vs_stance", "evidence_vs_evidence", "user_hint_vs_stance", "memory_vs_current"] },
-    "channel": { "type": "string", "enum": ["dissonance", "indeterminacy", "none"] },
+    "channel": { "type": "string", "enum": ["dissonance", "normative", "indeterminacy", "none"] },
     "level": { "type": "string", "enum": ["silent", "alert", "high"] },
-    "gated": { "type": "boolean", "description": "True when the volition floor capped the index, i.e. the event is a conflict but not dissonance." },
+    "gated": { "type": "boolean", "description": "True when a gate capped the index, i.e. the event is a conflict but not dissonance. Both the volition floor and, since v0.5.0, the anchor requirement set it; the embedded detection's gate.rule says which." },
 
     "tension": { "type": "number", "minimum": 0, "maximum": 1 },
     "opposition": { "type": "number", "minimum": 0, "maximum": 1 },

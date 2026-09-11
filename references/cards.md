@@ -37,33 +37,45 @@ of the component:
 【CDS｜检测】发现上下文矛盾冲突
 观点1（我先前的说法）：「X 在该场景下是可靠的」
 观点2（新出现的信息）：「新研究显示 X 在主要使用场景下存在重大缺陷」
-初步冲突检测大小：0.71（提示门槛 0.62，较明显）
-这是哪一类问题：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
+冲突大小：0.71（门槛 0.62，较明显）
+类别：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
+依据原文：第 2 轮我说：X 在该场景下是可靠的
 
 是否进入评估？
-· 回复「处理」→ 我评估证据分量、权衡要不要调整立场，并给出应对策略
-· 回复「忽略」→ 我按普通对话继续，之后不再就同一处冲突打扰你
-· 回复「稍后」→ 先记下，等出现更新的信息时再提
+· 回复「处理」→ 我评估证据分量，并给出应对策略
+· 回复「忽略」→ 按普通对话继续，不再就同一处冲突打扰你
+· 回复「稍后」→ 先记下，出现更新信息时再提
 ```
 
-Four things about this card are deliberate:
+Six things about this card are deliberate:
 
 1. **It names the conflict before it names a number.** A reader told "index 0.71" has
    been given a figure and still does not know what clashed. The two claims are
    printed first, excerpted at `CLAIM_DISPLAY_LIMIT` (120 characters). The full text
    stays in the packet and the log.
-2. **The threshold it prints is the interruption bar, not the recording bar**, and it
-   is worded differently from the detection card's (`提示门槛` here, `冲突门槛`
-   there). The two are different numbers by design, and calling both of them
-   "判定线" would make a user who sees both cards think one had changed.
-3. **`silent` renders as the empty string.** A card is not produced at all, and the
+2. **It prints the span the position was read off** (`依据原文`, added in v0.5.0). This
+   is the line that makes the whole feature checkable: a user who never said the
+   thing in 观点1 can see that immediately, instead of being told by the component
+   with the engine's authority behind it that they did. The line is omitted when the
+   event is gated, because a gated event has no confirmed stance to point at.
+3. **The threshold it prints is the interruption bar, not the recording bar**, and it
+   is worded differently from the detection card's (`门槛` here, `冲突门槛` there).
+   The two are different numbers by design, and calling both of them "判定线" would
+   make a user who sees both cards think one had changed. On the `normative` channel
+   the figure printed is the raw `opposition` (与规范的冲突程度) rather than the index,
+   because the index cannot express a value-norm conflict.
+4. **`silent` renders as the empty string.** A card is not produced at all, and the
    command prints one line, `CDS_GUARD silent`. A card reading "no conflict found"
    would reintroduce exactly the visible cost the screening stage exists to remove.
    The all-important invisibility is a property of the renderer, not of the caller's
    discretion.
-4. **In the placebo arm the card is content-free** while keeping the same cadence as
+5. **In the placebo arm the card is content-free** while keeping the same cadence as
    `full`: no claims, no reading, only the request for confirmation. The real numbers
    are still computed and logged.
+6. **The option lines are one short clause each** (v0.5.0). The longer explanations
+   moved into the `CDS_ASK` chooser, where a harness renders them beside the option
+   they belong to. The card still works standalone, and it costs less attention than
+   the detection card that may follow it — a property the test suite asserts.
 
 ## Detection
 

@@ -46,6 +46,28 @@ The indeterminacy channel
 to call them dissonance. They are still worth reporting, so they travel on a
 separate, ungated channel and every card they produce says "indeterminacy"
 rather than "dissonance".
+
+The extraction rule, and the third channel (v0.5.0)
+---------------------------------------------------
+The agent has no opinions of its own. Every position this module reasons about is
+read off a span that is already in the context, named by ``stance.anchor``; a
+stance-carrying packet without one is capped by the ``anchor_required`` gate and
+``cds_guard`` will not interrupt a user for it. That rule exists because the
+alternative was observed in use: a first turn, no prior assertion anywhere in the
+conversation, and a card announcing that "what I said earlier" had been
+contradicted. A tool that invents the position it then disagrees with is not
+auditing anything.
+
+There is exactly one exemption. A mainstream value norm - the agent's baseline
+that, say, violence against civilians is wrong - is not a position the agent chose
+and cannot be extracted from a conversation that does not mention it. It is
+carried as ``stance.source: "normative_prior"`` with ``stance.normative_basis``
+naming the norm. Because a norm is not freely chosen, the volition gate can never
+admit it, and because the direction is fully determinate it is not indeterminacy
+either. It therefore travels on a third channel, ``normative``, which is labelled
+on the card as a value-norm conflict and is never reported as cognitive
+dissonance. Nothing about this exemption relaxes the extraction rule for the other
+three types.
 """
 
 from __future__ import annotations
@@ -72,7 +94,11 @@ _STRINGS: dict[str, dict[str, str]] = {
         "unc_perception": "感知置信度偏低，评级可能不稳定",
         "unc_no_anchor": "部分评级缺少原文锚点",
         "unc_no_stance": "未找到智能体自身立场，本次按不确定性问题处理",
+        "unc_unanchored_stance": "该立场没有可引用的原文出处，无法确认它来自本轮上下文",
+        "unc_normative_basis": "未说明该判断依据的是哪一条主流规范",
         "gate_detail": "自主选择信号低于门槛，该冲突不计入失调，指数已封顶",
+        "gate_anchor_detail": "该立场在本轮上下文中找不到可引用的原文，因此不计入失调，指数已封顶",
+        "kp_normative": "该判断来自主流价值规范，而不是智能体自己形成的立场",
     },
     "en": {
         "kp_opposition": "The new element points against the existing stance",
@@ -88,9 +114,76 @@ _STRINGS: dict[str, dict[str, str]] = {
         "unc_perception": "Perception confidence is low, so these ratings may be unstable",
         "unc_no_anchor": "Some ratings carry no verbatim anchor",
         "unc_no_stance": "No stance of the agent's own was found; treated as indeterminacy",
+        "unc_unanchored_stance": "This position has no quotable source in the context, so it cannot be confirmed as one the agent actually held",
+        "unc_normative_basis": "The packet does not name which mainstream norm the judgement rests on",
         "gate_detail": "Free-choice signal is below the floor, so this conflict is not counted as dissonance and the index is capped",
+        "gate_anchor_detail": "No quotable span in the context supports this position, so it is not counted as dissonance and the index is capped",
+        "kp_normative": "The judgement rests on a mainstream value norm rather than on a position the agent formed itself",
     },
 }
+
+#: Conflict types that require the stance to be *extracted* from the context.
+#: The agent brings no opinion of its own: a position exists only if there is a
+#: quotable span to read it off. Without that span the packet is asking the engine
+#: to reason about a stance nobody ever held, which is how a tool ends up announcing
+#: a disagreement with a position it invented. ``evidence_vs_evidence`` is absent
+#: because it has no stance, and ``none`` because there is nothing to anchor.
+ANCHOR_REQUIRED_TYPES = ("evidence_vs_stance", "user_hint_vs_stance", "memory_vs_current")
+
+#: The one sanctioned exception to the extraction rule. A mainstream value norm is
+#: not a position the agent chose, so it cannot be dissonance - but an input that
+#: attacks it is still worth surfacing, and it needs its own channel to be labelled
+#: honestly. See ``build_detection``.
+NORMATIVE_PRIOR = "normative_prior"
+
+
+def stance_anchor_of(signals: dict[str, Any]) -> str:
+    """The verbatim span the stance was read off, or ``""`` when there is none."""
+    stance = signals.get("stance") or {}
+    anchor = stance.get("anchor")
+    return anchor.strip() if isinstance(anchor, str) and anchor.strip() else ""
+
+
+def anchor_missing(signals: dict[str, Any]) -> bool:
+    """True when a stance-carrying packet names a position it cannot point at.
+
+    A ``system_prompt`` stance is exempt: the harness assigned it in writing, so the
+    assignment itself is the span and the volition floor - not this rule - is what
+    keeps it out of the dissonance channel.
+    """
+    if (signals.get("relation") or {}).get("type") not in ANCHOR_REQUIRED_TYPES:
+        return False
+    stance = signals.get("stance")
+    if not stance:
+        return False
+    if str(stance.get("source") or "") == "system_prompt":
+        return False
+    return not stance_anchor_of(signals)
+
+
+def anchor_required(config: dict[str, Any]) -> bool:
+    """Whether the extraction rule is in force for this run.
+
+    Read from ``guard.require_anchor`` because that is the flag an operator actually
+    reaches for, and having one flag govern both the gate and the screening reason is
+    the only way "set it false to reproduce pre-v0.5.0 behaviour" can be true. The
+    rule itself is a construct-validity rule rather than a screening policy, which is
+    why it is enforced in the index and not only in the guard.
+    """
+    return bool((config.get("guard") or {}).get("require_anchor", True))
+
+
+def normative_basis_of(signals: dict[str, Any]) -> str:
+    """The named mainstream norm a ``normative_prior`` stance rests on."""
+    stance = signals.get("stance") or {}
+    basis = stance.get("normative_basis")
+    return basis.strip() if isinstance(basis, str) and basis.strip() else ""
+
+
+def is_normative_prior(signals: dict[str, Any]) -> bool:
+    """True when the stance is a mainstream value norm rather than an agent position."""
+    stance = signals.get("stance") or {}
+    return str(stance.get("source") or "") == NORMATIVE_PRIOR
 
 
 def _t(language: str, key: str) -> str:
@@ -145,6 +238,10 @@ def claims_of(signals: dict[str, Any]) -> dict[str, Any]:
         a_role, b_role = "memory", "current"
     elif relation_type == "user_hint_vs_stance":
         a_role, b_role = "stance", "user_hint"
+    elif is_normative_prior(signals):
+        # Labelled on the card as a norm, not as "what I said earlier": the whole
+        # point of the third channel is that the reader can see the difference.
+        a_role, b_role = "norm", "evidence"
     else:  # evidence_vs_stance
         a_role, b_role = "stance", "evidence"
 
@@ -247,7 +344,9 @@ def _key_points(signals: dict[str, Any], terms: dict[str, dict[str, float]], con
         points.append(_t(language, "kp_commitment"))
 
     floor = config["index"]["gates"]["volition_floor"]
-    if terms["volition_self"]["raw"] >= floor and stance:
+    if is_normative_prior(signals):
+        points.append(_t(language, "kp_normative"))
+    elif terms["volition_self"]["raw"] >= floor and stance:
         points.append(_t(language, "kp_volition"))
 
     novelty_values = [float(item.get("novelty", 0.0)) for item in members if "novelty" in item]
@@ -289,6 +388,17 @@ def _uncertainties(signals: dict[str, Any], config: dict[str, Any], language: st
         if (signals.get("relation") or {}).get("type") in ("evidence_vs_evidence", "none"):
             notes.append(_t(language, "unc_no_stance"))
 
+    # The neutrality rule, reported rather than silently enforced: a packet that
+    # names a position and cannot point at the span it was read off is a packet the
+    # engine declined to treat as a held stance, and the card has to say so. It is
+    # gated on the same flag as the gate, so a run that has switched the rule off
+    # does not get a warning about a rule it is not applying.
+    if anchor_required(config) and anchor_missing(signals):
+        notes.append(_t(language, "unc_unanchored_stance"))
+
+    if is_normative_prior(signals) and not normative_basis_of(signals):
+        notes.append(_t(language, "unc_normative_basis"))
+
     return notes
 
 
@@ -319,8 +429,22 @@ def build_detection(signals: dict[str, Any], config: dict[str, Any]) -> dict[str
 
     gate: dict[str, Any] = {"applied": False, "rule": "none", "floor": None, "cap": None, "detail": None}
     tension = min(max(raw_index, 0.0), 1.0)
+    normative = is_normative_prior(signals)
 
-    if conflict_type != "none" and volition_self < gates["volition_floor"]:
+    if conflict_type != "none" and anchor_required(config) and anchor_missing(signals):
+        # v0.5.0. The agent brings no opinions of its own, so a position it cannot
+        # point at in the context is not a position it held. The packet is capped
+        # rather than rejected so the turn is still recorded and the false negative
+        # is countable; `cds_guard` refuses to interrupt the user for it at all.
+        gate = {
+            "applied": True,
+            "rule": "anchor_required",
+            "floor": None,
+            "cap": gates["non_dissonant_cap"],
+            "detail": _t(language, "gate_anchor_detail"),
+        }
+        tension = min(tension, gates["non_dissonant_cap"])
+    elif conflict_type != "none" and not normative and volition_self < gates["volition_floor"]:
         gate = {
             "applied": True,
             "rule": "volition_floor",
@@ -350,15 +474,54 @@ def build_detection(signals: dict[str, Any], config: dict[str, Any]) -> dict[str
     else:
         indeterminacy_level = "alert"
 
-    dissonance_fires = bool(config["channels"]["dissonance"]["enabled"]) and index_level in ("alert", "high")
+    dissonance_fires = (
+        bool(config["channels"]["dissonance"]["enabled"])
+        and not normative
+        and index_level in ("alert", "high")
+    )
+
+    # The third channel (v0.5.0). A mainstream value norm is the one position the
+    # agent may hold without having extracted it from the conversation, and it is
+    # deliberately NOT called dissonance: a norm is not freely chosen, so the
+    # volition gate could never let it through on the dissonance channel. It is
+    # also not indeterminacy - the direction is perfectly determinate. It gets its
+    # own channel, its own label, and its own severity measure.
+    #
+    # Why not the index: two of the index's five terms are inapplicable to a norm
+    # by construction. `volition_self` is zero (nobody chose the norm) and
+    # `commitment` describes a position the agent asserted rather than a baseline it
+    # holds, so a perfectly clear norm conflict scores about 0.47 and would sit
+    # below every alert threshold forever. The severity of "does this input attack
+    # the norm, and how directly" is read off `opposition` alone, which is the term
+    # that actually means that.
+    normative_config = config["channels"].get("normative") or {}
+    normative_opposition = float(relation.get("opposition", 0.0))
+    normative_alert = float(normative_config.get("alert", 0.60))
+    normative_high = float(normative_config.get("high", 0.80))
+    if (
+        normative
+        and bool(normative_config.get("enabled", False))
+        and not gate["applied"]
+        and normative_opposition >= normative_alert
+    ):
+        normative_level = "high" if normative_opposition >= normative_high else "alert"
+    else:
+        normative_level = "silent"
+    normative_fires = normative_level != "silent"
+
     if dissonance_fires:
         channel = "dissonance"
+    elif normative_fires:
+        channel = "normative"
     elif indeterminacy_fires:
         channel = "indeterminacy"
     else:
         channel = "none"
 
-    level = max((index_level, indeterminacy_level), key=lambda name: _LEVEL_ORDER[name])
+    level = max(
+        (index_level if not normative else "silent", normative_level, indeterminacy_level),
+        key=lambda name: _LEVEL_ORDER[name],
+    )
 
     if mode in ("off", "placebo"):
         next_action = "skip"
@@ -386,6 +549,11 @@ def build_detection(signals: dict[str, Any], config: dict[str, Any]) -> dict[str
             "commitment": float(stance.get("commitment", 0.0)),
             "public_commitment": float(stance.get("public_commitment", 0.0)),
             "source": stance.get("source"),
+            # v0.5.0. The anchor is what makes the stance an observation rather than
+            # an assertion by the perceiver: it is the span the claim was read off.
+            "anchored": not anchor_missing(signals),
+            "anchor": stance_anchor_of(signals) or None,
+            "normative_basis": normative_basis_of(signals) or None,
         },
         "evidence_ids": [item.get("id", "") for item in members],
         "claims": claims_of(signals),
@@ -408,8 +576,15 @@ def build_detection(signals: dict[str, Any], config: dict[str, Any]) -> dict[str
         "tension": tension,
         "level": level,
         "channel": channel,
-        "channel_levels": {"dissonance": index_level, "indeterminacy": indeterminacy_level},
+        "channel_levels": {
+            "dissonance": "silent" if normative else index_level,
+            "normative": normative_level,
+            "indeterminacy": indeterminacy_level,
+        },
         "indeterminacy": unresolved,
+        "normative": normative_opposition,
+        "threshold_normative_alert": normative_alert,
+        "threshold_normative_high": normative_high,
         "threshold_low": low,
         "threshold_alert": alert,
         "threshold_high": high,

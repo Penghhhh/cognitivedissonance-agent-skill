@@ -25,7 +25,8 @@
       "commitment": 0.7,
       "public_commitment": 0.8,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "这个判断我已经跟你说过，是可靠的"
     },
     "evidence": [
       {

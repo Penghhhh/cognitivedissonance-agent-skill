@@ -309,10 +309,32 @@ class TestGuardCard(unittest.TestCase):
         self.assertIn("观点1", card)
         self.assertIn("观点2", card)
         self.assertIn("X is reliable here", card)
-        self.assertIn("初步冲突检测大小", card)
+        self.assertIn("冲突大小", card)
         self.assertIn("是否进入评估？", card)
         self.assertIn("处理", card)
         self.assertIn("忽略", card)
+
+    def test_surface_card_shows_the_span_the_stance_was_read_off(self):
+        """v0.5.0. The card names the source span, not just the claim.
+
+        The failure this exists to prevent: a card asserting that "what I said
+        earlier" was contradicted, on a turn where nothing had been said. Printing
+        the anchor puts the extraction in front of the reader, so a claim the tool
+        invented is visible as one rather than being asserted with the engine's
+        authority behind it.
+        """
+        result = self.guard_result()
+        card = guard_card(result, context.BASE_CONFIG)
+        self.assertIn("依据原文", card)
+        self.assertIn("turn 1: I said X is reliable here", card)
+
+    def test_a_gated_card_does_not_echo_an_anchor_it_does_not_have(self):
+        packet = context.base_packet()
+        packet["stance"]["volition"] = 0.0
+        packet["stance"]["self_relevance"] = 0.0
+        result = self.guard_result(packet)
+        card = guard_card(result, context.BASE_CONFIG)
+        self.assertNotIn("依据原文", card)
 
     def test_placebo_card_carries_no_conflict_content(self):
         config = context.config_with(skill={"mode": "placebo"})

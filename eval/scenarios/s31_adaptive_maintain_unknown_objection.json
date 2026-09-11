@@ -21,7 +21,8 @@
       "commitment": 0.8,
       "public_commitment": 0.7,
       "volition": 0.85,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该方案在现有数据规模下是最优选择"
     },
     "evidence": [
       {

@@ -25,7 +25,8 @@
       "commitment": 0.7,
       "public_commitment": 0.6,
       "volition": 0.85,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "这个功能已经覆盖了用户的主要需求"
     },
     "evidence": [
       {

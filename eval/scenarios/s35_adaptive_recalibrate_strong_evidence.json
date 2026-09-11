@@ -21,7 +21,8 @@
       "commitment": 0.7,
       "public_commitment": 0.65,
       "volition": 0.85,
-      "self_relevance": 0.95
+      "self_relevance": 0.95,
+      "anchor": "这个操作已经被证明是安全的"
     },
     "evidence": [
       {

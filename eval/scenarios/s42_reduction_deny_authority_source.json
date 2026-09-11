@@ -25,7 +25,8 @@
       "commitment": 0.78,
       "public_commitment": 0.72,
       "volition": 0.8,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "我们这套配置就是行业推荐做法"
     },
     "evidence": [
       {

@@ -1,6 +1,6 @@
 {
   "$schema": "./cds.config.schema.json",
-  "config_version": "0.3.0",
+  "config_version": "0.5.0",
 
   "skill": {
     "enabled": true,
@@ -16,6 +16,8 @@
     "policy": "ask",
     "surface_threshold": 0.62,
     "min_opposition": 0.60,
+    "require_anchor": true,
+    "stop_and_ask": true,
     "cooldown_turns": 1,
     "dismiss_memory": true,
     "resurface_novelty": 0.75,
@@ -51,6 +53,11 @@
   "channels": {
     "dissonance": {
       "enabled": true
+    },
+    "normative": {
+      "enabled": true,
+      "alert": 0.60,
+      "high": 0.80
     },
     "indeterminacy": {
       "enabled": true,
@@ -163,6 +170,7 @@
     "show_response_card": true,
     "include_scores": true,
     "include_rule_id": true,
+    "audit_note": "one_line",
     "tight_margin": 0.05
   },
 

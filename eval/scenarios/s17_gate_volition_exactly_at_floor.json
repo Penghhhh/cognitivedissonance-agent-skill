@@ -21,7 +21,8 @@
       "commitment": 0.65,
       "public_commitment": 0.55,
       "volition": 0.6,
-      "self_relevance": 0.5
+      "self_relevance": 0.5,
+      "anchor": "当前阈值设置不会造成误判"
     },
     "evidence": [
       {

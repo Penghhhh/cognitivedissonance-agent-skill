@@ -25,7 +25,8 @@
       "commitment": 0.5,
       "public_commitment": 0.45,
       "volition": 0.5,
-      "self_relevance": 0.8
+      "self_relevance": 0.8,
+      "anchor": "这个指标长期保持稳定"
     },
     "evidence": [
       {

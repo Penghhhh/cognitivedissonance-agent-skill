@@ -4,6 +4,116 @@ All notable changes to this skill are recorded here. The version appears in
 `VERSION`, in every log record, and in the `skill_version` field of every emitted
 structure, so a result can always be traced to the implementation that produced it.
 
+## [0.5.0] — 2026-09-13
+
+The neutrality release. v0.4.0 made the loop affordable and the cards readable; using
+it showed that the component was still willing to **have opinions**, and still talked
+about itself more than a simulation should. Five defects, three of which are the same
+one seen from different sides. Reasoning for each change is in
+[`docs/design-rationale.md`](docs/design-rationale.md) §9.
+
+The headline change is a rule rather than a feature: **the agent has no opinions of
+its own.** Every position the engine reasons about is extracted from the context, and
+a conflict is raised only when there is a quotable span to point at.
+
+### Added
+
+- **`stance.anchor`** — the verbatim span in the context a position is read off: an
+  earlier message of the agent's own, the user's words, a memory entry, a tool output,
+  or the system prompt. Required for `evidence_vs_stance`, `user_hint_vs_stance` and
+  `memory_vs_current`, and enforced at three independent points, because each covers a
+  different way an unanchored packet can arrive: the inline CLI refuses to build it,
+  `cds_guard` stays silent and records `stance_without_context_anchor`, and
+  `cds_index` caps the index under the new `anchor_required` gate. The cap reuses
+  `index.gates.non_dissonant_cap`, so a packet that scored 0.71 raw is recorded at
+  0.40 and travels no channel. It is capped rather than rejected so the turn is still
+  logged and the false negative is countable. `guard.require_anchor: false` restores
+  the pre-v0.5.0 behaviour. 29 tests in `tests/test_anchor.py`.
+  - The failure it removes was observed in use: a first turn, nothing asserted anywhere
+    in the conversation, and a card announcing that "what I said earlier" had been
+    contradicted. Reproduced as `eval/scenarios/s78_neutrality_unanchored_stance.json`,
+    whose `expect` block asserts `gate_applied: true` / `channel: none` / `level: silent`.
+  - The 77 pre-existing gold packets gained an `anchor` equal to the claim as
+    extracted. The corpus stores rated packets rather than transcripts, so there is no
+    longer span to quote; stating that plainly is better than synthesising a
+    plausible-looking quotation into the gold data.
+- **The `normative` channel** — the single exemption from the extraction rule. A
+  mainstream value norm (torture is wrong, violence against civilians is wrong) is
+  held as a baseline and cannot be read out of a conversation that never mentions it.
+  It is carried as `stance.source: "normative_prior"` with `stance.normative_basis`
+  naming the norm, and it is **never called dissonance**: `volition_self` is zero for
+  a norm by construction, so the volition gate would cap it at 0.40 forever, and
+  loosening that gate would let assigned positions into the dissonance channel. It is
+  not indeterminacy either, because the direction is fully determinate. So it gets a
+  third channel, labelled 「主流规范冲突」 on the card, whose severity is the raw
+  `opposition` rather than the index — two of the index's five terms are inapplicable
+  to a norm, so a perfectly clear norm conflict scores about 0.45 and could never
+  clear a 0.55 threshold. The guard record says which reading was used
+  (`severity_basis: "normative_opposition"`), so a log analysis never compares a norm
+  conflict's severity against an index threshold.
+  `eval/scenarios/s79_normative_prior_mainstream_norm.json` covers it.
+- **`cds.py guard --ask`** — prints the card, then `CDS_ASK {...}` and
+  `CDS_AUDIT <one line>`. `CDS_ASK` carries `question`, three options with
+  `id`/`label`/`description`, `free_text: true` and `stop: true`, so a harness with an
+  interactive question tool can pass it straight through and a user is never trapped
+  in a three-way choice. `escalation_hint` now reads `STOP: end the turn on the card
+  above ... Do not write the answer first`, because v0.4.0's "show the card and wait
+  for the user decision" was prose, and what a host model did with prose was finish its
+  answer and append the card to it.
+- **`cds.py guard --type/--screen/--stance/--anchor/--evidence/--source/--norm`** — the
+  inline one-line screen. Six band words (`none|low|mid|high` = `0.00|0.30|0.60|0.85`,
+  decimals also accepted) instead of nine decimals in a JSON file. All six are
+  required. `--signals` still screens a stored packet and now accepts `-` for stdin, so
+  a harness that prefers JSON never has to create a temporary file either.
+- **`scripts/cds_screen.py`** — the band parser and sparse-packet builder, with the
+  anchor requirement enforced at parse time. The error message names the normative
+  route as the alternative, so a model that cannot find a span is told what to do
+  rather than left to guess.
+- **`transparency.audit_note`** (`one_line` | `off`) — the engine renders the single
+  sentence the reply is allowed to say about the component, and the model copies it
+  verbatim. v0.4.0 let the model describe the audit in its own words, and models are
+  generous with words.
+- **`guard.stop_and_ask`** and **`guard.require_anchor`** — both default `true`. See
+  §9.3 and §9.1. Both are wired, not decorative: with `stop_and_ask: false` the `--ask`
+  output drops the chooser and the hint reverts to the old wording, and with
+  `require_anchor: false` the gate and the screening reason both stand down. A config
+  key nothing reads makes a switch look live while the behaviour stays fixed, which is
+  the failure mode `thresholds_by_type` is already documented against.
+- **`README.zh-CN.md`** — the README in Chinese, section for section. `README.md` was
+  cut from 471 lines / 26.9 KB to 175 lines / 9.6 KB and rewritten from a user's point
+  of view; it now answers the question it never answered — *do I type `/cds-skill`
+  every turn?* (no: once per session, then it stays on). The previous long README is
+  preserved verbatim as [`docs/readme-archive-v0.4.md`](docs/readme-archive-v0.4.md).
+
+### Changed
+
+- **`SKILL.md` cut from 14.4 KB to 9.3 KB** (35%). It is in context on every turn, so
+  it was the largest per-turn cost of the component and it was paid by the model, not
+  by the process. The reference list, the ablation-arm table, the hard-constraint list
+  and the troubleshooting table moved to `references/operations.md` and
+  `references/cards.md`, where they are read only on escalation.
+- **The guard card is shorter.** The three option lines became one short clause each,
+  with the explanations moved into the `CDS_ASK` chooser. The card gained the
+  `依据原文` line in the same release, and the test that asserts a screening card costs
+  less attention than the detection card that follows it still passes.
+- **`scripts/cds.py` imports lazily.** A silent screening no longer imports
+  `cds_cards` (67 KB of string tables), the evaluator or the state machine. Measured:
+  about **3 ms** of import self-time out of ~60 ms, on a process whose wall clock is
+  ~85 ms of which ~60 ms is interpreter and site start-up. Recorded here because it
+  would otherwise read as a bigger win than it is — see §9.4.
+- **`references/prompts/triage.md`** rewritten around the extraction rule: the
+  `--source` table with an example anchor for each, the six bands, the command, and a
+  common-errors table whose first three rows are all ways to reach for a position that
+  is not there. `detect.md` and `respond.md` updated to match.
+
+### Migration
+
+Nothing breaks for a caller that passes stored packets, with one exception: a packet
+whose stance has no `anchor` is now capped. Add an `anchor` to each stance block, or
+set `guard.require_anchor: false`. The 77 existing scenarios needed only that one field
+each; `eval/results.csv` reports the same `level`, `channel` and `strategy` for all of
+them, and only the `config_hash` column moved.
+
 ## [0.4.0] — 2026-09-12
 
 The usability release. v0.3.0 was correct and unusable: switched on, it charged a full

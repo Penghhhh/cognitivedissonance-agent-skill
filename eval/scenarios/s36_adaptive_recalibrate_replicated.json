@@ -21,7 +21,8 @@
       "commitment": 0.66,
       "public_commitment": 0.6,
       "volition": 0.8,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该指标不会随批次变化"
     },
     "evidence": [
       {

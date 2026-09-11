@@ -21,7 +21,8 @@
       "commitment": 0.6,
       "public_commitment": 0.5,
       "volition": 0.95,
-      "self_relevance": 0.5
+      "self_relevance": 0.5,
+      "anchor": "这次改版会保持接口向后兼容"
     },
     "evidence": [
       {

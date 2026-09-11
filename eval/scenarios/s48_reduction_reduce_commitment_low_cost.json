@@ -25,7 +25,8 @@
       "commitment": 0.4,
       "public_commitment": 0.3,
       "volition": 0.8,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "我估计这批数据大概有 20 万条"
     },
     "evidence": [
       {

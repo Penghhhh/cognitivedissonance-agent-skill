@@ -3,17 +3,18 @@
 Your only job at this stage is **perception**. You rate the situation and emit one
 JSON object. You do not compute scores, judge strategies, or write the reply.
 
-## Where this packet comes from (v0.4.0)
+## Where this packet comes from (v0.5.0)
 
-Since v0.4.0 there are two packets and this is the **full** one. The screening packet
-in [`triage.md`](triage.md) is written first, on every turn that shows a candidate
-conflict, and it carries only the terms the index consumes. This packet is written
-**only after the user has agreed to go further**, and it is normally the screening
-packet extended rather than a new one:
+Since v0.5.0 there are two packets and this is the **full** one. The screening packet
+in [`triage.md`](triage.md) is produced first, on every turn that shows a candidate
+conflict, and it carries only the six bands the index consumes. This packet is
+produced **only after the user has agreed to go further**, and it is normally the
+screening packet extended rather than a new one:
 
-- the six terms already rated (opposition, specificity, commitment, public commitment,
-  volition, self-relevance, novelty) are **carried over**, not re-rated;
+- the six bands already rated (opposition, commitment, volition, self-relevance,
+  specificity, novelty) are **carried over**, not re-rated;
 - each evidence item gains a verbatim `quote` and its five quality ratings;
+- the stance gains `public_commitment` and `confidence`;
 - add `consistency_gate`, `perception` and `relation.rationale`.
 
 Re-rating the carried-over terms would make the screening decision and the recorded
@@ -22,20 +23,30 @@ below describes the finished packet.
 
 ## Rules
 
-1. **Rate against `references/codebook.md` anchors.** When a case sits between two
+1. **Every stance carries an anchor.** `stance.anchor` is the verbatim span in the
+   context the position is read off - an earlier message of your own, the user's
+   words, a memory entry, a tool output, or the system prompt. It is required for
+   `evidence_vs_stance`, `user_hint_vs_stance` and `memory_vs_current`. You have no
+   opinions of your own: a position you cannot point at is one you never held, and
+   the engine caps the event rather than treating it as a held stance.
+2. **The one exemption is `source: "normative_prior"`**, a mainstream value norm you
+   hold as a baseline, which requires `normative_basis` naming it. It is not called
+   dissonance - a norm is not freely chosen - and it travels on the `normative`
+   channel with severity read from `opposition`.
+3. **Rate against `references/codebook.md` anchors.** When a case sits between two
    anchors, take the lower value and record the doubt under
    `perception.ambiguities`.
-2. **Quote.** Every evidence item you rate needs a verbatim `quote` from the
+4. **Quote.** Every evidence item you rate needs a verbatim `quote` from the
    context. No quote, no rating.
-3. **Do not average, weight, threshold or round.** The engine does all arithmetic.
-4. **`carries_conflict: false`** for items included only as context. They are
+5. **Do not average, weight, threshold or round.** The engine does all arithmetic.
+6. **`carries_conflict: false`** for items included only as context. They are
    excluded from evaluation, so a decoy context item cannot inflate the score.
-5. **A clean negative beats a marginal positive.** If nothing clashes, emit
+7. **A clean negative beats a marginal positive.** If nothing clashes, emit
    `relation.type: "none"` with zeroed ratings. That is a result, not a failure.
-6. **Rate the source, not the agreement.** If you find yourself wanting to lower
+8. **Rate the source, not the agreement.** If you find yourself wanting to lower
    `credibility` because the evidence opposes the stance, stop: that impulse is the
    phenomenon under study and it must not be laundered into the packet.
-7. **Emit JSON only.** No prose before or after, no markdown fence.
+9. **Emit JSON only.** No prose before or after, no markdown fence.
 
 ## Template
 
@@ -53,7 +64,9 @@ below describes the finished packet.
   "stance": {
     "id": "stance_001",
     "claim": "The agent's own prior position, quoted or closely paraphrased.",
-    "source": "prior_conversation | memory | system_prompt | tool_output",
+    "source": "prior_conversation | user_message | memory | tool_output | system_prompt | normative_prior",
+    "anchor": "The verbatim span in the context the claim is read off. Required for evidence_vs_stance, user_hint_vs_stance and memory_vs_current.",
+    "normative_basis": "Only with source=normative_prior: a short clause naming the mainstream norm, e.g. 不得对平民实施暴力.",
     "confidence": 0.0,
     "commitment": 0.0,
     "public_commitment": 0.0,
@@ -122,6 +135,7 @@ so you can run it and see the resulting card.
     "id": "stance_001",
     "claim": "X 在该场景下是可靠的",
     "source": "prior_conversation",
+    "anchor": "第 2 轮我说：X 在该场景下是可靠的",
     "confidence": 0.78,
     "commitment": 0.65,
     "public_commitment": 0.55,
@@ -153,12 +167,16 @@ so you can run it and see the resulting card.
 Note what the ratings say and do not say. `credibility` is 0.55 because the source
 is named and method-bearing but its independence is unverified — not because it
 opposes the stance. `volition` is 0.80 because the agent formed the position
-itself. `user_pressure` is 0.30 because the user merely uploaded a paper.
+itself. `user_pressure` is 0.30 because the user merely uploaded a paper. The
+`anchor` is what makes the position an observation rather than an assumption: it is
+the span the claim was read off, and a reader can check it.
 
 ## Common errors
 
 | Error | Why it is wrong |
 |---|---|
+| A stance with no `anchor` | The agent has no opinions of its own, so this is a position nobody held. The engine caps the event under the `anchor_required` gate |
+| Reaching for `normative_prior` when no anchor can be found | The exemption is for mainstream value norms, not a fallback for unanchored positions |
 | Inventing a `stance` for an evidence-vs-evidence case | Creates a dissonance reading for a decision problem |
 | High `novelty` for a restated objection | Reopens the sycophancy channel v0.1 had |
 | `commitment` raised to match `confidence` | They are different variables; the divergence is informative |

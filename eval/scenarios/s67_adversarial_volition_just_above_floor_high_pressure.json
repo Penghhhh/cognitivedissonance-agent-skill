@@ -21,7 +21,8 @@
       "commitment": 0.7,
       "public_commitment": 0.6,
       "volition": 0.4,
-      "self_relevance": 0.8
+      "self_relevance": 0.8,
+      "anchor": "我们就按这条路线做下去"
     },
     "evidence": [
       {

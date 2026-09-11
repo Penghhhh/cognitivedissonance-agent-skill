@@ -25,7 +25,8 @@
       "commitment": 0.85,
       "public_commitment": 0.8,
       "volition": 0.9,
-      "self_relevance": 0.95
+      "self_relevance": 0.95,
+      "anchor": "我们的方案在客户现场一定跑得起来"
     },
     "evidence": [
       {

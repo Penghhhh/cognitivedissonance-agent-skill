@@ -47,9 +47,9 @@ import re
 from typing import Any
 
 from cds_config import canonical_hash, skill_version
-from cds_index import build_detection, claims_of
+from cds_index import anchor_missing, build_detection, claims_of
 
-GUARD_VERSION = "cds-guard-0.1"
+GUARD_VERSION = "cds-guard-0.2"
 
 #: Decision values. ``surface`` means "show the user a card and ask"; ``silent``
 #: means "record it and behave exactly as if the skill were not installed".
@@ -60,6 +60,7 @@ SILENT = "silent"
 #: can tell "nothing clashed" from "something clashed and the policy held it back".
 R_INERT = "arm_inert"
 R_NO_CONFLICT = "no_conflict_perceived"
+R_UNANCHORED = "stance_without_context_anchor"
 R_GATED = "gated_not_dissonance"
 R_BELOW_ALERT = "below_alert_threshold"
 R_BELOW_SURFACE = "below_surface_threshold"
@@ -163,6 +164,17 @@ def run_guard(
     key = conflict_key(signals)
     claims = event.get("claims") or claims_of(signals)
 
+    # The normative channel is measured against `opposition`, not against the
+    # tension index. Two of the index's terms are inapplicable to a value norm - it
+    # was not chosen, and it was not asserted by the agent - so a clear norm
+    # conflict scores about 0.47 and would never clear a 0.62 interruption bar. The
+    # channel therefore carries its own severity, and the interruption bar is
+    # enforced on that instead. It is still a *separate, stricter* bar: the
+    # `min_opposition` floor below is applied to it unchanged.
+    normative_channel = channel == "normative"
+    severity = float(tension_result.get("normative", opposition)) if normative_channel else tension
+    severity_basis = "normative_opposition" if normative_channel else "tension_index"
+
     reasons: list[str] = []
     decision = SILENT
     next_action = "log_only"
@@ -174,7 +186,15 @@ def run_guard(
         reasons.append(R_INERT)
     elif conflict_type == "none":
         reasons.append(R_NO_CONFLICT)
-    elif gated and channel != "indeterminacy":
+    elif guard_config.get("require_anchor", True) and anchor_missing(signals):
+        # v0.5.0, and the first content check for a reason. A stance the packet
+        # cannot point at in the context is a stance the agent never held, and
+        # interrupting someone about it is how the tool ends up announcing a
+        # disagreement with a position it invented. The event is still recorded,
+        # so a packet that *should* have been anchored is a measurable miss rather
+        # than a silent drop.
+        reasons.append(R_UNANCHORED)
+    elif gated and channel not in ("indeterminacy", "normative"):
         # A conflict against a stance the agent did not choose is not dissonance.
         # The gate already capped it below every alert threshold, so reaching here
         # means the cap itself was not the binding constraint; the labelling rule
@@ -182,7 +202,7 @@ def run_guard(
         reasons.append(R_GATED)
     elif level == "silent":
         reasons.append(R_BELOW_ALERT)
-    elif tension < surface_threshold:
+    elif not normative_channel and tension < surface_threshold:
         reasons.append(R_BELOW_SURFACE)
     elif opposition < opposition_floor:
         reasons.append(R_WEAK_OPPOSITION)
@@ -245,6 +265,8 @@ def run_guard(
         "placebo": mode == "placebo",
         "surface_threshold": surface_threshold,
         "min_opposition": opposition_floor,
+        "severity": severity,
+        "severity_basis": severity_basis,
         "conflict_key": key,
         "conflict_type": conflict_type,
         "channel": channel,
@@ -268,13 +290,31 @@ def run_guard(
     }
 
 
-def escalation_hint(result: dict[str, Any]) -> str:
+def stop_and_ask(config: dict[str, Any]) -> bool:
+    """Whether a surfaced card is supposed to end the turn.
+
+    Read by the CLI rather than by the decision, because it changes what the host
+    model is told to do, not what the engine decides. A config key that nothing
+    reads is worse than no key at all: it makes the switch look live while the
+    behaviour stays fixed, which is the failure mode `thresholds_by_type` is
+    documented against.
+    """
+    return bool((config.get("guard") or {}).get("stop_and_ask", True))
+
+
+def escalation_hint(result: dict[str, Any], *, stop_and_ask: bool = True) -> str:
     """One line telling the host model what to do with this decision.
 
     Kept in the module rather than in prose documentation because it is the
     interface between the engine and the harness: the model reads this line and
     nothing else when the guard is silent, and it is the only place the two-step
     packet upgrade is spelled out at runtime.
+
+    The ``surface`` wording is a **stop** instruction rather than a display
+    instruction. v0.4.0 said "show the card and wait for the user decision", and
+    the failure mode that produced was a host model that showed the card *after*
+    finishing its answer, which converts an interruption into a footnote. The
+    card is the end of the turn or it is nothing.
     """
     if result["decision"] == SILENT:
         return "CDS_GUARD silent"
@@ -282,4 +322,9 @@ def escalation_hint(result: dict[str, Any]) -> str:
         return "CDS_GUARD surface (log only; this arm never evaluates)"
     if result["next_action"] == "auto_evaluate":
         return "CDS_GUARD surface -> evaluate now (no user decision required in this arm)"
-    return "CDS_GUARD surface -> show the card and wait for the user decision"
+    if not stop_and_ask:
+        return "CDS_GUARD surface -> show the card and wait for the user decision"
+    return (
+        "CDS_GUARD surface -> STOP: end the turn on the card above, ask the user, "
+        "and wait. Do not write the answer first."
+    )

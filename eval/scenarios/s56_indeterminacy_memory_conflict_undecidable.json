@@ -21,7 +21,8 @@
       "commitment": 0.5,
       "public_commitment": 0.45,
       "volition": 0.8,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "这个服务由甲团队维护"
     },
     "evidence": [
       {

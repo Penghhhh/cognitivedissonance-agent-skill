@@ -21,7 +21,8 @@
       "commitment": 0.8,
       "public_commitment": 0.75,
       "volition": 0.9,
-      "self_relevance": 0.95
+      "self_relevance": 0.95,
+      "anchor": "该方案在长文本任务上优于基线模型"
     },
     "evidence": [
       {

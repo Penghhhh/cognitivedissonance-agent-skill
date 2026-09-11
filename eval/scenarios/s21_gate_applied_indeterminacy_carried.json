@@ -21,7 +21,8 @@
       "commitment": 0.8,
       "public_commitment": 0.75,
       "volition": 0.2,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "当前配置已经是最优设置"
     },
     "evidence": [
       {

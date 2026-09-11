@@ -21,7 +21,8 @@
       "commitment": 0.85,
       "public_commitment": 0.6,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该方案在合规审查中不会构成风险"
     },
     "evidence": [
       {

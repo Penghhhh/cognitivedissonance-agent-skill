@@ -21,7 +21,8 @@
       "commitment": 0.7,
       "public_commitment": 0.6,
       "volition": 0.75,
-      "self_relevance": 0.8
+      "self_relevance": 0.8,
+      "anchor": "这个技术选型对项目是合适的"
     },
     "evidence": [
       {

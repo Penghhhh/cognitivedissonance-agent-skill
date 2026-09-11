@@ -12,24 +12,24 @@ See the module docstring for what each sweep means and why it is reported.
 > Routing boundary proximity (below) is what distinguishes "robust routing"
 > from "a corpus authored away from the boundaries"; read the two together.
 
-- corpus size: 77
-- firing at the baseline config: 62
+- corpus size: 79
+- firing at the baseline config: 63
 - weight perturbation: ±0.05
 
 ## Index weight perturbation
 
 | weight | direction | value | level flip rate | strategy flip rate |
 |---|---|---|---|---|
-| opposition | + | 0.381 | 0.026 | 0.000 |
-| opposition | - | 0.316 | 0.065 | 0.000 |
-| commitment | + | 0.286 | 0.039 | 0.000 |
-| commitment | - | 0.211 | 0.039 | 0.000 |
-| volition_self | + | 0.238 | 0.039 | 0.000 |
-| volition_self | - | 0.158 | 0.026 | 0.000 |
-| specificity | + | 0.162 | 0.039 | 0.000 |
+| opposition | + | 0.381 | 0.025 | 0.000 |
+| opposition | - | 0.316 | 0.063 | 0.000 |
+| commitment | + | 0.286 | 0.038 | 0.000 |
+| commitment | - | 0.211 | 0.038 | 0.000 |
+| volition_self | + | 0.238 | 0.038 | 0.000 |
+| volition_self | - | 0.158 | 0.025 | 0.000 |
+| specificity | + | 0.162 | 0.038 | 0.000 |
 | specificity | - | 0.074 | 0.013 | 0.000 |
-| novelty | + | 0.124 | 0.052 | 0.000 |
-| novelty | - | 0.032 | 0.052 | 0.000 |
+| novelty | + | 0.124 | 0.051 | 0.000 |
+| novelty | - | 0.032 | 0.051 | 0.000 |
 
 The `strategy flip rate` column is **structurally zero** for index weights:
 no routing rule reads `tension`, so no perturbation of an index weight can
@@ -47,8 +47,8 @@ The strategy label is decided here, so this is the sweep that tests it.
 | credibility | - | 0.211 | 0.000 | 0.000 |
 | recency | + | 0.190 | 0.000 | 0.000 |
 | recency | - | 0.105 | 0.000 | 0.000 |
-| independence | + | 0.190 | 0.000 | 0.033 |
-| independence | - | 0.105 | 0.000 | 0.033 |
+| independence | + | 0.190 | 0.000 | 0.032 |
+| independence | - | 0.105 | 0.000 | 0.032 |
 | consistency | + | 0.238 | 0.000 | 0.016 |
 | consistency | - | 0.158 | 0.000 | 0.016 |
 
@@ -59,7 +59,7 @@ corpus was authored with cases sitting comfortably inside their bands.
 This table separates them. Without it the zero above reads as a stronger
 result than the corpus can support.
 
-- routed cases: 61
+- routed cases: 62
 - `e_score` boundaries in the rule list: [0.35, 0.45, 0.65]
 - nearest boundary, min / median: 0.0012 / 0.0500
 - cases within 0.05 of a boundary: 26
@@ -76,22 +76,26 @@ adjustment cost; `volition_self` is a term in both. The design treats
 overlap is measured rather than assumed.
 
 - shared inputs: ['commitment', 'volition_self']
-- Pearson r (tension, adjustment_cost) over 61 routed cases: 0.796
+- Pearson r (tension, adjustment_cost) over 62 routed cases: 0.810
+
+**Read this as a warning.** At this correlation the two composites are
+close to restatements of one another on this corpus, and reporting them
+as separate quantities is not yet supported.
 
 ## Alert threshold sweep
 
 | alert | level flip rate | strategy flip rate | scenarios firing |
 |---|---|---|---|
-| 0.45 | 0.065 | 0.000 | 67 |
-| 0.50 | 0.052 | 0.000 | 66 |
-| 0.55 | 0.000 | 0.000 | 62 |
-| 0.60 | 0.052 | 0.000 | 58 |
-| 0.65 | 0.143 | 0.000 | 51 |
-| 0.70 | 0.273 | 0.000 | 41 |
+| 0.45 | 0.063 | 0.000 | 68 |
+| 0.50 | 0.051 | 0.000 | 67 |
+| 0.55 | 0.000 | 0.000 | 63 |
+| 0.60 | 0.051 | 0.000 | 59 |
+| 0.65 | 0.139 | 0.000 | 52 |
+| 0.70 | 0.266 | 0.000 | 42 |
 
 ## Structural alternatives
 
 | variant | level flip rate | strategy flip rate | scenarios firing |
 |---|---|---|---|
-| volition_self = mean(v, s) | 0.208 | 0.000 | 69 |
-| novelty replaced by v0.1 repetition | 0.195 | 0.000 | 65 |
+| volition_self = mean(v, s) | 0.203 | 0.000 | 70 |
+| novelty replaced by v0.1 repetition | 0.190 | 0.000 | 66 |

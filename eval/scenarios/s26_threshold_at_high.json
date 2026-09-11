@@ -21,7 +21,8 @@
       "commitment": 0.7,
       "public_commitment": 0.65,
       "volition": 1,
-      "self_relevance": 0.7
+      "self_relevance": 0.7,
+      "anchor": "我们应该把默认引擎切换成新版"
     },
     "evidence": [
       {

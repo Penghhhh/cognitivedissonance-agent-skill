@@ -21,7 +21,8 @@
       "commitment": 0.65,
       "public_commitment": 0.6,
       "volition": 0.75,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "这次数据迁移可以在两周内完成"
     },
     "evidence": [
       {

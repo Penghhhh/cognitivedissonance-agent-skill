@@ -25,7 +25,8 @@
       "commitment": 0.8,
       "public_commitment": 0.8,
       "volition": 0.85,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "这个方法对目标人群是有效的"
     },
     "evidence": [
       {

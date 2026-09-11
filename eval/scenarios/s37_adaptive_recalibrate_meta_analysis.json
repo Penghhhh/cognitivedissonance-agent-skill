@@ -21,7 +21,8 @@
       "commitment": 0.7,
       "public_commitment": 0.6,
       "volition": 0.9,
-      "self_relevance": 0.85
+      "self_relevance": 0.85,
+      "anchor": "这个干预方式确实能提升留存"
     },
     "evidence": [
       {

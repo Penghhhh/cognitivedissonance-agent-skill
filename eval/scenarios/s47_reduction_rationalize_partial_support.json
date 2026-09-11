@@ -25,7 +25,8 @@
       "commitment": 0.58,
       "public_commitment": 0.5,
       "volition": 0.85,
-      "self_relevance": 0.85
+      "self_relevance": 0.85,
+      "anchor": "这个渠道是我们的主要增长来源"
     },
     "evidence": [
       {

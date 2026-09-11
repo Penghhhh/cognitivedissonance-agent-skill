@@ -21,7 +21,8 @@
       "commitment": 0.6,
       "public_commitment": 0.6,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "该做法在多数场景下是安全的"
     },
     "evidence": [
       {

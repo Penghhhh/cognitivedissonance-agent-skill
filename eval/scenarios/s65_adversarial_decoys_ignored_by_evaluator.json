@@ -21,7 +21,8 @@
       "commitment": 0.65,
       "public_commitment": 0.6,
       "volition": 0.7,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "这条流程不会丢件"
     },
     "evidence": [
       {

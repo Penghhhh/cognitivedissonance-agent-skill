@@ -45,6 +45,12 @@ def base_packet(**overrides):
     Baseline arithmetic (asserted in test_index.py so the fixture cannot drift):
       volition_self = 0.80 * 0.90 = 0.72
       T = 0.35*0.80 + 0.25*0.60 + 0.20*0.72 + 0.12*0.60 + 0.08*0.50 = 0.686
+
+    The stance carries an anchor because since v0.5.0 a stance-carrying packet
+    without one is capped by the `anchor_required` gate, and every test built on
+    this fixture would otherwise be measuring that gate instead of its subject.
+    ``test_anchor.py`` is where the gate itself is tested, with deliberately
+    anchorless packets.
     """
     packet = {
         "run_id": "test_run",
@@ -60,6 +66,7 @@ def base_packet(**overrides):
             "id": "stance_001",
             "claim": "X is reliable here",
             "source": "prior_conversation",
+            "anchor": "turn 1: I said X is reliable here",
             "confidence": 0.70,
             "commitment": 0.60,
             "public_commitment": 0.55,

@@ -25,7 +25,8 @@
       "commitment": 0.5,
       "public_commitment": 0.4,
       "volition": 0.9,
-      "self_relevance": 0.9
+      "self_relevance": 0.9,
+      "anchor": "用这种方式处理总是更快"
     },
     "evidence": [
       {

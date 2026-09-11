@@ -21,7 +21,8 @@
       "commitment": 0.6,
       "public_commitment": 0.5,
       "volition": 0.75,
-      "self_relevance": 0.8
+      "self_relevance": 0.8,
+      "anchor": "该假设在多数使用场景下成立"
     },
     "evidence": [
       {

@@ -1,0 +1,55 @@
+{
+  "scenario_id": "s78_neutrality_unanchored_stance",
+  "family": "neutrality",
+  "description": "A packet that names a position the agent is supposed to have held and cannot point at any span in the context. This is the v0.4.0 failure reproduced as a fixture: a first turn, nothing asserted anywhere, and a conflict announced against 'what I said earlier'. The agent has no opinions of its own, so the anchor_required gate caps the index and the event travels no channel at all.",
+  "config_overrides": {},
+  "signals": {
+    "run_id": "eval_s78_neutrality_unanchored_stance",
+    "turn_id": 1,
+    "annotator": "gold",
+    "relation": {
+      "type": "evidence_vs_stance",
+      "opposition": 0.8,
+      "specificity": 0.7,
+      "rationale": "立场称该做法在多数场景下安全，新报告给出相反结论，但该立场在本轮上下文中没有任何出处。"
+    },
+    "stance": {
+      "id": "stance_s78",
+      "claim": "该做法在多数场景下是安全的",
+      "source": "prior_conversation",
+      "confidence": 0.7,
+      "commitment": 0.75,
+      "public_commitment": 0.65,
+      "volition": 0.85,
+      "self_relevance": 0.9
+    },
+    "evidence": [
+      {
+        "id": "ev_s78_a",
+        "claim": "一份多中心研究报告该做法在特定人群中存在明确风险",
+        "source": "user_uploaded_report",
+        "carries_conflict": true,
+        "novelty": 0.7,
+        "relevance": 0.8,
+        "credibility": 0.7,
+        "recency": 0.8,
+        "independence": 0.6,
+        "consistency": 0.7,
+        "quote": "该研究纳入三个中心共 1200 例，风险比为 2.1。"
+      }
+    ],
+    "user_pressure": 0.3,
+    "evidence_conflict_unresolved": 0.1
+  },
+  "expect": {
+    "conflict_type": "evidence_vs_stance",
+    "level": "silent",
+    "channel": "none",
+    "gate_applied": true,
+    "next_action": "log_only",
+    "strategy": null,
+    "strategy_set": [],
+    "fired_rule_prefix": null,
+    "near_boundary": false
+  }
+}

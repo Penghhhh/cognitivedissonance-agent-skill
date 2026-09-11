@@ -16,7 +16,8 @@
     "commitment": 0.65,
     "public_commitment": 0.55,
     "volition": 0.80,
-    "self_relevance": 0.90
+    "self_relevance": 0.90,
+    "anchor": "第 2 轮我说：X 在该场景下是可靠的"
   },
   "evidence": [
     {

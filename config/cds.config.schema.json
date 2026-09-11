@@ -43,10 +43,11 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "enabled", "policy", "surface_threshold", "min_opposition",
-        "cooldown_turns", "dismiss_memory", "resurface_novelty", "max_surfaces_per_run"
+        "enabled", "policy", "surface_threshold", "min_opposition", "require_anchor",
+        "stop_and_ask", "cooldown_turns", "dismiss_memory", "resurface_novelty",
+        "max_surfaces_per_run"
       ],
-      "description": "The stealth screening stage (v0.4.0). It runs before detection on every turn, decides whether the conflict is clear enough to spend the user's attention on, and stays invisible otherwise. Separate from `skill.mode` on purpose: an arm decides which stages may run, the guard decides whether the user is interrupted, and a study needs to vary the two independently.",
+      "description": "The stealth screening stage (v0.4.0, extended in v0.5.0). It runs before detection on every turn, decides whether the conflict is clear enough to spend the user's attention on, and stays invisible otherwise. Separate from `skill.mode` on purpose: an arm decides which stages may run, the guard decides whether the user is interrupted, and a study needs to vary the two independently.",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -67,7 +68,15 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1,
-          "description": "A floor on the opposition rating. An event can clear the index on commitment and volition while the two claims barely conflict; that is not the 'obvious contradiction' a user should be interrupted for."
+          "description": "A floor on the opposition rating. An event can clear the index on commitment and volition while the two claims barely conflict; that is not the 'obvious contradiction' a user should be interrupted for. On the normative channel it is the only content bar, because the index cannot express a value-norm conflict."
+        },
+        "require_anchor": {
+          "type": "boolean",
+          "description": "v0.5.0, and the default. A stance-carrying packet must name the verbatim span the position was read off, in `stance.anchor`. Without one the position is one the agent never held, the guard stays silent and records `stance_without_context_anchor`, and the engine caps the index under the `anchor_required` gate. Set false only to reproduce pre-v0.5.0 behaviour, which is what produced cards announcing that 'what I said earlier' had been contradicted on a first turn where nothing had been said."
+        },
+        "stop_and_ask": {
+          "type": "boolean",
+          "description": "v0.5.0, and the default. When the guard surfaces, the card ends the turn: the host model asks the user and waits, rather than finishing its answer and appending the question. `cds.py guard --ask` emits the chooser as a structure the harness can hand to an interactive question tool, because that behaviour was specified in prose before and prose did not survive contact with a chat loop."
         },
         "cooldown_turns": {
           "type": "integer",
@@ -147,14 +156,25 @@
     "channels": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["dissonance", "indeterminacy"],
-      "description": "Two trigger channels that are reported separately and never conflated. The dissonance channel is the gated index. The indeterminacy channel fires when the evidence contradicts itself rather than the agent's stance: that is a decision problem, not dissonance, so it is not gated and it is labelled differently on every card. Conflating the two was the deepest problem in v0.1, which listed evidence-vs-evidence as a dissonance type while the dissonance construct requires a self-relevant commitment that such a conflict does not have.",
+      "required": ["dissonance", "normative", "indeterminacy"],
+      "description": "Three trigger channels that are reported separately and never conflated. The dissonance channel is the gated index. The normative channel (v0.5.0) fires when an input attacks a mainstream value norm the agent holds as a baseline: a norm is not freely chosen, so it can never clear the volition gate, and the direction is fully determinate, so it is not indeterminacy either. The indeterminacy channel fires when the evidence contradicts itself rather than the agent's stance: that is a decision problem, not dissonance, so it is not gated and it is labelled differently on every card. Conflating the first two was the deepest problem in v0.1, which listed evidence-vs-evidence as a dissonance type while the dissonance construct requires a self-relevant commitment that such a conflict does not have.",
       "properties": {
         "dissonance": {
           "type": "object",
           "additionalProperties": false,
           "required": ["enabled"],
           "properties": { "enabled": { "type": "boolean" } }
+        },
+        "normative": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "alert", "high"],
+          "description": "Severity for this channel is the raw `opposition` rating, not the tension index. Two of the index's five terms are inapplicable to a norm by construction - it was not chosen, so volition_self is zero, and commitment describes a position the agent asserted - so a perfectly clear norm conflict scores about 0.47 on the index and would sit below every index threshold forever.",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "alert": { "type": "number", "minimum": 0, "maximum": 1 },
+            "high": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
         },
         "indeterminacy": {
           "type": "object",
@@ -304,7 +324,7 @@
     "transparency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["card_style", "show_detection_card", "show_evaluation_card", "show_response_card", "include_scores", "include_rule_id", "tight_margin"],
+      "required": ["card_style", "show_detection_card", "show_evaluation_card", "show_response_card", "include_scores", "include_rule_id", "audit_note", "tight_margin"],
       "properties": {
         "card_style": {
           "type": "string",
@@ -316,6 +336,11 @@
         "show_response_card": { "type": "boolean" },
         "include_scores": { "type": "boolean" },
         "include_rule_id": { "type": "boolean" },
+        "audit_note": {
+          "type": "string",
+          "enum": ["one_line", "off"],
+          "description": "What the reply is allowed to say about the component. one_line = exactly one engine-rendered sentence naming the event id and the log path, and nothing else; the host model copies it verbatim. off = nothing, for a condition that must not mention the component at all. Before v0.5.0 the host model described the audit in its own words, and the result was a paragraph about stages and channels attached to an answer about something else - which costs simulation fidelity, because a participant reading it is reminded they are talking to an instrument."
+        },
         "tight_margin": {
           "type": "number",
           "minimum": 0,

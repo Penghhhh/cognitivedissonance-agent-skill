@@ -2,6 +2,7 @@
 name: cds-skill
 description: Use when an agent's own prior judgement collides with new contradictory information - a stance it asserted earlier that later evidence undercuts, two sources that contradict each other, user pressure toward a conclusion the evidence does not support, or a memory conflicting with what it is about to say. Detects the collision, scores it with an auditable index, and plans a labelled response. Not for ordinary fact-checking, tone editing, or summarising.
 whenToUse: The agent has committed to a position and now faces information that opposes it, and the user wants that collision handled explicitly rather than smoothed over.
+disable-model-invocation: true
 metadata:
   version: "0.3.0"
   license: MIT

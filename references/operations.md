@@ -116,6 +116,7 @@ Global flags work **before or after** the subcommand:
 
 | Flag | Effect |
 |---|---|
+| `--lang zh\|en` | the language this run's runtime strings are rendered in. Overrides `skill.language`. Pass the language the user is writing in — see "The runtime language" below |
 | `--config PATH` | use a different config |
 | `--state PATH` | persist state across invocations |
 | `--run-id ID` | pin the run id (overrides a stored one) |
@@ -130,6 +131,29 @@ Global flags work **before or after** the subcommand:
 
 The skill cannot observe the host model, so it does not pretend to: pass these and
 they are recorded verbatim.
+
+## The runtime language
+
+Every runtime string ships in both Chinese and English, and since v0.5.1 the choice is
+made **per turn** rather than at config-load time. The inputs, in order:
+
+| # | Input | Notes |
+|---|---|---|
+| 1 | `--lang zh\|en` | the host model knows what language the user is writing in. `SKILL.md` tells it to pass the flag |
+| 2 | a pinned `skill.language` (`zh` or `en`) | wins over everything except `--lang`. A study pins it, because under `auto` the language is a property of the participant rather than of the condition |
+| 3 | the packet's own text | `stance.claim` first, then `relation.rationale`, then the evidence claims, each classified separately and voted. `evidence[].quote` is **excluded**: a Chinese packet about an English paper has English quotes in it, and letting a quotation vote would flip the card exactly when the user needs to read it |
+| 4 | the session | the language this run already resolved, read from the state file. This is what makes `cds.py command 处理` — which has no packet — answer in the language of the conversation |
+| 5 | `skill.language_fallback` | default `en`, for a turn with nothing to read |
+
+The resolved value is written into the config for the run, so it reaches the log
+envelope and `config_hash`: two runs differing only in rendering language are
+different observations and do not share a hash. Both the language and the input that
+decided it are stamped on the detection and guard records as `language` and
+`language_source` (`override` / `pinned` / `packet` / `session` / `fallback`), so a
+log reader can tell a controlled condition from an inferred one.
+
+`cds.py config` prints the config file's value, which under `auto` is not the language
+a given turn used. Read `language` off the turn's own record instead.
 
 ## The interactive loop spans processes
 
@@ -399,6 +423,7 @@ record.
 | `guard.*` | the screening stage: `enabled`, `policy`, `surface_threshold`, `min_opposition`, `require_anchor`, `stop_and_ask`, `cooldown_turns`, `dismiss_memory`, `resurface_novelty`, `max_surfaces_per_run` |
 | `state.*` | queue bound and timeouts |
 | `transparency.*` | which cards are shown, and in which `card_style` |
+| `skill.language` | `auto` (follow the conversation) / `zh` / `en` (pin it), and `skill.language_fallback`; see "The runtime language" above |
 | `logging.*` | JSONL path and whether signals are embedded |
 
 The config is **JSON, not YAML, on purpose**: it must parse identically on every
@@ -618,6 +643,7 @@ data exists.
 | Chinese cards are mojibake | Console encoding. The CLI reconfigures its streams to UTF-8; if wrapped, set `PYTHONIOENCODING=utf-8` |
 | Tests fail writing to a temp directory | The test suite uses a repo-local scratch dir precisely to avoid this; if it persists, check permissions on `tests/.scratch/` |
 | `CDS_GUARD silent` on a turn you expected to be interrupted | Working as designed — the guard holds back far more than `detect` does. The `reasons` field says which bar held it; see below |
+| A card came back in the wrong language | Pass `--lang` with the language the user is writing in; inference reads the packet, and the packet is a proxy. Check the turn record's `language_source` to see which input decided — `fallback` means nothing was read at all. To fix it for a whole study, pin `skill.language` |
 | A card appeared when the user did not want one | `guard.policy: auto` surfaces and evaluates without asking (that is the v0.3.0 ambient cadence). Use `ask` to require a decision, or `log_only` to record without asking. The `placebo` arm asks for the same reason `full` does: the cadence is the control, so it cannot be made quieter without ceasing to be a control |
 | A confirmation appears to have been ignored — the user answered 处理 and nothing happened | The consent is single-use and expires after one further turn (`GUARD_CONSENT_TURNS = 1`). If the user answered a card that was shown several turns earlier, the consent has lapsed by design and the card has to be answered again. `status` shows `guard.awaiting_confirmation` and `guard.last_surface_turn` |
 | A study meant to measure the screening stage but every screening is `arm_inert` | `skill.mode` is `off`, and an inert arm wins over the guard unconditionally — deliberately, so the `off` arm stays configurable without editing the `guard` block. `selftest` warns about exactly this combination before the run starts |

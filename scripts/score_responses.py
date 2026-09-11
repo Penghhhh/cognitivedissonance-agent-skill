@@ -67,6 +67,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from cds_config import REPO_ROOT, load_config, write_text  # noqa: E402
 from cds_indicators import INDICATOR_NAMES, code_reply, expected_indicators  # noqa: E402
+from cds_lang import resolve_language  # noqa: E402
 
 REPORT_PATH = REPO_ROOT / "eval" / "responses.md"
 
@@ -146,7 +147,10 @@ def score_pair(
     """Code one reply and compare it against the plan it was answering."""
     plan = (pair.get("evaluation") or {}).get("response_plan") or {}
     signals = pair.get("signals")
-    language = config["skill"]["language"]
+    # Resolved per pair, not read off the config, because since v0.5.1 the config
+    # says `auto` and the language is a property of *this* reply. Passing "auto" to
+    # the indicator coder would silently select the fallback lexicon for every pair.
+    language = resolve_language(config, signals)
 
     coding = code_reply(
         pair.get("reply_text") or "",

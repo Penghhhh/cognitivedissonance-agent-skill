@@ -938,3 +938,96 @@ rather than what the engine computes, and it is worth being explicit that it is 
 packets are more accurate than unanchored ones. What it does have is the failure that
 motivated the rule, reproduced as a fixture, and the fact that the failure is now
 impossible to produce through the screening path without also being visible in the log.
+
+## 10. What changed in v0.5.1, and why
+
+One defect, and the story of why it survived four releases is more interesting than
+the fix.
+
+### 10.1 The runtime language was a config constant, and the English cards were not English
+
+Every runtime string has been in both Chinese and English since v0.3.0. The tables
+were complete and a test asserted that both languages rendered a card. What no test
+asserted was that the English rendering was *in English*, and it was not. An
+`language: en` run printed:
+
+```text
+【CDS｜detection】conflict found in the current context
+观点1（what I said earlier）：「X is reliable here」
+```
+
+Chinese brackets around an English section name, Chinese claim labels around English
+claims. The cause is the same in every instance: a string that lived as an inline
+f-string instead of a table entry. `_LABELS` and `_PLAIN` had `detect` and `threshold`
+and `channel`; the banner around them was `f"【CDS｜{labels['detect']}】"`, which no
+translator ever saw because it was not in a table. The separator was `：`, the list
+joiner was `｜`, the claim line was `观点1（{label}）：「{text}」`. A test that renders
+both languages passes all of them: it checks that the Chinese is Chinese and never
+that the English is English.
+
+The fix is mechanical — a `card_title` template, a `field_sep`, a `list_sep`, and
+three claim templates in both tables — and the test that keeps it fixed is the
+interesting part. `tests/test_lang.py` renders every card in both styles with
+`language: en` and asserts that the output contains **no CJK ideograph and no
+full-width punctuation**. The full-width half matters: `【`, `】`, `：` and `｜` are
+not letters, so a "no Chinese characters" assertion — the obvious one to write —
+walks straight past the most visible part of the bug.
+
+The same check is applied to `README.md`. The English README quoted the Chinese card,
+named the three options 处理/忽略/稍后 and showed a Chinese audit line, so a reader who
+does not read Chinese met the language in the first scroll of the repository page. The
+English README now has zero CJK characters in it, the Chinese one carries the Chinese
+card, and a test holds both — because "the English docs have Chinese in them" is the
+kind of drift that starts to look deliberate once it has survived a release.
+
+### 10.2 The language belonged to the turn, not to the config
+
+With the leak fixed, the second half was still wrong: which language the card used
+was decided at config-load time. A user who wrote in English inside a session whose
+config said `zh` got Chinese cards, and the reverse. For a component whose entire
+purpose is to be read by the person in the conversation, that is a defect in the
+feature rather than a localisation nicety.
+
+The language is now resolved per turn from five inputs, in order:
+
+| Input | Why it is there |
+|---|---|
+| `--lang zh\|en` | the host model knows what language the user is writing in, and §3.2's division of labour says perception is the model's job. `SKILL.md` tells it to pass the flag |
+| a pinned `skill.language` | a study needs the language fixed by the condition; the pin therefore outranks everything except the explicit flag |
+| the packet's own text | the fallback when nobody said. See below |
+| the language this run already resolved | read from the state file, so `cds.py command 处理` — which has no packet — answers in the language the conversation is already in |
+| `skill.language_fallback` | default `en` |
+
+**How the packet is read, and what is deliberately not read.** `detect_language`
+classifies each field separately and votes, rather than summing characters across the
+packet. Summing lets one long English evidence claim outvote a short Chinese stance,
+which is the common shape of the case this exists for: a Chinese conversation with an
+English paper quoted into it. `stance.claim` decides on its own when it is conclusive,
+because for `prior_conversation` and `user_message` sources it is the speaker's own
+words. And `evidence[].quote` is **excluded** entirely — it is a verbatim span, so a
+Chinese packet about an English source has English in it, and letting the quotation
+vote would flip the card to English on exactly the turn the user most needs to read.
+
+The 2:1 CJK-to-Latin allowance in `_classify` is a judgement, not a measurement: a
+Chinese sentence carrying English technical terms has fewer CJK characters than the
+Latin word count suggests, because a Chinese character carries more meaning per glyph.
+It is a design prior in the same sense as the index weights in §2.1, and it is
+overridable by `--lang`, which is the input the design actually wants used.
+
+**The resolved value is written into the config**, which is worth being explicit about
+because it means `config_hash` now encodes the rendering language: two runs that
+differ only in the language their cards were written in produce different hashes. That
+is the intended reading. They are different observations — a participant who read a
+Chinese card and one who read an English one were not in the same condition — and a
+hash that could not tell them apart would be the wrong hash. `language_source` is
+recorded beside it so that "the cards were in Chinese" can be distinguished from "the
+cards defaulted to Chinese because there was nothing to read".
+
+### 10.3 What did not change
+
+The index, the thresholds, the routing, the evaluator, the guard's bars, the
+extraction rule and the 79-scenario corpus. What did change is what the corpus is
+scored *in*: every scenario packet is written in Chinese, so under `auto` they all
+resolve to `zh` exactly as they did before, and `eval/results.csv` reports the same
+`level`, `channel` and `strategy` for every one of them. Only the `config_hash` column
+moved, because the config gained `language_fallback` and changed `language` to `auto`.

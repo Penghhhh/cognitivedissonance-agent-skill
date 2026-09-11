@@ -52,6 +52,7 @@ from cds_config import (  # noqa: E402
 )
 from cds_guard import escalation_hint, run_guard, stop_and_ask as guard_stop_and_ask  # noqa: E402
 from cds_index import build_detection  # noqa: E402
+from cds_lang import apply_language, language_of  # noqa: E402
 from cds_log import append_record, build_record, make_run_id, resolve_log_path  # noqa: E402
 from jsonschema_lite import ValidationError, validate  # noqa: E402
 
@@ -310,6 +311,54 @@ def _machine(args: argparse.Namespace, config: dict[str, Any]) -> Any:
     )
 
 
+def _apply_language(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+    signals: dict[str, Any] | None = None,
+    machine: Any = None,
+) -> tuple[str, str]:
+    """Resolve this run's language and write it into the config.
+
+    Called once per command, after the state file is loaded and before anything is
+    rendered or logged, so every downstream module can keep reading
+    ``config["skill"]["language"]`` and will get the resolved value rather than the
+    config file's ``auto``.
+
+    The session hint is the language this run already resolved on an earlier turn,
+    read out of the state file. Without it, ``cds.py command 处理`` - which has no
+    packet to read a language from - would answer in ``language_fallback`` instead of
+    in the language the conversation is actually in.
+    """
+    session = None
+    if machine is not None:
+        session = (getattr(machine, "data", None) or {}).get("language")
+    resolved, source = apply_language(
+        config, signals, override=getattr(args, "lang", None), session=session
+    )
+    if machine is not None and getattr(machine, "data", None) is not None:
+        machine.data["language"] = resolved
+        machine.language = resolved
+    return resolved, source
+
+
+def _stamp_language(
+    payload: dict[str, Any], resolved: tuple[str, str], detection: dict[str, Any] | None = None
+) -> None:
+    """Write the resolved language and its source onto a record.
+
+    Both go on the record rather than only into `config_hash`, because the hash
+    proves two runs differed but not *how*, and "the participant's cards were in
+    Chinese" means something different depending on whether the language was pinned
+    by the condition, inferred from what they wrote, or defaulted.
+    """
+    language, source = resolved
+    payload["language"] = language
+    payload["language_source"] = source
+    if detection is not None:
+        detection["language"] = language
+        detection["language_source"] = source
+
+
 def _bind_run(machine: Any, args: argparse.Namespace, signals: dict[str, Any]) -> str:
     """Establish the run id and write it back into the packet.
 
@@ -338,6 +387,7 @@ def cmd_detect(args: argparse.Namespace, config: dict[str, Any]) -> int:
 
     machine = _machine(args, config)
     _bind_run(machine, args, signals)
+    resolved = _apply_language(args, config, signals, machine)
     if not args.no_turn_advance and not machine.guard_ran_on_turn(machine.data["turn"]):
         # The guard already advanced this turn. Counting it twice would put the
         # screening and the event it escalated to in different turns, which would
@@ -347,6 +397,7 @@ def cmd_detect(args: argparse.Namespace, config: dict[str, Any]) -> int:
     signals.setdefault("turn_id", machine.data["turn"])
 
     detection = build_detection(signals, config)
+    _stamp_language(detection, resolved)
     transition = machine.ingest_detection(detection)
     detection["state"] = transition
     machine.save()
@@ -432,6 +483,7 @@ def cmd_guard(args: argparse.Namespace, config: dict[str, Any]) -> int:
     # Bind the run *before* validating: an inline screen has no run id until the
     # machine mints one, and the schema requires a non-empty id on every packet.
     _bind_run(machine, args, signals)
+    resolved = _apply_language(args, config, signals, machine)
     _validate_signals(signals)
     if not args.no_turn_advance:
         machine.advance_turn()
@@ -448,6 +500,7 @@ def cmd_guard(args: argparse.Namespace, config: dict[str, Any]) -> int:
         "open_events": len(machine.open_events()),
         "dropped_event_ids": [],
     }
+    _stamp_language(result, resolved, result.get("detection"))
     machine.record_guard(result)
     machine.save()
 
@@ -526,6 +579,8 @@ def cmd_evaluate(args: argparse.Namespace, config: dict[str, Any]) -> int:
     machine = _machine(args, config)
     if not machine.loaded:
         machine.data["run_id"] = detection.get("run_id") or machine.data["run_id"]
+    _apply_language(args, config, signals, machine)
+
     if not args.force:
         if machine.path is None:
             print(
@@ -633,13 +688,18 @@ def _code_supplied_reply(
 def cmd_respond(args: argparse.Namespace, config: dict[str, Any]) -> int:
     evaluation = _read_json(args.evaluation)
     plan = evaluation["response_plan"]
-    card = _cards().response_card(evaluation, config)
     signals = _read_json(args.signals) if getattr(args, "signals", None) else None
 
+    # The state file is loaded first because the language is resolved from it (the
+    # session hint) as well as from the packet, and everything below renders text:
+    # the response card, the indicator coding and the log message.
+    machine = _machine(args, config)
+    _apply_language(args, config, signals, machine)
+
+    card = _cards().response_card(evaluation, config)
     coding, observed_outcome, reply_meta = _code_supplied_reply(args, config, plan, signals)
     planned_change = plan["stance_update"]["planned_change"]
 
-    machine = _machine(args, config)
     if not machine.loaded:
         machine.data["run_id"] = evaluation.get("run_id") or machine.data["run_id"]
     if machine.path is None:
@@ -695,6 +755,9 @@ def cmd_respond(args: argparse.Namespace, config: dict[str, Any]) -> int:
 
 def cmd_command(args: argparse.Namespace, config: dict[str, Any]) -> int:
     machine = _machine(args, config)
+    # No packet here, so the language comes from `--lang`, the session hint in the
+    # state file, or the fallback - in that order.
+    _apply_language(args, config, None, machine)
     machine.advance_turn()
     result = machine.handle_command(args.word)
     machine.save()
@@ -734,11 +797,13 @@ def cmd_run(args: argparse.Namespace, config: dict[str, Any]) -> int:
 
     machine = _machine(args, config)
     _bind_run(machine, args, signals)
+    resolved = _apply_language(args, config, signals, machine)
     if not args.no_turn_advance:
         machine.advance_turn()
     signals.setdefault("turn_id", machine.data["turn"])
 
     detection = build_detection(signals, config)
+    _stamp_language(detection, resolved)
     transition = machine.ingest_detection(detection)
     detection["state"] = transition
     machine.save()
@@ -958,6 +1023,9 @@ def _common_flags(suppress_defaults: bool) -> argparse.ArgumentParser:
     add("--no-log", action="store_true", help="do not append to the JSONL log")
     add("--log", help="override the log path")
     add("--state", help="path to the state file (omit for a stateless run)")
+    add("--lang", choices=["zh", "en"],
+        help="language for this run's runtime strings (cards, log messages). Overrides "
+             "skill.language. Pass the language the user is writing in")
     add("--run-id", help="reuse a run id instead of minting one")
     add("--model", help="model name recorded in the log envelope")
     add("--provider", help="model provider recorded in the log envelope")

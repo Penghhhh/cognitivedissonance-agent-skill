@@ -4,6 +4,70 @@ All notable changes to this skill are recorded here. The version appears in
 `VERSION`, in every log record, and in the `skill_version` field of every emitted
 structure, so a result can always be traced to the implementation that produced it.
 
+## [0.5.1] — 2026-09-13
+
+The language release. The component has shipped every runtime string in Chinese and
+English since v0.3.0, but which one it used was a **config constant**: a user who
+switched languages mid-session kept getting cards in the language the config named. A
+transparency card is addressed to the person reading it, so that was a defect in the
+thing the feature is for, not a localisation nicety. Reasoning is in
+[`docs/design-rationale.md`](docs/design-rationale.md) §10.
+
+### Added
+
+- **`scripts/cds_lang.py`** — the per-turn language resolution. Five inputs, in order:
+  an explicit `--lang`, a pinned `skill.language`, the packet's own text, the language
+  this run already resolved (read from the state file), and `skill.language_fallback`.
+  The resolved value is written into the config for the run, so every renderer, the
+  log envelope and `config_hash` agree about it without threading a new argument
+  through thirty functions.
+- **`--lang zh|en`** on every command. The host model knows what language the user is
+  writing in, and this repository's architecture says perception is the model's job;
+  `SKILL.md` now tells it to pass the flag.
+- **`skill.language: "auto"`** (the new default) and **`skill.language_fallback`**
+  (`en`). `auto` follows the conversation. Pinning `"zh"` or `"en"` restores the
+  pre-v0.5.1 behaviour and wins over everything except `--lang`, because for a study
+  the language is a controlled factor rather than a convenience.
+- **`language` and `language_source`** on the detection and guard records, and in
+  both schemas. The source is one of `override` / `pinned` / `packet` / `session` /
+  `fallback`. Recorded beside the value because a hash proves two runs differed but
+  not how, and "the participant's cards were in Chinese" means something different
+  depending on whether the language was pinned by the condition, inferred from what
+  they wrote, or silently defaulted.
+- **`tests/test_lang.py`** — 22 tests. The load-bearing one renders **every** card in
+  both styles with `language: en` and asserts that no CJK ideograph and no full-width
+  punctuation appears anywhere. See the fix note below for why the punctuation had to
+  be in that assertion. Two more assert that `README.md` stays pure English and that
+  each README links to the other.
+
+### Fixed
+
+- **English cards were not in English.** The string tables were complete; the leak
+  was inline f-strings that bypassed them. An `language: en` run printed
+  `【CDS｜detection】` — Chinese brackets around an English section name — plus
+  `观点1（what I said earlier）：「...」` for the claims, full-width `：` and `｜` as
+  key-value and list separators, and `索引分解：` / `原始值` in the technical style.
+  All of it now goes through `_LABELS` and `_PLAIN` in both languages. This is why the
+  new test asserts on full-width punctuation as well as on ideographs: the brackets
+  and colons are not letters, and a "no Chinese characters" check walks straight past
+  them.
+- **`score_responses.py` resolved no language.** It read `config["skill"]["language"]`
+  directly, which is now `auto`, and passing `auto` to the indicator coder silently
+  selects the fallback lexicon for every pair. It now resolves per pair from the
+  pair's own packet, by the same rule as the engine.
+
+### Changed
+
+- `tests/context.py` pins `BASE_CONFIG["skill"]["language"] = "zh"`. Inference is the
+  right behaviour for a conversation and the wrong property for a test suite: an
+  assertion about a Chinese card would otherwise depend on which fixture happened to
+  be in scope. `test_lang.py` is where inference itself is tested, with `auto` set
+  explicitly.
+- The English `README.md` is now pure English: it quotes the English card, names the
+  options `process` / `ignore` / `later`, and shows the English audit line. The
+  Chinese `README.zh-CN.md` quotes the Chinese card. Both gained a **Language**
+  section, and neither states that the runtime "defaults to Chinese" any more.
+
 ## [0.5.0] — 2026-09-13
 
 The neutrality release. v0.4.0 made the loop affordable and the cards readable; using

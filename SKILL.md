@@ -4,9 +4,9 @@ description: Use when information in the conversation contradicts a position the
 whenToUse: The agent has stated a position in this conversation and now faces information that opposes it, and the user wants that collision handled explicitly rather than smoothed over.
 disable-model-invocation: true
 metadata:
-  version: "0.5.0"
+  version: "0.5.1"
   license: MIT
-  language: zh, en
+  language: zh, en (the runtime follows the conversation; see below)
   requires: python>=3.9 (standard library only)
 ---
 
@@ -15,6 +15,10 @@ metadata:
 Turns a conflict between a position **stated in this conversation** and incoming
 information into a detectable, auditable event, then routes it to an explicit
 response strategy. It simulates external language behaviour, never an inner state.
+
+Everything this skill prints — cards, questions, log messages — is written in **the
+language the user is writing in**. Pass `--lang` and it is certain; leave it out and
+the engine reads the language off the packet you sent.
 
 `scripts/cds.py` does all arithmetic, gating, routing, card rendering and logging.
 You rate; the engine computes. Never compute or round a score yourself, and never
@@ -65,13 +69,20 @@ default a rating you did not give it.
 Bands: `none | low | mid | high` = `0.00 / 0.30 / 0.60 / 0.85`; decimals also work.
 
 ```bash
-python scripts/cds.py guard --type evidence_vs_stance \
+python scripts/cds.py guard --lang <zh|en> --type evidence_vs_stance \
   --screen "opp=high,commit=high,vol=high,self=high,spec=high,nov=high" \
   --stance "<the position, in the words the context used>" \
   --anchor "<the span it is read off>" \
   --evidence "<the conflicting element>" \
   --state cds-state.json --ask
 ```
+
+**Pass `--lang` with the language the user is writing in.** Every card, question and
+log message is rendered in the language the conversation is in, and you are the one
+who knows what that is. Without the flag the engine reads the language off the packet
+you sent — usually right, but it cannot tell that a Chinese conversation quoting an
+English paper is still a Chinese conversation. With the flag it is not a guess. Every
+other command takes `--lang` too.
 
 - `--type`: `evs` (evidence vs your stated position) | `eve` (two sources against
   each other) | `uhs` (user pressing for a conclusion) | `mvc` (memory vs current

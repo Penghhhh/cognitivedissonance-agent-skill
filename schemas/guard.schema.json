@@ -34,6 +34,17 @@
     "run_id": { "type": ["string", "null"] },
     "turn_id": { "type": ["integer", "null"] },
 
+    "language": {
+      "type": "string",
+      "enum": ["zh", "en"],
+      "description": "The language this screening rendered in, and therefore the language of the card if one was shown. Resolved per turn since v0.5.1: `--lang` wins, then a pinned `skill.language`, then the packet's own text, then the language this run already resolved, then `skill.language_fallback`."
+    },
+    "language_source": {
+      "type": "string",
+      "enum": ["override", "pinned", "packet", "session", "fallback"],
+      "description": "Which input decided the language, recorded so that a screening turn can be told apart from one whose language was inferred. For a study this is the difference between a controlled condition and a convenience."
+    },
+
     "decision": {
       "type": "string",
       "enum": ["surface", "silent"],

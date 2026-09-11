@@ -26,6 +26,9 @@ Agent 没有自己的观点。它推理所依据的每一个立场都必须从�
    `CDS 已记录 · 事件 cds_evt_ab12cd34ef56 · 日志 logs/cds_skill.jsonl`。
    除此之外，回复中不会再出现关于这个组件的任何内容。
 
+**卡片会用你说话的语言写。** 你用中文和助手对话，所有卡片、提问和日志信息都是中文；
+你用英文对话，它们就都是英文。不需要任何配置——见[语言](#语言)。
+
 卡片示例（运行时原样输出）：
 
 ```text
@@ -42,7 +45,8 @@ Agent 没有自己的观点。它推理所依据的每一个立场都必须从�
 · 回复「稍后」→ 先记下，出现更新信息时再提
 ```
 
-真实运行时输出；运行时语言默认为中文（`skill.language: "zh"`）。
+同一个冲突发生在英文对话里，卡片内容完全一样，只是换成英文字符串
+（`[CDS | detection]`、`Evaluate this?`）——见 [`README.md`](README.md)。
 
 幕后的筛查刻意做得很轻：在需要筛查的回合，模型只运行一条命令、传六个粗粒度档位词，
 不需要 JSON 文件。
@@ -109,9 +113,29 @@ python scripts/cds.py guard --signals examples/triage_sparse_conflict.json --sta
 验证 checkout：
 
 ```bash
-python -m unittest discover -s tests -t tests   # 554 个标准库 unittest 测试
+python -m unittest discover -s tests -t tests   # 576 个标准库 unittest 测试
 python scripts/check_examples.py
 ```
+
+## 语言
+
+所有运行时字符串都同时提供中英两版，用哪一版跟随对话语言。你用英文写，卡片、选择结构和
+审计行就是英文；你用中文写，它们就是中文。不需要切换，也不需要重启——会话中途换语言，
+它跟着换。
+
+引擎按下面的顺序决定，输入来自它拿到的那个包：
+
+1. `--lang zh|en`，如果宿主模型传了的话——模型知道你正在用什么语言，所以这一项优先；
+2. 你固定设置的 `skill.language`；
+3. 包本身的文本——被辩护的立场和反驳它的那条信息，它们就是用对话语言写的；
+4. 本次会话已经解析出的语言；
+5. `skill.language_fallback`，默认 `en`。
+
+每一轮都会同时记录「用了哪种语言」和「是上面哪一项决定的」，所以事后总能分清一次运行和
+一次「语言只是被推断出来」的运行。
+
+**要做实验？请固定它**：`"language": "zh"` 或 `"en"`。在 `auto` 下，语言是被试行为的一个
+属性而不是实验条件的属性，做受控比较时你需要它是固定的。固定后 `--lang` 仍然可以覆盖它。
 
 ## 设置
 
@@ -121,7 +145,8 @@ python scripts/check_examples.py
 |---|---|---|
 | `skill.mode` | `off` / `detect_only` / `full` / `placebo` / `withhold_acts` | 实验分组 |
 | `skill.profile` | `adaptive` / `dissonance_reduction` / `mixed` / `baseline` | `adaptive` = 良好的认知实践（`maintain_with_caveat`、`qualify`、`recalibrate`、`suspend_and_verify`）；`dissonance_reduction` = 人在失调状态下的真实表现（`deny_evidence`、`trivialize`、`rationalize`、`reduce_commitment`、`hold_under_pressure`）——追求仿真度，**不是**建议 |
-| `skill.language` | `zh`（默认）/ `en` | 运行时输出语言 |
+| `skill.language` | `auto`（默认）/ `zh` / `en` | `auto` 跟随对话语言；做受控实验时请固定——见[语言](#语言) |
+| `skill.language_fallback` | `en`（默认）/ `zh` | `auto` 下没有任何文本可判断时用它 |
 | `guard.policy` | `ask`（默认）/ `auto` / `log_only` | `guard.enabled: false` 可关闭筛查 |
 | `guard.require_anchor` | `true`（默认） | 没有可引用的锚点，就不出冲突卡片 |
 | `guard.stop_and_ask` | `true`（默认） | 卡片会结束当前回合 |

@@ -67,6 +67,7 @@ TECHNICAL = "technical"
 
 _LABELS: dict[str, dict[str, str]] = {
     "zh": {
+        "card_title": "【CDS｜{section}】",
         "detect": "检测",
         "dissonance": "认知失调相关冲突张力",
         "indeterminacy": "证据不确定性（非失调）",
@@ -125,6 +126,7 @@ _LABELS: dict[str, dict[str, str]] = {
         "channel_indeterminacy": "不确定通道（证据之间冲突，非失调）",
     },
     "en": {
+        "card_title": "[CDS | {section}] ",
         "detect": "detection",
         "dissonance": "cognitive-dissonance-related conflict tension",
         "indeterminacy": "evidential indeterminacy (not dissonance)",
@@ -475,6 +477,14 @@ _PLAIN = {
         "guard_magnitude_word_mid": "较明显",
         "guard_magnitude_word_edge": "刚好过线",
         "guard_magnitude_word_below": "未达门槛",
+        "claim_line_a": "观点1（{label}）：「{text}」",
+        "claim_line_b": "观点2（{label}）：「{text}」",
+        "claim_line_n": "观点{index}（{role}）：「{text}」",
+        "field_sep": "：",
+        "list_sep": "｜",
+        "raw_value": "原始值 {value}",
+        "index_decomposition": "索引分解：{value}",
+        "rule_suffix": "（命中规则 {rule}）",
         "guard_ask": "是否进入评估？",
         "guard_ask_process": "· 回复「处理」→ 我评估证据分量，并给出应对策略",
         "guard_ask_ignore": "· 回复「忽略」→ 按普通对话继续，不再就同一处冲突打扰你",
@@ -547,6 +557,14 @@ _PLAIN = {
         "guard_magnitude_word_mid": "fairly clear",
         "guard_magnitude_word_edge": "just over the bar",
         "guard_magnitude_word_below": "below the bar",
+        "claim_line_a": "Claim 1 ({label}): \u201c{text}\u201d",
+        "claim_line_b": "Claim 2 ({label}): \u201c{text}\u201d",
+        "claim_line_n": "Claim {index} ({role}): \u201c{text}\u201d",
+        "field_sep": ": ",
+        "list_sep": " | ",
+        "raw_value": "raw {value}",
+        "index_decomposition": "index decomposition: {value}",
+        "rule_suffix": " (rule {rule})",
         "guard_ask": "Evaluate this?",
         "guard_ask_process": "- reply 'process' -> I weigh the evidence and give a strategy",
         "guard_ask_ignore": "- reply 'ignore' -> I carry on as an ordinary turn; this conflict is not raised again",
@@ -670,6 +688,17 @@ def _excerpt(text: str, limit: int = CLAIM_DISPLAY_LIMIT) -> str:
     return collapsed[: limit - 1].rstrip() + "…"
 
 
+def _title(labels: dict[str, str], section: str) -> str:
+    """The card's banner, in the configured language.
+
+    The banner was an inline f-string, which is why the v0.4.0 English run printed
+    `【CDS｜detection】` - Chinese brackets around an English section name. A title is
+    the first thing a reader sees, so getting it wrong in the other language is the
+    most visible way for a card to look unfinished.
+    """
+    return labels["card_title"].format(section=labels[section])
+
+
 def _claim_lines(claims: dict[str, Any] | None, language: str) -> list[str]:
     """Render the two colliding claims as the first thing a reader sees."""
     labels = _CLAIM_LABELS.get(language) or _CLAIM_LABELS["zh"]
@@ -685,10 +714,11 @@ def _claim_lines(claims: dict[str, Any] | None, language: str) -> list[str]:
         a_label = labels.get(a_role or "", labels["unknown"])
         b_label = labels.get(b_role or "", labels["unknown"])
 
+    plain = _plain(language)
     if a:
-        lines.append(f"观点1（{a_label}）：「{_excerpt(a['text'])}」")
+        lines.append(plain["claim_line_a"].format(label=a_label, text=_excerpt(a["text"])))
     if b:
-        lines.append(f"观点2（{b_label}）：「{_excerpt(b['text'])}」")
+        lines.append(plain["claim_line_b"].format(label=b_label, text=_excerpt(b["text"])))
     return lines
 
 
@@ -701,12 +731,17 @@ def _technical_claim_lines(claims: dict[str, Any] | None, language: str) -> list
     they label the sides - a role code here, a plain phrase there - not in whether
     they say what clashed.
     """
+    plain = _plain(language)
     claims = claims or {}
     lines: list[str] = []
     for index, key in ((1, "a"), (2, "b")):
         side = claims.get(key)
         if side:
-            lines.append(f"观点{index}（{side['role']}）：「{_excerpt(side['text'])}」")
+            lines.append(
+                plain["claim_line_n"].format(
+                    index=index, role=side["role"], text=_excerpt(side["text"])
+                )
+            )
     return lines
 
 
@@ -771,7 +806,7 @@ def _margin_line(
     if gated:
         key += "_capped"
     body = labels[key].format(margin=margin, boundary=boundary)
-    return f"{labels['band_tight' if tight else 'band']}：{body}"
+    return f"{labels['band_tight' if tight else 'band']}{_plain(language)['field_sep']}{body}"
 
 
 def _next_text(detection: dict[str, Any], config: dict[str, Any], labels: dict[str, str]) -> str:
@@ -819,12 +854,16 @@ def _technical_detect_card(
     else:
         headline = labels["dissonance"]
 
-    lines = [f"【CDS｜{labels['detect']}】", f"{labels['state']}：{headline}"]
+    sep = _plain(language)["field_sep"]
+    lines = [
+        _title(labels, "detect"),
+        f"{labels['state']}{sep}{headline}",
+    ]
 
     if show_numbers and transparency["include_scores"]:
         if channel == "indeterminacy":
             lines.append(
-                f"{labels['indeterminacy_value']}：{tension['indeterminacy']:.2f} / "
+                f"{labels['indeterminacy_value']}{sep}{tension['indeterminacy']:.2f} / "
                 f"{labels['threshold']} {tension['threshold_alert']:.2f}"
             )
         else:
@@ -834,7 +873,7 @@ def _technical_detect_card(
                 else ""
             )
             lines.append(
-                f"{labels['tension']}：{tension['tension']:.2f} / {labels['threshold']} "
+                f"{labels['tension']}{sep}{tension['tension']:.2f} / {labels['threshold']} "
                 f"{tension['threshold_alert']:.2f}{raw_suffix}"
             )
         margin, boundary = index_margin(tension)
@@ -842,28 +881,28 @@ def _technical_detect_card(
         lines.append(_margin_line(language, labels, margin, boundary, tight, gated))
 
     lines.append(
-        f"{labels['type']}：{_TYPE_LABELS.get(language, _TYPE_LABELS['zh']).get(conflict_type, conflict_type)}"
+        f"{labels['type']}{sep}{_TYPE_LABELS.get(language, _TYPE_LABELS['zh']).get(conflict_type, conflict_type)}"
     )
     lines.extend(_technical_claim_lines(event.get("claims"), language))
     if gated:
-        lines.append(f"{labels['gate']}：{gate.get('detail')}")
+        lines.append(f"{labels['gate']}{sep}{gate.get('detail')}")
     elif channel == "dissonance":
-        lines.append(f"{labels['channel']}：{labels['channel_dissonance']}")
+        lines.append(f"{labels['channel']}{sep}{labels['channel_dissonance']}")
     elif channel == "indeterminacy":
-        lines.append(f"{labels['channel']}：{labels['channel_indeterminacy']}")
+        lines.append(f"{labels['channel']}{sep}{labels['channel_indeterminacy']}")
 
     if tension["key_points"]:
-        lines.append(f"{labels['key_points']}：")
+        lines.append(f"{labels['key_points']}{sep}")
         lines.extend(_bullets(tension["key_points"]))
     if tension["uncertainty"]:
-        lines.append(f"{labels['uncertainty']}：")
+        lines.append(f"{labels['uncertainty']}{sep}")
         lines.extend(_bullets(tension["uncertainty"]))
 
     consistency = detection["consistency_gate_result"]
     if consistency["flagged"]:
         lines.append(labels["consistency_only"].format(sev=f"{consistency['severity']:.2f}"))
 
-    lines.append(f"{labels['next']}：{_next_text(detection, config, labels)}")
+    lines.append(f"{labels['next']}{sep}{_next_text(detection, config, labels)}")
     return "\n".join(lines)
 
 
@@ -872,36 +911,37 @@ def _technical_evaluation_card(
 ) -> str:
     language = config["skill"]["language"]
     labels = _labels(language)
+    sep = _plain(language)["field_sep"]
     strategy_labels = _STRATEGY_LABELS.get(language) or _STRATEGY_LABELS["zh"]
     show_numbers = config["skill"]["numeric_cards"] if numeric is None else numeric
 
     result = evaluation["evaluation_result"]
     strategy = result["recommended_strategy"]
 
-    lines = [f"【CDS｜{labels['eval']}】"]
+    lines = [_title(labels, "eval")]
     if show_numbers and config["transparency"]["include_scores"]:
         lines.extend(
             [
-                f"{labels['evidence']}：{result['evidence_score']:.2f}",
-                f"{labels['commitment']}：{result['stance_commitment']:.2f}",
-                f"{labels['public_commitment']}：{result['public_commitment']:.2f}",
-                f"{labels['volition']}：{result['volition_self']:.2f}",
-                f"{labels['cost']}：{result['adjustment_cost']:.2f}",
-                f"{labels['maintain']}：{result['maintain_score']:.2f}",
-                f"{labels['recalibrate']}：{result['recalibrate_score']:.2f}",
+                f"{labels['evidence']}{sep}{result['evidence_score']:.2f}",
+                f"{labels['commitment']}{sep}{result['stance_commitment']:.2f}",
+                f"{labels['public_commitment']}{sep}{result['public_commitment']:.2f}",
+                f"{labels['volition']}{sep}{result['volition_self']:.2f}",
+                f"{labels['cost']}{sep}{result['adjustment_cost']:.2f}",
+                f"{labels['maintain']}{sep}{result['maintain_score']:.2f}",
+                f"{labels['recalibrate']}{sep}{result['recalibrate_score']:.2f}",
             ]
         )
 
-    lines.append(f"{labels['strategy']}：{strategy_labels.get(strategy, strategy)}")
+    lines.append(f"{labels['strategy']}{sep}{strategy_labels.get(strategy, strategy)}")
     if result["profile"] == "mixed" and result["reduction_tendency"] is not None:
-        lines.append(f"reduction_tendency：{result['reduction_tendency']:.2f}")
+        lines.append(f"reduction_tendency{sep}{result['reduction_tendency']:.2f}")
     if config["transparency"]["include_rule_id"]:
-        lines.append(f"{labels['rule']}：{result['fired_rule_id']}")
+        lines.append(f"{labels['rule']}{sep}{result['fired_rule_id']}")
 
     pressure_text = labels["pressure_yes"] if result["user_pressure_flag"] else labels["pressure_no"]
-    lines.append(f"{labels['pressure']}：{pressure_text}")
+    lines.append(f"{labels['pressure']}{sep}{pressure_text}")
 
-    lines.append(f"{labels['reason']}：")
+    lines.append(f"{labels['reason']}{sep}")
     lines.extend(_bullets(result["rationale"]))
 
     return "\n".join(lines)
@@ -912,6 +952,7 @@ def _technical_response_card(
 ) -> str:
     language = config["skill"]["language"]
     labels = _labels(language)
+    sep = _plain(language)["field_sep"]
     branch_labels = _BRANCH_LABELS.get(language) or _BRANCH_LABELS["zh"]
     strategy_labels = _STRATEGY_LABELS.get(language) or _STRATEGY_LABELS["zh"]
 
@@ -919,29 +960,29 @@ def _technical_response_card(
     update = plan["stance_update"]
     withheld = bool(plan.get("acts_withheld"))
 
-    lines = [f"【CDS｜{labels['resp']}】"]
-    lines.append(f"{labels['strategy']}：{strategy_labels.get(plan['strategy'], plan['strategy'])}")
+    lines = [_title(labels, "resp")]
+    lines.append(f"{labels['strategy']}{sep}{strategy_labels.get(plan['strategy'], plan['strategy'])}")
 
     if withheld:
         # The arm exists to hold everything constant except the instruction, so
         # the card must not leak the branch: naming it would re-introduce the
         # shaping the arm is meant to remove.
         lines.append(labels["acts_withheld"])
-        lines.append(f"{labels['change']}：{labels['change_no']}")
+        lines.append(f"{labels['change']}{sep}{labels['change_no']}")
         return "\n".join(lines)
 
-    lines.append(f"{labels['branch']}：{branch_labels.get(plan['branch'], plan['branch'])}")
+    lines.append(f"{labels['branch']}{sep}{branch_labels.get(plan['branch'], plan['branch'])}")
 
     if plan["language_acts"]:
-        lines.append(f"{labels['acts']}：")
+        lines.append(f"{labels['acts']}{sep}")
         lines.extend(_bullets(plan["language_acts"]))
 
     change_text = labels["change_yes"] if update["planned_change"] else labels["change_no"]
-    lines.append(f"{labels['change']}：{change_text}")
+    lines.append(f"{labels['change']}{sep}{change_text}")
     if update["planned_change"] and update["to"]:
-        lines.append(f"{labels['target']}：{update['to']}")
+        lines.append(f"{labels['target']}{sep}{update['to']}")
 
-    lines.append(f"{labels['constraints']}：")
+    lines.append(f"{labels['constraints']}{sep}")
     constraint_labels = _CONSTRAINT_LABELS.get(language) or _CONSTRAINT_LABELS["zh"]
     lines.extend(_bullets([constraint_labels.get(code, code) for code in plan["constraints"]]))
 
@@ -959,6 +1000,7 @@ def _plain_detect_card(
     language = config["skill"]["language"]
     labels = _labels(language)
     plain = _plain(language)
+    sep = plain["field_sep"]
     show_numbers = config["skill"]["numeric_cards"] if numeric is None else numeric
     transparency = config["transparency"]
 
@@ -978,7 +1020,7 @@ def _plain_detect_card(
         headline = plain["detect_header_indeterminacy"]
     else:
         headline = plain["detect_header"]
-    lines = [f"【CDS｜{labels['detect']}】{headline}"]
+    lines = [f"{_title(labels, 'detect')}{headline}"]
 
     lines.extend(_claim_lines(event.get("claims"), language))
 
@@ -1016,7 +1058,7 @@ def _plain_detect_card(
 
     if gated:
         # The engine's own explanation, verbatim, so the reason cannot drift.
-        lines.append(f"{labels['gate']}：{gate.get('detail')}")
+        lines.append(f"{labels['gate']}{sep}{gate.get('detail')}")
 
     if tension["key_points"]:
         lines.append(plain["detect_key_points"])
@@ -1038,7 +1080,7 @@ def _plain_detect_card(
             key = "detect_margin_tight" if tight else "detect_margin_loose"
         lines.append(plain[key].format(margin=f"{margin:.2f}", boundary=f"{boundary:.2f}"))
 
-    lines.append(f"{labels['next']}：{_next_text(detection, config, labels)}")
+    lines.append(f"{labels['next']}{sep}{_next_text(detection, config, labels)}")
     return "\n".join(lines)
 
 
@@ -1060,7 +1102,7 @@ def _plain_evaluation_card(
     # branch being described is a simulation of motivated reasoning.
     branch = (evaluation.get("response_plan") or {}).get("branch")
     header = plain["eval_header_reduction"] if branch == "dissonance_reduction" else plain["eval_header"]
-    lines = [f"【CDS｜{labels['eval']}】{header}"]
+    lines = [f"{_title(labels, 'eval')}{header}"]
 
     # (1) evidence, with each rated dimension and its weight, so the reader can see
     # the arithmetic that produced the number rather than only the number.
@@ -1089,7 +1131,7 @@ def _plain_evaluation_card(
                         name=names.get(name, name), weight=f"{entry['weight'] * 100:.0f}%"
                     )
                 )
-        lines.append(plain["eval_weights"].format(items="｜".join(items)))
+        lines.append(plain["eval_weights"].format(items=plain["list_sep"].join(items)))
 
     # (2) the stance side: what changing would cost.
     if show_scores:
@@ -1123,7 +1165,11 @@ def _plain_evaluation_card(
             comparison = plain["eval_compare_close"]
         lines.append(plain["eval_step3_no_number"].format(comparison=comparison))
 
-    rule = f"（命中规则 {result['fired_rule_id']}）" if config["transparency"]["include_rule_id"] else ""
+    rule = (
+        plain["rule_suffix"].format(rule=result["fired_rule_id"])
+        if config["transparency"]["include_rule_id"]
+        else ""
+    )
     lines.append(
         plain["eval_step4"].format(strategy=strategy_labels.get(strategy, strategy), rule=rule)
     )
@@ -1143,6 +1189,7 @@ def _plain_response_card(
     language = config["skill"]["language"]
     labels = _labels(language)
     plain = _plain(language)
+    sep = plain["field_sep"]
     branch_plain = _BRANCH_PLAIN.get(language) or _BRANCH_PLAIN["zh"]
     strategy_plain = _STRATEGY_PLAIN.get(language) or _STRATEGY_PLAIN["zh"]
     strategy_labels = _STRATEGY_LABELS.get(language) or _STRATEGY_LABELS["zh"]
@@ -1154,16 +1201,16 @@ def _plain_response_card(
     withheld = bool(plan.get("acts_withheld"))
 
     if withheld:
-        lines = [f"【CDS｜{labels['resp']}】{plain['resp_header_withheld']}"]
+        lines = [f"{_title(labels, 'resp')}{plain['resp_header_withheld']}"]
         lines.append(labels["acts_withheld"])
         lines.append(plain["resp_change_withheld"])
         return "\n".join(lines)
 
     if strategy == "none":
-        return f"【CDS｜{labels['resp']}】{plain['resp_header_none']}\n{plain['resp_next_none']}"
+        return f"{_title(labels, 'resp')}{plain['resp_header_none']}\n{plain['resp_next_none']}"
 
     lines = [
-        f"【CDS｜{labels['resp']}】{plain['resp_header'].format(strategy=strategy_labels.get(strategy, strategy))}"
+        f"{_title(labels, 'resp')}{plain['resp_header'].format(strategy=strategy_labels.get(strategy, strategy))}"
     ]
 
     what, summary = strategy_plain.get(strategy, ("", ""))
@@ -1171,7 +1218,9 @@ def _plain_response_card(
         lines.append(plain["resp_what"].format(what=what))
     branch_name = (_BRANCH_LABELS.get(language) or _BRANCH_LABELS["zh"]).get(plan["branch"], plan["branch"])
     branch_meaning = branch_plain.get(plan["branch"], plan["branch"])
-    lines.append(f"{labels['branch']}：{branch_name}｜{branch_meaning}")
+    lines.append(
+        f"{labels['branch']}{sep}{branch_name}{plain['list_sep']}{branch_meaning}"
+    )
 
     if plan["language_acts"]:
         # The plan's own act list, in the plan's order, is what the card prints: a
@@ -1265,7 +1314,7 @@ def guard_card(result: dict[str, Any], config: dict[str, Any], *, numeric: bool 
 
     if result.get("placebo"):
         # Content-free by design: the placebo arm keeps the cadence, never the content.
-        lines = [f"【CDS｜{labels['detect']}】{plain['guard_placebo_header']}", plain["guard_placebo_body"]]
+        lines = [f"{_title(labels, 'detect')}{plain['guard_placebo_header']}", plain["guard_placebo_body"]]
     else:
         channel = result["channel"]
         if result.get("gated"):
@@ -1276,7 +1325,7 @@ def guard_card(result: dict[str, Any], config: dict[str, Any], *, numeric: bool 
             headline = plain["guard_detect_header_normative"]
         else:
             headline = plain["guard_header"]
-        lines = [f"【CDS｜{labels['detect']}】{headline}"]
+        lines = [f"{_title(labels, 'detect')}{headline}"]
 
         lines.extend(_claim_lines(result.get("claims"), language))
 
@@ -1318,22 +1367,28 @@ def guard_card(result: dict[str, Any], config: dict[str, Any], *, numeric: bool 
         # the same gate-labelling rule as the full detection card.
         gate = event.get("gate") or {}
         if result.get("gated") and gate.get("detail"):
-            lines.append(f"{labels['gate']}：{gate.get('detail')}")
+            lines.append(f"{labels['gate']}{plain['field_sep']}{gate.get('detail')}")
 
         if card_style(config) == TECHNICAL:
             raw = event.get("raw_index")
             terms = event.get("terms") or {}
+            sep = plain["field_sep"]
+            bar = plain["list_sep"]
             lines.append(
-                f"{labels['tension']}：{tension:.2f}｜{labels['threshold']} {threshold:.2f}｜"
-                f"{labels['type']}：{result['conflict_type']}｜{labels['channel']}：{result['channel']}"
-                + (f"｜原始值 {float(raw):.2f}" if isinstance(raw, (int, float)) else "")
+                f"{labels['tension']}{sep}{tension:.2f}{bar}{labels['threshold']} {threshold:.2f}{bar}"
+                f"{labels['type']}{sep}{result['conflict_type']}{bar}{labels['channel']}{sep}{result['channel']}"
+                + (
+                    bar + plain["raw_value"].format(value=f"{float(raw):.2f}")
+                    if isinstance(raw, (int, float))
+                    else ""
+                )
             )
             if terms:
                 decomposition = " + ".join(
                     f"{name} {float(entry['raw']):.2f}×{float(entry['weight']):.2f}"
                     for name, entry in terms.items()
                 )
-                lines.append(f"索引分解：{decomposition}")
+                lines.append(plain["index_decomposition"].format(value=decomposition))
 
     if result.get("asks_user"):
         lines.extend(

@@ -17,7 +17,18 @@ if str(SCRIPTS) not in sys.path:
 
 from cds_config import load_config  # noqa: E402
 
+#: The shipped config, with the language **pinned**.
+#:
+#: Since v0.5.1 the config says `language: auto`, which means the runtime language
+#: is inferred from the packet. That is the right behaviour for a conversation and
+#: the wrong property for a test suite: an assertion about a Chinese card would then
+#: depend on which fixture packet happened to be in scope, and a fixture written in
+#: English would silently fail a Chinese string check rather than test anything.
+#: Pinning it here keeps every existing assertion honest and makes the suite
+#: deterministic. `tests/test_lang.py` is where inference itself is tested, with
+#: `auto` set explicitly.
 BASE_CONFIG = load_config()
+BASE_CONFIG["skill"]["language"] = "zh"
 
 SCRATCH_ROOT = REPO_ROOT / "tests" / ".scratch"
 

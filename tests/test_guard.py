@@ -566,7 +566,10 @@ class TestStealthLoop(unittest.TestCase):
     def test_a_command_with_no_confirmation_still_reports_no_event(self):
         with context.scratch_dir() as tmp:
             state = Path(tmp) / "s.json"
-            code, out, _ = run_cli("command", "处理", "--state", str(state), "--no-log")
+            # Pinned: this asserts the state machine's "no pending event" path, and
+            # a command with no packet and no session has nothing to infer a
+            # language from. Inference itself is tested in test_lang.py.
+            code, out, _ = run_cli("command", "处理", "--state", str(state), "--lang", "zh", "--no-log")
             self.assertEqual(code, 0)
             self.assertIn("没有待处理", out)
 

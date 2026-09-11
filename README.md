@@ -1,6 +1,6 @@
 # CDS-Skill
 
-**English** · [中文](README.zh-CN.md)
+**English** · [Chinese](README.zh-CN.md)
 
 CDS-Skill (Cognitive Dissonance Simulation) is a pluggable skill for LLM agent
 harnesses: DeepSeek Harness, Claude Code, or anything that scans a skills folder.
@@ -25,50 +25,56 @@ own channel and is never labelled cognitive dissonance.
 2. **A clear conflict: one card, then the assistant stops.** The card names the two
    colliding claims, the conflict size, and the span the earlier claim was read off;
    the assistant then **ends its turn and asks you to choose** — it does not write the
-   answer first. Options: 处理 (process) / 忽略 (ignore) / 稍后 (later). You can also
-   just type your own answer instead of picking an option.
-3. **After you choose 处理 (process):** the assistant evaluates the evidence, states
-   the strategy it will use, and only then writes the reply. The reply ends with
-   **one** audit line naming the log file, e.g.
-   `CDS 已记录 · 事件 cds_evt_ab12cd34ef56 · 日志 logs/cds_skill.jsonl`
-   (*"logged · event id · log file"*). Nothing else about the component appears in
-   the reply.
+   answer first. The options are *process* / *ignore* / *later*. You can also just
+   type your own answer instead of picking one.
+3. **After you choose *process*:** the assistant evaluates the evidence, states the
+   strategy it will use, and only then writes the reply. The reply ends with **one**
+   audit line naming the log file, e.g.
+   `CDS recorded - event cds_evt_ab12cd34ef56 - log logs/cds_skill.jsonl`. Nothing
+   else about the component appears in the reply.
+
+**The card is written in the language you write in.** Talk to the assistant in
+English and every card, question and log message comes back in English; talk to it in
+Chinese and they all come back in Chinese. Nothing to configure — see
+[Language](#language).
 
 The card, as printed at runtime:
 
 ```text
-【CDS｜检测】发现上下文矛盾冲突
-观点1（我先前的说法）：「X 在该场景下是可靠的」
-观点2（新出现的信息）：「新研究显示 X 在主要使用场景下存在重大缺陷」
-冲突大小：0.71（门槛 0.62，较明显）
-类别：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
-依据原文：第 2 轮我说：X 在该场景下是可靠的
+[CDS | detection] conflict found in the current context
+Claim 1 (what I said earlier): “X is reliable in this deployment”
+Claim 2 (the new information): “a study reports X fails in most deployments”
+conflict reading: 0.71 (bar 0.62, fairly clear)
+type: new evidence contradicts what I said earlier - What is threatened is a judgement I chose and stated myself.
+read off: turn 2: I said X is reliable in this deployment
 
-是否进入评估？
-· 回复「处理」→ 我评估证据分量，并给出应对策略
-· 回复「忽略」→ 按普通对话继续，不再就同一处冲突打扰你
-· 回复「稍后」→ 先记下，出现更新信息时再提
+Evaluate this?
+- reply 'process' -> I weigh the evidence and give a strategy
+- reply 'ignore' -> I carry on as an ordinary turn; this conflict is not raised again
+- reply 'later' -> noted; raised again only if newer information arrives
 ```
 
-Real runtime output; the runtime language defaults to Chinese (`skill.language: "zh"`).
+The same conflict in a Chinese conversation produces the same card with Chinese
+strings — see [`README.zh-CN.md`](README.zh-CN.md), which is this README in Chinese.
 
 Behind the scenes, screening is cheap by design: on a turn that needs it, the model
 runs one command with six coarse band words and no JSON file.
 
 ```bash
-python scripts/cds.py guard --type evidence_vs_stance \
+python scripts/cds.py guard --lang en --type evidence_vs_stance \
   --screen "opp=high,commit=high,vol=high,self=high,spec=high,nov=high" \
-  --stance "X 在该场景下是可靠的" \
-  --anchor "第 2 轮我说：X 在该场景下是可靠的" \
-  --evidence "新研究显示 X 在主要使用场景下存在重大缺陷" \
+  --stance "X is reliable in this deployment" \
+  --anchor "turn 2: I said X is reliable in this deployment" \
+  --evidence "a study reports X fails in most deployments" \
   --state cds-state.json --ask
 ```
 
 Bands are `none | low | mid | high` (= 0.00 / 0.30 / 0.60 / 0.85); raw decimals also
-work. `--ask` prints the card plus the chooser the host model hands to its question
-tool. Band definitions are in
-[`references/prompts/triage.md`](references/prompts/triage.md). The full loop
-(`detect` → `evaluate` → `respond`) runs **only** after you answer 处理.
+work. `--lang` is the language the user is writing in — see [Language](#language).
+`--ask` prints the card plus the chooser the host model hands to its question tool.
+Band definitions are in [`references/prompts/triage.md`](references/prompts/triage.md).
+The full loop (`detect` → `evaluate` → `respond`) runs **only** after you answer
+*process*.
 
 ## Turn it on
 
@@ -122,9 +128,33 @@ python scripts/cds.py guard --signals examples/triage_sparse_conflict.json --sta
 Verify the checkout:
 
 ```bash
-python -m unittest discover -s tests -t tests   # 554 stdlib unittest tests
+python -m unittest discover -s tests -t tests   # 576 stdlib unittest tests
 python scripts/check_examples.py
 ```
+
+## Language
+
+Every runtime string ships in both English and Chinese, and which one you get
+follows the conversation. Write in English and the cards, the chooser and the audit
+line are English; write in Chinese and they are Chinese. There is nothing to switch
+and nothing to restart — a session that changes language changes with it.
+
+The engine decides from the packet it is given, in this order:
+
+1. `--lang zh|en`, if the host model passes it — the model knows what language you
+   are writing in, so this is the input to prefer;
+2. a pinned `skill.language`, if you set one;
+3. the text of the packet itself — the position being defended and the element
+   contradicting it, which are written in the language of the conversation;
+4. the language this session already resolved;
+5. `skill.language_fallback`, default `en`.
+
+Every turn records both the language it used and which of those five decided it, so a
+run can always be told apart from one whose language was merely inferred.
+
+**Running a study?** Pin it: `"language": "zh"` or `"en"`. Under `auto` the language
+is a property of the participant's behaviour rather than of the condition, and for a
+controlled comparison you want it fixed. Pinning still yields to `--lang`.
 
 ## Settings
 
@@ -134,7 +164,8 @@ All in [`config/cds.config.json`](config/cds.config.json):
 |---|---|---|
 | `skill.mode` | `off` / `detect_only` / `full` / `placebo` / `withhold_acts` | experimental arms |
 | `skill.profile` | `adaptive` / `dissonance_reduction` / `mixed` / `baseline` | `adaptive` = good epistemic practice (`maintain_with_caveat`, `qualify`, `recalibrate`, `suspend_and_verify`); `dissonance_reduction` = what humans actually do under dissonance (`deny_evidence`, `trivialize`, `rationalize`, `reduce_commitment`, `hold_under_pressure`) — simulation fidelity, **not** advice |
-| `skill.language` | `zh` (default) / `en` | runtime output language |
+| `skill.language` | `auto` (default) / `zh` / `en` | `auto` follows the conversation; pin it for a controlled condition — see [Language](#language) |
+| `skill.language_fallback` | `en` (default) / `zh` | used under `auto` when there is no text to read a language off |
 | `guard.policy` | `ask` (default) / `auto` / `log_only` | `guard.enabled: false` disables screening |
 | `guard.require_anchor` | `true` (default) | no quotable anchor, no conflict card |
 | `guard.stop_and_ask` | `true` (default) | the card ends the turn |

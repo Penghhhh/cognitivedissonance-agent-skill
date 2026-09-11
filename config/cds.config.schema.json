@@ -13,7 +13,7 @@
     "skill": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "mode", "interaction", "profile", "language", "numeric_cards"],
+      "required": ["enabled", "mode", "interaction", "profile", "language", "language_fallback", "numeric_cards"],
       "properties": {
         "enabled": { "type": "boolean" },
         "mode": {
@@ -31,7 +31,16 @@
           "enum": ["adaptive", "dissonance_reduction", "mixed", "baseline"],
           "description": "Which response repertoire the router draws from. adaptive = epistemic best practice. dissonance_reduction = human-typical motivated reduction. mixed = per-event choice. baseline = no CDS response shaping."
         },
-        "language": { "type": "string", "enum": ["zh", "en"] },
+        "language": {
+          "type": "string",
+          "enum": ["auto", "zh", "en"],
+          "description": "Which language the runtime strings are rendered in. 'auto' (the v0.5.1 default) follows the conversation: an explicit --lang wins, then the packet's own text, then the language this run already resolved, then `language_fallback`. Pinning it to 'zh' or 'en' disables the mechanism and restores the pre-v0.5.1 behaviour, which is what an ablation condition needs — for a study the language is a controlled factor, not a convenience. The resolved value is written into the config for the run, so it appears in the log and in `config_hash`: two runs that differ only in rendering language are different observations and should not share a hash."
+        },
+        "language_fallback": {
+          "type": "string",
+          "enum": ["zh", "en"],
+          "description": "Used under `language: auto` when the packet carries no text to read a language off and the session has not resolved one yet — an empty or `type: none` screening, for instance. Default en."
+        },
         "numeric_cards": {
           "type": "boolean",
           "description": "Whether cards print the numeric index. false is a valid experimental factor so that user ratings are not anchored on a score."

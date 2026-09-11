@@ -1,13 +1,14 @@
 {
   "$schema": "./cds.config.schema.json",
-  "config_version": "0.5.0",
+  "config_version": "0.5.1",
 
   "skill": {
     "enabled": true,
     "mode": "full",
     "interaction": "ambient",
     "profile": "adaptive",
-    "language": "zh",
+    "language": "auto",
+    "language_fallback": "en",
     "numeric_cards": true
   },
 

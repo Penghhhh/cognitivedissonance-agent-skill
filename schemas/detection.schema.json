@@ -23,6 +23,16 @@
     "schema_version": { "type": "string" },
     "skill_version": { "type": "string" },
     "index_version": { "type": "string" },
+    "language": {
+      "type": "string",
+      "enum": ["zh", "en"],
+      "description": "The language this record's runtime strings were rendered in. Resolved per turn since v0.5.1: `--lang` wins, then a pinned `skill.language`, then the packet's own text, then the language this run already resolved, then `skill.language_fallback`. The resolved value is written into the config for the run, which is why it also reaches `config_hash`: two runs differing only in rendering language are different observations. Optional in the schema so a record stored by an earlier version still validates."
+    },
+    "language_source": {
+      "type": "string",
+      "enum": ["override", "pinned", "packet", "session", "fallback"],
+      "description": "Which input decided the language. Recorded beside the value because a hash proves two runs differed but not how, and 'the cards were in Chinese' means something different depending on whether the language was pinned by the condition, inferred from what the participant wrote, or silently defaulted because there was nothing to read."
+    },
     "config_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "Hash of the exact config object used. Two runs reporting different results must differ in config_hash, model, or signals; nothing else is allowed to vary." },
     "run_id": { "type": "string" },
     "turn_id": { "type": "integer" },

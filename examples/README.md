@@ -1,15 +1,22 @@
 # Examples
 
-Five worked packets, each isolating one behaviour. Every number in the table below
-is produced by the shipped config, and the table itself is executable: run
-`python scripts/check_examples.py` and it asserts each row. CI runs the same script,
+Five worked packets, each isolating one behaviour, plus two screening packets that
+isolate the v0.4.0 stealth gate. Every number in the tables below is produced by the
+shipped config, and the tables themselves are executable: run
+`python scripts/check_examples.py` and it asserts every row. CI runs the same script,
 so a config change that moves an example's label fails the build instead of quietly
 falsifying this document.
 
-Run any of them with:
+Run any of the five full packets with:
 
 ```bash
 python scripts/cds.py run --signals examples/packet_evidence_vs_stance.json
+```
+
+and either screening packet with:
+
+```bash
+python scripts/cds.py guard --signals examples/triage_sparse_conflict.json --card-only
 ```
 
 | Packet | raw index | gated | level | channel | strategy | rule |
@@ -19,6 +26,39 @@ python scripts/cds.py run --signals examples/packet_evidence_vs_stance.json
 | `packet_assigned_stance.json` | 0.7455 | capped 0.40 | silent | none | — | — |
 | `packet_pressure.json` | 0.7020 | — | alert | dissonance | `hold_under_pressure` | R02 |
 | `packet_no_conflict.json` | 0.0000 | — | silent | none | — | — |
+
+## The two screening packets (v0.4.0)
+
+These are **sparse** packets: only the terms the index consumes are filled in, and the
+evidence-quality dimensions are genuinely absent rather than zeroed. They exercise the
+guard, whose decision is `surface` or `silent` and whose bar sits **above** the alert
+threshold. Both are checked statelessly, so their documented outcome depends on the
+packet and the config alone and a reader can reproduce it exactly.
+
+| Packet | index | level | decision | reason |
+|---|---|---|---|---|
+| `triage_sparse_conflict.json` | 0.7415 | alert | **surface** | `policy_ask_user` |
+| `triage_sparse_quiet.json` | 0.5765 | alert | silent | `below_surface_threshold` |
+
+### `triage_sparse_conflict.json` — the conflict worth interrupting for
+
+A stance the agent chose itself meets a load test that contradicts it. The index is
+0.7415, above both the alert threshold (0.55) and the interruption bar (0.62), so the
+guard asks the user whether to go further. It does **not** evaluate: until the user
+answers 处理, nothing downstream runs and no packet is completed.
+
+### `triage_sparse_quiet.json` — real, but not worth interrupting for
+
+This is the example that states the design. The index is 0.5765: **above** the alert
+threshold, on the dissonance channel, with a real freely chosen stance. The engine
+would happily record it as an event. The guard still holds it back, because 0.5765 is
+below the 0.62 interruption bar, and the reason recorded in the log is
+`below_surface_threshold` rather than `no_conflict_perceived`.
+
+"Is this real enough to record?" and "is this clear enough to spend a user's attention
+on?" are different questions, and a component that answers both with the same number
+interrupts people about marginal events. The difference between this row and the one
+above it is the whole point of the screening stage.
 
 ## What each one demonstrates
 

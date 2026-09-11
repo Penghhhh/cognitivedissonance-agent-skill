@@ -1,0 +1,27 @@
+{
+  "run_id": "example_triage_001",
+  "turn_id": 4,
+  "annotator": "example",
+  "relation": {
+    "type": "evidence_vs_stance",
+    "opposition": 0.80,
+    "specificity": 0.75
+  },
+  "stance": {
+    "id": "s1",
+    "claim": "该方案在当前规模下是可靠的",
+    "commitment": 0.65,
+    "public_commitment": 0.55,
+    "volition": 0.85,
+    "self_relevance": 0.90
+  },
+  "evidence": [
+    {
+      "id": "e1",
+      "claim": "新的压测报告显示该方案在目标规模下大面积失效",
+      "novelty": 0.70
+    }
+  ],
+  "user_pressure": 0.20,
+  "evidence_conflict_unresolved": 0.10
+}

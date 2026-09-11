@@ -5,16 +5,116 @@ function of the rated signals and the config, so two runs over an identical pack
 print identical cards, and a card can never claim a number the log does not
 contain.
 
-## The three cards
+## Two styles, one set of facts
 
-Every block below is **verbatim engine output** for the packet in
-[`../examples/packet_evidence_vs_stance.json`](../examples/packet_evidence_vs_stance.json),
-in the default `skill.language: "zh"`. They are quoted here as sample output rather
-than translated, because the card is the artefact a user actually reads and its exact
-rendering is what Study 1 codes. Set `skill.numeric_cards: false` for the numeric-free
-variant; see the bottom of this file.
+`transparency.card_style` selects the rendering. Since v0.4.0 the default is
+`plain`, because the v0.3.0 card was written for a reviewer checking a figure and
+was then handed to users who needed to know what had happened.
 
-### Detection
+| `card_style` | Renders | For |
+|---|---|---|
+| `plain` (default) | question-shaped headings, the two colliding claims in words, band words beside the decimals, no identifiers a reader has to look up | the person reading the card |
+| `technical` | the v0.3.0 field-per-line rendering: every field with its raw value and its identifier | a reviewer checking a number, and continuity with the runs earlier versions produced |
+
+**The styles are held to the same labelling rules, and that is enforced rather than
+intended.** `tests/test_cards.py` runs every labelling invariant against *both*
+styles: the channel is always named, a gated event is never reported as
+dissonance, the branch is always named, the engine's gate reason appears verbatim.
+A test that checked only one style is exactly how a readability rewrite deletes a
+construct label without anyone noticing.
+
+Every block below is **verbatim engine output**, in the default `skill.language:
+"zh"`. They are quoted as sample output rather than translated, because the card is
+the artefact a user actually reads and its exact rendering is what Study 1 codes.
+
+## The guard card
+
+The guard card is the only surface that decides whether anything else runs. It
+appears when `cds.py guard` returns `surface`, and it is the first thing a user sees
+of the component:
+
+```text
+【CDS｜检测】发现上下文矛盾冲突
+观点1（我先前的说法）：「X 在该场景下是可靠的」
+观点2（新出现的信息）：「新研究显示 X 在主要使用场景下存在重大缺陷」
+初步冲突检测大小：0.71（提示门槛 0.62，较明显）
+这是哪一类问题：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
+
+是否进入评估？
+· 回复「处理」→ 我评估证据分量、权衡要不要调整立场，并给出应对策略
+· 回复「忽略」→ 我按普通对话继续，之后不再就同一处冲突打扰你
+· 回复「稍后」→ 先记下，等出现更新的信息时再提
+```
+
+Four things about this card are deliberate:
+
+1. **It names the conflict before it names a number.** A reader told "index 0.71" has
+   been given a figure and still does not know what clashed. The two claims are
+   printed first, excerpted at `CLAIM_DISPLAY_LIMIT` (120 characters). The full text
+   stays in the packet and the log.
+2. **The threshold it prints is the interruption bar, not the recording bar**, and it
+   is worded differently from the detection card's (`提示门槛` here, `冲突门槛`
+   there). The two are different numbers by design, and calling both of them
+   "判定线" would make a user who sees both cards think one had changed.
+3. **`silent` renders as the empty string.** A card is not produced at all, and the
+   command prints one line, `CDS_GUARD silent`. A card reading "no conflict found"
+   would reintroduce exactly the visible cost the screening stage exists to remove.
+   The all-important invisibility is a property of the renderer, not of the caller's
+   discretion.
+4. **In the placebo arm the card is content-free** while keeping the same cadence as
+   `full`: no claims, no reading, only the request for confirmation. The real numbers
+   are still computed and logged.
+
+## Detection
+
+### Plain
+
+```text
+【CDS｜检测】发现上下文矛盾冲突
+观点1（我先前的说法）：「X 在该场景下是可靠的」
+观点2（新出现的信息）：「新研究显示 X 在主要使用场景下存在重大缺陷」
+冲突检测大小：0.71（冲突门槛 0.55，明显）
+这是哪一类问题：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
+关键点：
+- 新证据与既有立场方向相反
+- 冲突具体且可核查
+- 既有立场承诺度较高
+- 该立场由智能体自主选择，而非被指派
+- 该信息为新出现的信息，并非重复提及
+评分可动范围：±0.04（离最近的判定线 0.75 只有这么远，换个标注就可能跨过去）
+下一步：环境模式：不阻塞本轮回复，已自动进入评估。
+```
+
+### Plain, when the volition gate fired
+
+A conflict against a stance the agent did not freely choose is **not** dissonance, so
+the gate caps the index. The card must not borrow the dissonance label for it, and it
+must not let the cap masquerade as the value the ratings produced. Both are printed:
+
+```text
+【CDS｜检测】已检测到冲突，未计入失调（缺少自主选择的立场）
+观点1（我先前的说法）：「X 在该场景下是可靠的」
+观点2（新出现的信息）：「新研究显示 X 在主要使用场景下存在重大缺陷」
+冲突检测大小：0.40（冲突门槛 0.55；计分原始值 0.59，因缺少自主选择的立场已封顶）
+这是哪一类问题：新证据与我先前的说法相反——但该立场不是我自主选择的，因此本事件不计入失调。
+门控：自主选择信号低于门槛，该冲突不计入失调，指数已封顶
+关键点：
+- 新证据与既有立场方向相反
+- 冲突具体且可核查
+- 既有立场承诺度较高
+- 该信息为新出现的信息，并非重复提及
+评分可动范围：±0.15（本事件已封顶，层级不由评分决定）
+下一步：已静默记录，不打扰用户。
+```
+
+Note what replaces what. The sentence that asserts a self-chosen stance in the
+ungated card — 被冲击的是我自己选定并说过的判断 — is **replaced** by one that denies
+it, because a card that kept it would contradict the `门控` line two lines below.
+The `门控` line carries the engine's own `gate.detail` verbatim, so the reason cannot
+drift from the prose. The arithmetic is still fully auditable: `0.59` was what the
+ratings produced, `0.40` is the cap.
+
+### Technical
 
 ```text
 【CDS｜检测】
@@ -22,62 +122,115 @@ variant; see the bottom of this file.
 张力指数：0.71 / 阈值 0.55
 评分可动范围：仅 ±0.04（最近阈值 0.75）：同一输入在不同标注下很可能跨越阈值，请勿把本层级当作确定判断
 类型：证据—立场冲突
+观点1（stance）：「X 在该场景下是可靠的」
+观点2（evidence）：「新研究显示 X 在主要使用场景下存在重大缺陷」
 通道：失调通道（需要自主选择的立场）
 关键点：
 - 新证据与既有立场方向相反
-- 冲突具体且可核查
-- 既有立场承诺度较高
-- 该立场由智能体自主选择，而非被指派
-不确定性：
-- 证据独立性尚未确认
+...
 下一步：环境模式：不阻塞本轮回复，已自动进入评估。
 ```
 
-### Detection, when the volition gate fired
+Both styles name the two claims, because *what* the conflict is, is not a
+presentational nicety: a card carrying only an index value cannot be checked against
+the conversation by the person reading it. The styles differ in how they label the
+sides — a role code here (`stance`, `evidence`, `memory`, `current`, `user_hint`), a
+plain phrase there — not in whether they say what clashed.
 
-A conflict against a stance the agent did not freely choose is **not** dissonance, so
-the gate caps the index. The card must not borrow the dissonance label for it, and it
-must not let the cap masquerade as the value the ratings produced. Both are printed:
+### Claim labels
+
+Roles come from the conflict type, which is an enum, rather than from an evidence
+`source` string, which is free text. A card that guessed the role from a source name
+would mislabel the first packet whose source was spelled unusually.
+
+| Conflict type | Side A | Side B |
+|---|---|---|
+| `evidence_vs_stance` | 我先前的说法 (*what I said earlier*) | 新出现的信息 (*the new information*) |
+| `user_hint_vs_stance` | 我先前的说法 | 你希望我接受的说法 (*what you want me to accept*) |
+| `memory_vs_current` | 我记忆中的说法 | 我现在的说法 |
+| `evidence_vs_evidence` | 来源一的说法 (*what source one says*) | 来源二的说法 |
+
+A side the packet did not name is `null` and its line is omitted, rather than filled
+with a placeholder.
+
+## Evaluation
+
+### Plain
 
 ```text
-【CDS｜检测】
-状态：已检测到冲突，未计入失调（缺少自主选择的立场）
-张力指数：0.40 / 阈值 0.55（计分原始值 0.56，已封顶）
-评分可动范围：仅 ±0.04（最近阈值 0.75）：本事件已封顶，层级不由评分决定
-类型：证据—立场冲突
-门控：自主选择信号低于门槛，该冲突不计入失调，指数已封顶
-关键点：
-- 新证据与既有立场方向相反
-- 冲突具体且可核查
-- 既有立场承诺度较高
-下一步：已静默记录，不打扰用户。
-```
-
-Note what replaces what. The `通道` line is absent — claiming a channel would claim a
-construct the gate just declined — and the `门控` line carries the engine's own
-`gate.detail` verbatim, so the reason cannot drift from the prose. The arithmetic is
-still fully auditable: `0.56` was what the ratings produced, `0.40` is the cap.
-
-### Evaluation
-
-```text
-【CDS｜评估】
-证据强度：0.60
-立场承诺：0.65
-公开承诺：0.55
-自主选择：0.72
-调整成本：0.63
-维持可辩护性：0.27
-再校准合理性：0.41
-建议策略：限定原立场
-命中规则：R04_adaptive_partial_evidence
-用户施压：未达标记阈值
-理由：
+【CDS｜评估】该不该调整立场
+① 新证据的分量：中等（0.60）
+   分项：相关性 0.80（权重 25%）｜可信度 0.55（权重 25%）｜时效性 0.70（权重 15%）｜独立性 0.40（权重 15%）｜一致性 0.50（权重 20%）
+② 我原立场的牢固程度：承诺 0.65｜已公开 0.55｜自主选择 0.72 → 改口代价 0.63（中等）
+③ 两个方向的合理性：维持原判 0.27｜修正立场 0.41
+④ 规则判定：建议【限定原立场】（命中规则 R04_adaptive_partial_evidence）
+⑤ 理由：
 - 证据强度足以要求限定原立场，但尚不足以完全推翻
 - 调整成本较高，公开承诺与自主选择共同抬高了修正代价
 ```
 
-### Response
+The card answers the questions in the order a person asks them, and it shows the
+*weights* as well as the values, so the reader can see how the headline figure was
+built rather than only what it came out as.
+
+Two things it does not do. It does not normalise `maintain_score` and
+`recalibrate_score` against each other — they are disjoint inputs answering different
+questions, and the comparison is offered in words only. And it does not derive the
+recommendation from that comparison: the recommendation is the rule outcome, which is
+labelled as such (`规则判定`), because the routing reads `e_score` and `commitment`
+and a reader who thought the two scores produced it would be reading the wrong
+mechanism.
+
+With `skill.numeric_cards: false` the figures go and the band words stay:
+
+```text
+【CDS｜评估】该不该调整立场
+① 新证据的分量：中等
+   分项：相关性（权重 25%）｜可信度（权重 25%）｜时效性（权重 15%）｜独立性（权重 15%）｜一致性（权重 20%）
+② 我原立场的牢固程度：偏强
+③ 两个方向的合理性：修正立场比维持原判更站得住
+④ 规则判定：建议【限定原立场】（命中规则 R04_adaptive_partial_evidence）
+⑤ 理由：
+...
+```
+
+The weights survive on purpose: a weight is structure, not a score, and removing it
+would hide *how* the judgement was formed — which is the thing Study 2 asks
+participants to rate.
+
+## Response
+
+```text
+【CDS｜响应】我采用的应对策略：限定原立场
+这是什么策略：不撤回原来的判断，但把它的适用范围收窄，并说清在什么条件下我会改。
+分支：审慎校准型｜按证据调整判断，不把不适感压下去
+你会在回复里看到我：
+· 点明这里存在冲突
+· 承认并复述相反的证据
+· 降低确定性的措辞
+· 有条件的接受
+· 说明可以怎样核实
+立场会不会变：会——原立场收窄为条件化表述（条件由智能体依据证据指定）
+我必须守住的底线：
+- 不得编造证据、来源或引文
+- 不输出隐藏推理链，只输出可审计要点
+- 必须显式报告不确定性
+下一步：按以上策略写出回复（回复正文写在卡片之后，不并入卡片）。
+```
+
+The response card comes **before** the reply, so the reader knows which strategy was
+chosen before reading prose shaped by it. It prints the plan's own `language_acts` in
+the plan's order, translated into the move each one names — a canned sentence per
+strategy could describe moves the plan did not route, and the card would then promise
+behaviour the engine never asked for. The act codes stay in the log and in the
+technical card, where `references/indicators.md` maps each one to the linguistic
+indicators the coder looks for.
+
+A `dissonance_reduction` strategy is labelled on its face, in the heading as well as
+the body, so a denial strategy cannot read as the system endorsing
+source-discounting.
+
+### Technical
 
 ```text
 【CDS｜响应】
@@ -97,6 +250,19 @@ still fully auditable: `0.56` was what the ratings produced, `0.40` is the cap.
 - 必须显式报告不确定性
 ```
 
+## The brief line
+
+On the escalation path the user has already read the guard card, which named the two
+claims and the conflict size. `detect --brief` therefore prints one line instead of a
+second full card:
+
+```text
+【CDS｜检测】已确认冲突：事件 cds_evt_8b56b3cdf026｜冲突检测值 0.71｜等级 alert｜通道 dissonance
+```
+
+Nothing is lost from the audit: the full detection record is still logged and still
+available through `--json`.
+
 ## Why the tolerance band is computed, not fixed
 
 `评分可动范围：仅 ±0.04` (*"rating tolerance: only ±0.04"*) states how far the ratings
@@ -109,6 +275,8 @@ Without the line, `0.71 / 0.55` reads as a crisp decision, and the reader credit
 boundary with a precision that unanchored human ratings cannot support. The band is
 the honest presentation of a soft boundary. Keep it on.
 
+The plain style says the same thing in words and distinguishes the two cases: `只有这么远，换个标注就可能跨过去` when the margin is at or below `tight_margin`, and `还有这么远，这个层级不是勉强过线` when it is not. A single sentence for both would make every level look equally provisional.
+
 **v0.2.0 got this wrong in a way worth recording.** It printed a module constant,
 `DISAGREEMENT_TOLERANCE = 0.06`, on every card unconditionally — while this file and
 `SKILL.md` both claimed the number described *the same packet*. For the repository's
@@ -116,15 +284,6 @@ own example packet, whose real margins are 0.04 and 0.16, the claim was simply f
 Measured over the corpus, 29 of 52 routed cases had a true margin smaller than 0.06,
 one of them by a factor of 46. A printed constant cannot distinguish "this one is
 close" from "this one is not", and those two need different readings.
-
-Two consequences follow, both now in the code:
-
-- When the margin falls at or below `transparency.tight_margin` (default `0.05`) the
-  card escalates its wording — the reader is told the level is not a settled
-  judgement, not merely given a number to subtract.
-- When the gate fired, the level is the cap rather than the ratings, and the card
-  says so instead of inviting the reader to reason about a margin that does not
-  govern the label.
 
 The number is the **engine's** margin to its own threshold. It is not an estimate of
 how far human annotators would disagree — that is the inter-rater protocol's job, and
@@ -135,12 +294,15 @@ band on some dimensions.
 
 | Config | Effect |
 |---|---|
+| `transparency.card_style: "plain"` | the readable rendering (default) |
+| `transparency.card_style: "technical"` | the v0.3.0 field-per-line rendering |
 | `transparency.include_scores: true` | print the numbers (default) |
-| `skill.numeric_cards: false` | suppress **all** figures |
+| `skill.numeric_cards: false` | suppress **all** figures, keep the band words and the weights |
 | `transparency.include_rule_id: false` | hide the fired rule id |
 | `transparency.show_*_card: false` | omit a stage's card |
 | `transparency.tight_margin: 0.05` | margin at or below which the tolerance line escalates |
 | `skill.mode: withhold_acts` | response card withholds the branch, the acts and the constraints |
+| `guard.policy: "log_only"` | the guard card is never shown at all |
 
 `numeric_cards: false` exists for Study 2. Printing `0.71 / 0.55` gives a
 participant a number to react to, which converts part of the treatment into a
@@ -150,17 +312,20 @@ cosmetic setting.
 
 ## Labelling rules
 
-These hold for every card and are enforced in `cds_cards.py`:
+These hold for every card, in both styles, and are enforced in `cds_cards.py`:
 
 1. **The channel is always named.** A card never says "dissonance" when the
    indeterminacy channel fired. Evidence that contradicts itself is labelled
-   `证据不确定性（非失调）` (*"evidential indeterminacy — not dissonance"*).
+   `证据不确定性（非失调）` (*"evidential indeterminacy — not dissonance"*) in the
+   technical style, and `发现证据之间自相矛盾（不是认知失调）` in the plain one.
 2. **A gated event is never reported as dissonance.** When the volition floor caps
    the index, the card carries the `已检测到冲突，未计入失调` headline, the `门控` line
    with the engine's reason, and the raw index beside the cap. Reporting the cap alone
    would make a suppressed event indistinguishable from a genuinely quiet one, and the
-   gate's visible behaviour is what Study 1's Claim 1 is stated over. Asserted for both
-   languages and for `numeric_cards: false` in `tests/test_cards.py`.
+   gate's visible behaviour is what Study 1's Claim 1 is stated over. In the plain
+   style the assertion that the stance was freely chosen is actively replaced by one
+   that denies it, rather than merely omitted. Asserted for both languages, both
+   styles and `numeric_cards: false` in `tests/test_cards.py`.
 3. **The branch is always named.** A `dissonance_reduction` card says so, so a
    denial strategy can never read as the system endorsing source-discounting.
 4. **The consistency gate is reported separately.** A self-contradicting answer
@@ -168,29 +333,49 @@ These hold for every card and are enforced in `cds_cards.py`:
 5. **Placebo cards are content-free.** In the placebo arm the card carries no
    conflict content at all, only the same cadence — the real numbers are still
    computed and logged for analysis, but no card text and no response shaping may
-   be derived from them.
+   be derived from them. This applies to the guard card too, which is the card the
+   placebo arm most often produces.
 6. **The withhold_acts card names no branch and no acts.** That arm exists to hold
    everything constant except the instruction, so a card that named the branch or
    listed the acts would re-introduce the shaping it is there to remove. It states
    that no instruction was issued, reports no planned change, and stops.
+7. **`silent`, and every path that withholds the user step, render nothing.**
+   `guard_card` returns the empty string when the decision is `silent` **or** when
+   `next_action` is `log_only` (the `detect_only` arm, and `guard.policy: log_only`).
+   This is a labelling rule rather than an implementation detail: "the component is
+   invisible on an ordinary turn" and "`log_only` records without showing" are claims
+   the renderer has to be able to keep, and a card reading "nothing found" — or a card
+   for a step the configuration forbids — would make both of them false. The
+   `detect_only` arm loses nothing: its own card comes from the `detect` stage, which
+   is where v0.3.0 produced it.
+8. **`auto_evaluate` does render.** The guard is not asking, but the loop is about to
+   run without a decision, and the card is what tells the user that.
 
 ## Where cards go
 
-- **ambient** (default): append the card to the reply, or emit it as an event. Do
-  not block the turn.
+- **Screening (`guard`)**: show the card verbatim and **wait**. Do not evaluate, and do
+  not answer the original question in the same message.
+- **Escalation**: the brief line, then the evaluation card, then the response card,
+  then the reply.
+- **ambient**: append the card to the reply, or emit it as an event. Do not block the
+  turn.
 - **interactive**: emit the detection card and wait for `处理` / `忽略` / `稍后` /
   `详情` (*process / ignore / later / details*).
 
 Either way, the card is **never** pasted into the body of the reply. It is a
 separate artefact: mixing them duplicates it, breaks the Study 2 manipulation in
-which the card is a controlled factor, and leaks the mechanism into the prose.
+which the card is a controlled factor, and leaks the mechanism into the prose. The
+response card says so on its last line, so the model has the rule at the point where
+it is about to write.
 
 ## Failure modes
 
 | Symptom | Cause |
 |---|---|
-| No card when one was expected | The volition gate capped the event (check `volition_self`), or a `thresholds_by_type` override is in force |
+| No card at all | The guard judged the conflict not clear enough to interrupt for, or the user already dismissed it. Read `reasons` in the `guard` log record. |
 | A card reading `已检测到冲突，未计入失调` | Working as designed: the stance was assigned rather than freely chosen, so the event is capped and reported without a channel |
 | A "dissonance" card for evidence-vs-evidence | Should be impossible; the gate caps it. If seen, report it as a bug. |
+| No card when one was expected | The volition gate capped the event (check `volition_self`), or a `thresholds_by_type` override is in force |
+| The card is unreadable again | Someone set `card_style: technical` and called it the default, or a new line was added to one rendering and not the other. `tests/test_cards.py` runs the invariants against both, so the second case fails the build. |
 | Numbers differ between runs | Compare `config_hash` in the two log records first |
 | Card shows `R??` you cannot find in the config | The config changed mid-run; the log's `config_hash` will differ |

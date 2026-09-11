@@ -121,6 +121,24 @@ class StageError(Exception):
     """Raised when a stage is invoked in an arm that must not run it."""
 
 
+class UnratedEvidenceError(StageError):
+    """Raised when the evaluator is handed evidence with no quality ratings at all.
+
+    A missing dimension is treated as *unrated* and its weight is renormalised over
+    the dimensions that are present, which is the right behaviour for a sparse
+    packet. When **every** dimension is missing, that rule silently produces a score
+    of 0.0 - and 0.0 is not "unrated", it is the lowest possible judgement. The
+    router then reads it as "the evidence is worthless" and picks a strategy on a
+    fact nobody rated.
+
+    This became reachable in v0.4.0, when the screening packet stopped carrying the
+    quality ratings: escalating a screening packet without extending it produced a
+    confident, wrong strategy instead of an error. It is refused rather than
+    defaulted, because the whole point of separating perception from arithmetic is
+    that the arithmetic never invents a perception.
+    """
+
+
 def _weighted_mean_over(items: list[dict[str, Any]], key: str) -> float | None:
     values = [float(item[key]) for item in items if key in item and item[key] is not None]
     return sum(values) / len(values) if values else None
@@ -158,6 +176,15 @@ def build_evaluation(detection: dict[str, Any], signals: dict[str, Any], config:
     raw_dims = {name: _weighted_mean_over(members, name) for name in EVIDENCE_DIMENSIONS}
     present_dims = [name for name in EVIDENCE_DIMENSIONS if raw_dims[name] is not None]
     dropped_dims = [name for name in EVIDENCE_DIMENSIONS if raw_dims[name] is None]
+    if members and not present_dims:
+        raise UnratedEvidenceError(
+            "no evidence-quality dimension was rated on any carrying evidence item, so the "
+            "evidence score cannot be computed: renormalising over an empty set yields 0.0, "
+            "which the router would read as 'the evidence is worthless' rather than as "
+            "'nobody rated it'. Rate relevance, credibility, recency, independence and "
+            "consistency - a screening packet must be extended into a full one before it is "
+            "evaluated; see references/prompts/triage.md."
+        )
     effective_weights = _recompute_weights(evaluator_config["evidence_weights"], present_dims)
 
     evidence_detail: dict[str, dict[str, float]] = {}

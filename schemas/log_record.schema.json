@@ -14,7 +14,7 @@
     "record_id": { "type": "string", "pattern": "^cds_rec_[0-9a-f]{12}$", "description": "Deterministic over (run_id, turn_id, stage, event_id, payload digest). Identical inputs therefore produce identical record ids, which is what makes the cross-run replication check in the test suite meaningful." },
     "run_id": { "type": "string" },
     "turn_id": { "type": "integer" },
-    "stage": { "type": "string", "enum": ["detect", "evaluate", "respond", "command", "state", "error"] },
+    "stage": { "type": "string", "enum": ["guard", "detect", "evaluate", "respond", "command", "state", "error"], "description": "'guard' records the v0.4.0 stealth screening decision, including the turns on which it stayed silent. A screening stage that logged only its hits could not report a false-negative rate, and the guard runs on every turn precisely so that the denominator exists." },
     "ts": { "type": "string" },
     "event_id": { "type": ["string", "null"] },
     "signals_hash": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },

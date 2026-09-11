@@ -39,7 +39,7 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover - non-reconfigurable stream
         pass
 
-from cds_cards import all_cards, detect_card, evaluation_card, response_card  # noqa: E402
+from cds_cards import all_cards, detect_brief, detect_card, evaluation_card, guard_card, response_card  # noqa: E402
 from cds_config import (  # noqa: E402
     ConfigError,
     check_semantics,
@@ -52,6 +52,7 @@ from cds_config import (  # noqa: E402
     write_text,
 )
 from cds_evaluator import StageError, build_evaluation  # noqa: E402
+from cds_guard import escalation_hint, run_guard  # noqa: E402
 from cds_index import build_detection  # noqa: E402
 from cds_log import append_record, build_record, make_run_id, resolve_log_path  # noqa: E402
 from cds_state import StateError, StateMachine  # noqa: E402
@@ -252,7 +253,11 @@ def cmd_detect(args: argparse.Namespace, config: dict[str, Any]) -> int:
 
     machine = _machine(args, config)
     _bind_run(machine, args, signals)
-    if not args.no_turn_advance:
+    if not args.no_turn_advance and not machine.guard_ran_on_turn(machine.data["turn"]):
+        # The guard already advanced this turn. Counting it twice would put the
+        # screening and the event it escalated to in different turns, which would
+        # make the log's turn column useless for the one comparison that matters:
+        # how often a turn screened silent versus how often it became an event.
         machine.advance_turn()
     signals.setdefault("turn_id", machine.data["turn"])
 
@@ -262,6 +267,8 @@ def cmd_detect(args: argparse.Namespace, config: dict[str, Any]) -> int:
     machine.save()
 
     card = detect_card(detection, config)
+    if getattr(args, "brief", False):
+        card = detect_brief(detection, config)
     _validate_output("detection", detection)
     _log_stage(
         args,
@@ -274,7 +281,76 @@ def cmd_detect(args: argparse.Namespace, config: dict[str, Any]) -> int:
         signals=signals,
     )
     _write_json(args.out, detection)
+    if getattr(args, "brief", False) and not args.card_only and not args.json:
+        # `--brief` exists to make the escalation path cheap, and dumping the whole
+        # structure beside the one line would defeat it: the record is on disk via
+        # --out and in the log, and --json still prints it on request.
+        print(card)
+        return EXIT_OK
     _emit(detection, args, card)
+    return EXIT_OK
+
+
+def cmd_guard(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    """Screen one turn and decide whether the user is interrupted at all.
+
+    The default output is deliberately *not* the card plus the JSON structure that
+    every other stage prints. On the silent path - which is the common path, and the
+    one this stage exists for - the entire output is a single line, because the cost
+    of the component on an ordinary turn is the thing being fixed. The full record
+    is never lost: it goes to the JSONL log, and ``--json`` prints it.
+    """
+    signals = _read_json(args.signals)
+    _validate_signals(signals)
+
+    machine = _machine(args, config)
+    _bind_run(machine, args, signals)
+    if not args.no_turn_advance:
+        machine.advance_turn()
+    signals.setdefault("turn_id", machine.data["turn"])
+
+    result = run_guard(signals, config, history=machine.guard_history())
+    # The screening does not transition the machine - that is the whole point of
+    # keeping the guard out of the event list - and it says so explicitly rather
+    # than leaving the field out. An absent block cannot be told apart from a bug,
+    # and `detect` adds a real transition to the same structure two lines later.
+    result["detection"]["state"] = {
+        "from": machine.state,
+        "to": machine.state,
+        "open_events": len(machine.open_events()),
+        "dropped_event_ids": [],
+    }
+    machine.record_guard(result)
+    machine.save()
+
+    card = guard_card(result, config)
+    # The embedded detection is a real DetectionResult, so it is held to the same
+    # schema as the one `detect` prints. A screening record that could carry an
+    # unchecked index would be the one place a number escaped the audit.
+    _validate_output("detection", result["detection"])
+    _validate_output("guard", result)
+    _log_stage(
+        args,
+        config,
+        run_id=signals["run_id"],
+        turn_id=signals["turn_id"],
+        stage="guard",
+        payload=result,
+        event_id=None,
+        signals=signals,
+    )
+    _write_json(args.out, result)
+
+    if getattr(args, "card_only", False):
+        print(card)
+        return EXIT_OK
+    if getattr(args, "json", False):
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return EXIT_OK
+    print(escalation_hint(result))
+    if card:
+        print()
+        print(card)
     return EXIT_OK
 
 
@@ -605,6 +681,14 @@ def cmd_config(args: argparse.Namespace, config: dict[str, Any]) -> int:
         "profile": config["skill"]["profile"],
         "language": config["skill"]["language"],
         "numeric_cards": config["skill"]["numeric_cards"],
+        "card_style": config["transparency"].get("card_style", "plain"),
+        "guard": {
+            "enabled": config["guard"]["enabled"],
+            "policy": config["guard"]["policy"],
+            "surface_threshold": config["guard"]["surface_threshold"],
+            "min_opposition": config["guard"]["min_opposition"],
+            "max_surfaces_per_run": config["guard"]["max_surfaces_per_run"],
+        },
         "thresholds": config["thresholds"],
         "index_weights": config["index"]["weights"],
         "gates": config["index"]["gates"],
@@ -639,7 +723,15 @@ def cmd_selftest(args: argparse.Namespace, config: dict[str, Any]) -> int:
     elif abs(per_type.get("evidence_vs_stance", -1) - config["thresholds"]["alert"]) < 1e-9:
         warnings.append("thresholds_by_type.evidence_vs_stance merely repeats thresholds.alert; remove it")
 
-    for name in ("signals", "detection", "evaluation", "log_record"):
+    # A guard that cannot fire is not an error - the `off` arm is exactly that - but
+    # it is worth saying out loud, because a study that believed it was measuring the
+    # screening stage would otherwise be measuring nothing.
+    if config["guard"]["enabled"] and config["skill"]["mode"] == "off":
+        warnings.append("guard is enabled but skill.mode is 'off', so the guard is inert in this arm")
+    if not config["guard"]["enabled"]:
+        warnings.append("guard is disabled: the full loop runs whenever detect is called (v0.3.0 behaviour)")
+
+    for name in ("signals", "detection", "guard", "evaluation", "log_record"):
         try:
             load_schema(name)
         except Exception as exc:  # pragma: no cover - surfaces a packaging error
@@ -733,10 +825,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command", required=True)
 
+    p = sub.add_parser("guard", parents=[common], help="stealth screening: interrupt the user only for a clear conflict")
+    p.add_argument("--signals", required=True, help="sparse signal packet (only relation is required)")
+    p.add_argument("--out", help="write the guard record here")
+    p.add_argument("--no-turn-advance", action="store_true", help="do not advance the turn counter")
+    p.set_defaults(func=cmd_guard)
+
     p = sub.add_parser("detect", parents=[common], help="rate the signals and compute the tension index")
     p.add_argument("--signals", required=True, help="signal packet JSON")
     p.add_argument("--out", help="write the detection record here")
     p.add_argument("--no-turn-advance", action="store_true", help="do not advance the turn counter")
+    p.add_argument("--brief", action="store_true", help="print a one-line confirmation instead of the full card")
     p.set_defaults(func=cmd_detect)
 
     p = sub.add_parser("evaluate", parents=[common], help="score the evidence and route to a strategy")

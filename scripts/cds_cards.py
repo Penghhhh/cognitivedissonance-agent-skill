@@ -6,6 +6,23 @@ Design notes
 function of the rated signals, so two runs on identical packets print identical
 cards, and a card can never claim a number the log does not contain.
 
+*Two styles, one set of facts.* ``transparency.card_style`` selects how the same
+record is rendered:
+
+``plain`` (default since v0.4.0)
+    Question-shaped headings, the two colliding claims named in words, band words
+    instead of bare decimals, and no identifier a reader has to look up. This is
+    the style a study participant or an ordinary user reads.
+``technical``
+    The v0.3.0 rendering: one line per field with its raw value and identifier.
+    Kept because it is the artefact earlier runs were coded from, and because a
+    reviewer checking a number wants the field list rather than a sentence.
+
+The two styles are held to the *same* labelling rules — the channel is named, a
+gated event is never reported as dissonance, the branch is always named — and the
+test suite asserts those rules for both. A style is a presentation choice; it is
+never a licence to drop a construct label.
+
 *Numbers are optional.* ``skill.numeric_cards: false`` suppresses every figure.
 This matters for Study 2: printing "0.68 / 0.55" invites participants to rate the
 number rather than the behaviour, and it makes the treatment partly a
@@ -37,6 +54,16 @@ from typing import Any
 # escalates its wording, and equals the config default for
 # ``transparency.tight_margin``.
 RATING_TOLERANCE_CEILING = 0.06
+
+#: How much of a claim a card prints. A verbatim span is what makes the card
+#: checkable, but a card carrying two paragraphs of quoted context is no longer a
+#: card: it costs the reader more attention than the conflict is worth, and it
+#: costs tokens on every turn the skill is on. The full text stays in the signal
+#: packet and the log; the card prints enough to identify the clash.
+CLAIM_DISPLAY_LIMIT = 120
+
+PLAIN = "plain"
+TECHNICAL = "technical"
 
 _LABELS: dict[str, dict[str, str]] = {
     "zh": {
@@ -185,6 +212,162 @@ _BRANCH_LABELS = {
     "en": {"adaptive": "epistemic recalibration", "dissonance_reduction": "dissonance reduction", "baseline": "baseline"},
 }
 
+#: What the branch means, said in one clause a non-specialist can act on. The
+#: reduction branch carries the fidelity warning on its face: it models what humans
+#: do under dissonance, not what they should do, and a card that left that implicit
+#: would read as the system recommending source-discounting.
+_BRANCH_PLAIN = {
+    "zh": {
+        "adaptive": "按证据调整判断，不把不适感压下去",
+        "dissonance_reduction": "消解不适感，判断本身不一定真的改变（用于行为仿真与对照，不代表系统建议）",
+        "baseline": "不做任何失调相关的修辞调整",
+    },
+    "en": {
+        "adaptive": "adjust the judgement to the evidence rather than quietening the discomfort",
+        "dissonance_reduction": "reduce the discomfort; the belief itself need not move (behavioural simulation and control condition, not system advice)",
+        "baseline": "no dissonance-related shaping at all",
+    },
+}
+
+_STRATEGY_PLAIN: dict[str, dict[str, tuple[str, str]]] = {
+    "zh": {
+        "none": ("不改变措辞方式，按平常的方式作答。", ""),
+        "maintain_with_caveat": (
+            "仍然维持原来的判断，但不再把话说得那么满。",
+            "① 点明这里出现了冲突；② 承认并复述相反的证据；③ 降低确定性的措辞；④ 说明什么情况下我会改变看法。",
+        ),
+        "qualify": (
+            "不撤回原来的判断，但把它的适用范围收窄，并说清在什么条件下我会改。",
+            "① 点明冲突；② 承认并复述相反的证据；③ 降低确定性的措辞；④ 有条件的接受；⑤ 说明可以怎样核实。",
+        ),
+        "recalibrate": (
+            "新证据的分量够重，我会调整原来的判断。",
+            "① 点明冲突；② 承认并复述相反的证据；③ 明确说出立场改变；④ 给出理由链；⑤ 说明可以怎样核实。",
+        ),
+        "suspend_and_verify": (
+            "证据之间互相矛盾，现在下结论为时过早，先不下判断。",
+            "① 点明这是证据不确定而非立场问题；② 暂不下结论；③ 并列几种可能的解读；④ 说明可以怎样核实。",
+        ),
+        "deny_evidence": (
+            "不改变原判断，转而质疑这条证据本身的分量。",
+            "① 对冲突一笔带过；② 质疑证据来源；③ 复述原立场；④ 把疑点转移到证据上。",
+        ),
+        "trivialize": (
+            "承认这条信息属实，但淡化它的重要性，原判断不变。",
+            "① 对冲突一笔带过；② 承认事实；③ 淡化其重要性；④ 复述原立场。",
+        ),
+        "rationalize": (
+            "补充一些支持原判断的说法，把不一致之处抹平。",
+            "① 对冲突一笔带过；② 补充支持原判断的说法；③ 复述原立场；④ 抹平表面上的不一致。",
+        ),
+        "reduce_commitment": (
+            "不明确改口，但把原来的说法说得更软。",
+            "① 把说法放软；② 不明确承认改口；③ 降低确定性的措辞。",
+        ),
+        "hold_under_pressure": (
+            "因为你在施压而坚持原判断，而不是因为证据。",
+            "① 承认受到压力；② 复述原立场；③ 说明判断的证据依据。",
+        ),
+    },
+    "en": {
+        "none": ("No change to how the answer is phrased.", ""),
+        "maintain_with_caveat": (
+            "Hold the original judgement, stated less absolutely.",
+            "(1) mark the conflict; (2) acknowledge the counter-evidence; (3) reduce certainty; (4) say what would change my mind.",
+        ),
+        "qualify": (
+            "Keep the judgement but narrow the range it covers, and say what would change it.",
+            "(1) mark the conflict; (2) acknowledge the counter-evidence; (3) reduce certainty; (4) conditional acceptance; (5) give a way to verify.",
+        ),
+        "recalibrate": (
+            "The new evidence carries enough weight that the judgement is revised.",
+            "(1) mark the conflict; (2) acknowledge the counter-evidence; (3) state the change; (4) give the reason chain; (5) give a way to verify.",
+        ),
+        "suspend_and_verify": (
+            "The evidence conflicts with itself, so no conclusion is drawn yet.",
+            "(1) mark it as indeterminacy rather than a stance problem; (2) withhold the conclusion; (3) state the competing readings; (4) give a way to verify.",
+        ),
+        "deny_evidence": (
+            "Keep the judgement and question the weight of this evidence instead.",
+            "(1) mention the conflict only in passing; (2) discount the source; (3) restate the stance; (4) shift doubt onto the evidence.",
+        ),
+        "trivialize": (
+            "Accept the fact but deny its importance; the judgement stands.",
+            "(1) mention the conflict only in passing; (2) accept the fact; (3) deny its importance; (4) restate the stance.",
+        ),
+        "rationalize": (
+            "Add supporting considerations and smooth the inconsistency over.",
+            "(1) mention the conflict only in passing; (2) add consonant cognitions; (3) restate the stance; (4) smooth the apparent inconsistency.",
+        ),
+        "reduce_commitment": (
+            "Do not retract, but state the claim less strongly.",
+            "(1) soften the claim; (2) avoid explicit retraction; (3) reduce certainty.",
+        ),
+        "hold_under_pressure": (
+            "Hold the judgement because of the pressure, not because of the evidence.",
+            "(1) acknowledge the pressure; (2) restate the stance; (3) state the evidence basis.",
+        ),
+    },
+}
+
+#: Plain-language names for the language-act codes. The codes are the auditable
+#: identifiers and stay in the log and in the technical card; a user reading a
+#: plain card gets the move itself. ``references/indicators.md`` maps each code to
+#: the linguistic indicators the coder looks for, which is the layer that keeps the
+#: plain phrasing answerable to the code.
+_ACT_PLAIN = {
+    "zh": {
+        "mark_conflict": "点明这里存在冲突",
+        "mark_indeterminacy": "点明这是证据之间的不确定，而不是我的立场问题",
+        "mark_conflict_minimally": "对冲突一笔带过",
+        "acknowledge_counterevidence": "承认并复述相反的证据",
+        "reduce_certainty": "降低确定性的措辞",
+        "state_what_would_change_mind": "说明什么情况下我会改变看法",
+        "conditional_acceptance": "有条件的接受",
+        "give_verification_path": "说明可以怎样核实",
+        "state_stance_change": "明确说出立场已经改变",
+        "give_reason_chain": "给出理由链",
+        "withhold_conclusion": "暂不下结论",
+        "state_competing_readings": "并列几种可能的解读",
+        "discount_source": "质疑证据来源的可信度",
+        "restate_stance": "复述原来的立场",
+        "shift_doubt_to_evidence": "把疑点转移到证据上",
+        "accept_fact": "承认这条事实",
+        "deny_importance": "淡化它的重要性",
+        "add_consonant_cognition": "补充支持原判断的说法",
+        "smooth_apparent_inconsistency": "抹平表面上的不一致",
+        "soften_claim": "把原来的说法放软",
+        "avoid_explicit_retraction": "不明确承认改口",
+        "acknowledge_pressure": "承认受到了压力",
+        "state_evidence_basis": "说明判断的证据依据",
+    },
+    "en": {
+        "mark_conflict": "mark the conflict",
+        "mark_indeterminacy": "mark it as evidential indeterminacy, not a stance problem",
+        "mark_conflict_minimally": "mention the conflict only in passing",
+        "acknowledge_counterevidence": "acknowledge and restate the counter-evidence",
+        "reduce_certainty": "state the claim less certainly",
+        "state_what_would_change_mind": "say what would change my mind",
+        "conditional_acceptance": "accept the evidence conditionally",
+        "give_verification_path": "say how it could be verified",
+        "state_stance_change": "state the change of position explicitly",
+        "give_reason_chain": "give the chain of reasons",
+        "withhold_conclusion": "withhold the conclusion",
+        "state_competing_readings": "state the competing readings",
+        "discount_source": "question the credibility of the source",
+        "restate_stance": "restate the original position",
+        "shift_doubt_to_evidence": "shift the doubt onto the evidence",
+        "accept_fact": "accept the fact",
+        "deny_importance": "deny its importance",
+        "add_consonant_cognition": "add supporting considerations",
+        "smooth_apparent_inconsistency": "smooth over the apparent inconsistency",
+        "soften_claim": "soften the original claim",
+        "avoid_explicit_retraction": "avoid an explicit retraction",
+        "acknowledge_pressure": "acknowledge the pressure",
+        "state_evidence_basis": "state the evidential basis",
+    },
+}
+
 _CONSTRAINT_LABELS = {
     "zh": {
         "no_fabrication": "不得编造证据、来源或引文",
@@ -223,13 +406,307 @@ _TYPE_LABELS = {
     },
 }
 
+#: Plain names for the same conflict types, plus what the type *means* for the
+#: reader. The distinction the project cares most about lives here: an
+#: evidence-vs-evidence clash is a decision problem, not a threat to a position,
+#: and a card that let the two read alike would undo the construct separation in
+#: the one place a user actually sees it.
+_TYPE_PLAIN = {
+    "zh": {
+        "none": ("没有发现冲突", "本轮没有发现需要处理的矛盾。"),
+        "evidence_vs_stance": ("新证据与我先前的说法相反", "被冲击的是我自己选定并说过的判断。"),
+        "evidence_vs_evidence": ("证据之间互相冲突", "互相冲突的是证据本身，不是我的立场，因此暂时无法确定该往哪个方向改。"),
+        "user_hint_vs_stance": ("你希望我接受的说法与我先前的说法相反", "这是来自你的压力与我的判断之间的冲突，压力不等于证据。"),
+        "memory_vs_current": ("我现在的说法与我记忆中的说法相反", "被冲击的是我先前记住的判断。"),
+    },
+    "en": {
+        "none": ("no conflict found", "No contradiction requiring attention this turn."),
+        "evidence_vs_stance": ("new evidence contradicts what I said earlier", "What is threatened is a judgement I chose and stated myself."),
+        "evidence_vs_evidence": ("the evidence contradicts itself", "The sources clash with each other, not with my position, so no direction of revision is determined yet."),
+        "user_hint_vs_stance": ("what you want me to accept contradicts what I said earlier", "This is pressure against my judgement; pressure is not evidence."),
+        "memory_vs_current": ("what I am saying now contradicts what I remember saying", "What is threatened is a judgement I had recorded."),
+    },
+}
+
+#: Plain names for the two sides of a conflict. Roles come from the conflict type
+#: (an enum), so the same packet always gets the same labels.
+_CLAIM_LABELS = {
+    "zh": {
+        "stance": "我先前的说法",
+        "evidence": "新出现的信息",
+        "evidence_1": "来源一的说法",
+        "evidence_2": "来源二的说法",
+        "memory": "我记忆中的说法",
+        "current": "我现在的说法",
+        "user_hint": "你希望我接受的说法",
+        "unknown": "其中一方",
+    },
+    "en": {
+        "stance": "what I said earlier",
+        "evidence": "the new information",
+        "evidence_1": "what source one says",
+        "evidence_2": "what source two says",
+        "memory": "what I remember saying",
+        "current": "what I am saying now",
+        "user_hint": "what you want me to accept",
+        "unknown": "one side",
+    },
+}
+
+_PLAIN = {
+    "zh": {
+        "guard_header": "发现上下文矛盾冲突",
+        "guard_placebo_header": "本轮需要你确认一次",
+        "guard_placebo_body": "（本轮不提供冲突内容，只保持相同的流程节奏。）",
+        # Two different bars, two different words. The guard compares against the
+        # interruption bar and the detection card against the level bar, and calling
+        # both of them "判定线" would make a user who sees both cards think one of
+        # the numbers had changed.
+        "guard_magnitude": "初步冲突检测大小：{value}（提示门槛 {threshold}，{word}）",
+        "guard_magnitude_no_number": "初步冲突检测大小：{word}",
+        "guard_magnitude_word": "明显",
+        "guard_magnitude_word_mid": "较明显",
+        "guard_magnitude_word_edge": "刚好过线",
+        "guard_magnitude_word_below": "未达门槛",
+        "guard_ask": "是否进入评估？",
+        "guard_ask_process": "· 回复「处理」→ 我评估证据分量、权衡要不要调整立场，并给出应对策略",
+        "guard_ask_ignore": "· 回复「忽略」→ 我按普通对话继续，之后不再就同一处冲突打扰你",
+        "guard_ask_later": "· 回复「稍后」→ 先记下，等出现更新的信息时再提",
+        "guard_auto": "已自动进入评估（当前配置不等待你的决定）。",
+        "guard_log_only": "该条件只记录、不进入评估。",
+        "guard_detect_header": "确认存在上下文矛盾冲突",
+        "guard_detect_header_indeterminacy": "发现证据之间自相矛盾（不是认知失调）",
+        "guard_detect_header_gated": "已检测到冲突，未计入失调（缺少自主选择的立场）",
+        "guard_meaning": "这是哪一类问题：{type}——{meaning}",
+        "guard_meaning_gated": "这是哪一类问题：{type}——但该立场不是我自主选择的，因此本事件不计入失调。",
+        "eval_header": "该不该调整立场",
+        "eval_step1": "① 新证据的分量：{band}",
+        "eval_step1_weighted": "① 新证据的分量：{band}（{score}）",
+        "eval_weights": "   分项：{items}",
+        "eval_weight_item": "{name} {value}（权重 {weight}）",
+        "eval_weight_item_no_number": "{name}（权重 {weight}）",
+        "eval_step2": "② 我原立场的牢固程度：{band}",
+        "eval_step2_full": "② 我原立场的牢固程度：承诺 {commitment}｜已公开 {public}｜自主选择 {volition} → 改口代价 {cost}（{cost_band}）",
+        "eval_step3": "③ 两个方向的合理性：维持原判 {maintain}｜修正立场 {recalibrate}",
+        "eval_step3_no_number": "③ 两个方向的合理性：{comparison}",
+        "eval_compare_recalibrate": "修正立场比维持原判更站得住",
+        "eval_compare_maintain": "维持原判比修正立场更站得住",
+        "eval_compare_close": "两者接近",
+        "eval_step4": "④ 规则判定：建议【{strategy}】{rule}",
+        "eval_step5": "⑤ 理由：",
+        "eval_pressure": "⑥ 需要额外说明：你给出的压力已达到标记阈值，压力与证据判断会分开陈述。",
+        "eval_header_reduction": "该不该调整立场（本分支模拟的是人类失调削减）",
+        "resp_header": "我采用的应对策略：{strategy}",
+        "resp_header_none": "本轮不做策略塑形",
+        "resp_header_withheld": "本轮不给出行为指令",
+        "resp_what": "这是什么策略：{what}",
+        "resp_branch": "类别：{branch}——{meaning}",
+        "resp_acts": "你会在回复里看到我：",
+        "resp_change_yes": "立场会不会变：会——{target}",
+        "resp_change_no": "立场会不会变：不会，原判断维持不变。",
+        "resp_change_withheld": "立场会不会变：本轮不做指示。",
+        "resp_constraints": "我必须守住的底线：",
+        "resp_next": "下一步：按以上策略写出回复（回复正文写在卡片之后，不并入卡片）。",
+        "resp_next_none": "下一步：按平常方式作答。",
+        "detect_header": "发现上下文矛盾冲突",
+        "detect_header_indeterminacy": "发现证据之间自相矛盾（不是认知失调）",
+        "detect_header_gated": "已检测到冲突，未计入失调（缺少自主选择的立场）",
+        "detect_size": "冲突检测大小：{value}（冲突门槛 {threshold}，{word}）",
+        "detect_size_gated": "冲突检测大小：{value}（冲突门槛 {threshold}；计分原始值 {raw}，因缺少自主选择的立场已封顶）",
+        "detect_size_no_number": "冲突检测大小：{word}",
+        "detect_channel": "这是哪一类问题：{type}——{meaning}",
+        "detect_channel_gated": "这是哪一类问题：{type}——但该立场不是我自主选择的，因此本事件不计入失调。",
+        "detect_key_points": "关键点：",
+        "detect_uncertainty": "需要留意：",
+        "detect_margin_loose": "评分可动范围：±{margin}（离最近的判定线 {boundary} 还有这么远，这个层级不是勉强过线）",
+        "detect_margin_tight": "评分可动范围：±{margin}（离最近的判定线 {boundary} 只有这么远，换个标注就可能跨过去）",
+        "detect_margin_capped": "评分可动范围：±{margin}（本事件已封顶，层级不由评分决定）",
+    },
+    "en": {
+        "guard_header": "conflict found in the current context",
+        "guard_placebo_header": "one confirmation needed this turn",
+        "guard_placebo_body": "(no conflict content this turn; the same cadence is kept.)",
+        "guard_magnitude": "initial conflict reading: {value} (interruption bar {threshold}, {word})",
+        "guard_magnitude_no_number": "initial conflict reading: {word}",
+        "guard_magnitude_word": "clear",
+        "guard_magnitude_word_mid": "fairly clear",
+        "guard_magnitude_word_edge": "just over the bar",
+        "guard_magnitude_word_below": "below the bar",
+        "guard_ask": "Evaluate this?",
+        "guard_ask_process": "- reply 'process' -> I weigh the evidence and the cost of changing position, then give a strategy",
+        "guard_ask_ignore": "- reply 'ignore' -> I carry on as an ordinary turn and do not raise this conflict again",
+        "guard_ask_later": "- reply 'later' -> noted; I raise it again only if newer information arrives",
+        "guard_auto": "Evaluation started automatically (this configuration does not wait for your decision).",
+        "guard_log_only": "This condition is recorded only; evaluation does not run.",
+        "guard_detect_header": "conflict confirmed in the current context",
+        "guard_detect_header_indeterminacy": "the evidence contradicts itself (not dissonance)",
+        "guard_detect_header_gated": "conflict detected, not counted as dissonance (no freely chosen stance)",
+        "guard_meaning": "what this is: {type} - {meaning}",
+        "guard_meaning_gated": "what this is: {type} - but the position was not freely chosen, so this event is not counted as dissonance.",
+        "eval_header": "should the position move?",
+        "eval_step1": "(1) weight of the new evidence: {band}",
+        "eval_step1_weighted": "(1) weight of the new evidence: {band} ({score})",
+        "eval_weights": "    by dimension: {items}",
+        "eval_weight_item": "{name} {value} (weight {weight})",
+        "eval_weight_item_no_number": "{name} (weight {weight})",
+        "eval_step2": "(2) how firmly the position is held: {band}",
+        "eval_step2_full": "(2) how firmly the position is held: commitment {commitment} | public {public} | free choice {volition} -> cost of changing {cost} ({cost_band})",
+        "eval_step3": "(3) both directions: holding {maintain} | revising {recalibrate}",
+        "eval_step3_no_number": "(3) both directions: {comparison}",
+        "eval_compare_recalibrate": "revising stands up better than holding",
+        "eval_compare_maintain": "holding stands up better than revising",
+        "eval_compare_close": "the two are close",
+        "eval_step4": "(4) rule outcome: {strategy} recommended{rule}",
+        "eval_step5": "(5) why:",
+        "eval_pressure": "(6) one more thing: your pressure passed the flag threshold, so pressure and evidence will be reported separately.",
+        "eval_header_reduction": "should the position move? (this branch simulates human dissonance reduction)",
+        "resp_header": "strategy I am applying: {strategy}",
+        "resp_header_none": "no strategy shaping this turn",
+        "resp_header_withheld": "no behavioural instruction this turn",
+        "resp_what": "what that means: {what}",
+        "resp_branch": "branch: {branch} - {meaning}",
+        "resp_acts": "what you will see me do:",
+        "resp_change_yes": "will the position move: yes - {target}",
+        "resp_change_no": "will the position move: no, the original judgement stands.",
+        "resp_change_withheld": "will the position move: no instruction was issued this turn.",
+        "resp_constraints": "constraints I must keep:",
+        "resp_next": "next: the reply is written to this strategy (the reply itself follows the card).",
+        "resp_next_none": "next: answering as usual.",
+        "detect_header": "conflict found in the current context",
+        "detect_header_indeterminacy": "the evidence contradicts itself (not dissonance)",
+        "detect_header_gated": "conflict detected, not counted as dissonance (no freely chosen stance)",
+        "detect_size": "conflict reading: {value} (level threshold {threshold}, {word})",
+        "detect_size_gated": "conflict reading: {value} (level threshold {threshold}; raw index {raw}, capped because no stance was freely chosen)",
+        "detect_size_no_number": "conflict reading: {word}",
+        "detect_channel": "what this is: {type} - {meaning}",
+        "detect_channel_gated": "what this is: {type} - but the position was not freely chosen, so this event is not counted as dissonance.",
+        "detect_key_points": "key points:",
+        "detect_uncertainty": "worth knowing:",
+        "detect_margin_loose": "rating tolerance: +/-{margin} (that is how far the nearest boundary {boundary} is; this level is not a close call)",
+        "detect_margin_tight": "rating tolerance: +/-{margin} (only that far from the nearest boundary {boundary}; a different annotation could cross it)",
+        "detect_margin_capped": "rating tolerance: +/-{margin} (this event is capped, so the level is not decided by the ratings)",
+    },
+}
+
+#: Band words for a 0-1 score, so a reader who is not given the number is still
+#: given the judgement. Thresholds are (upper bound exclusive, word). The upper
+#: bounds sit above the round numbers the config uses as thresholds - 0.60 is
+#: "moderate" rather than "strong" - so that the word does not disagree with a
+#: reader's sense of where the middle is.
+_BANDS = {
+    "zh": ((0.20, "很弱"), (0.40, "偏弱"), (0.65, "中等"), (0.85, "偏强"), (1.01, "很强")),
+    "en": ((0.20, "very weak"), (0.40, "weak"), (0.65, "moderate"), (0.85, "strong"), (1.01, "very strong")),
+}
+
+_EVIDENCE_DIMENSION_NAMES = {
+    "zh": {
+        "relevance": "相关性",
+        "credibility": "可信度",
+        "recency": "时效性",
+        "independence": "独立性",
+        "consistency": "一致性",
+    },
+    "en": {
+        "relevance": "relevance",
+        "credibility": "credibility",
+        "recency": "recency",
+        "independence": "independence",
+        "consistency": "consistency",
+    },
+}
+
 
 def _labels(language: str) -> dict[str, str]:
     return _LABELS.get(language) or _LABELS["zh"]
 
 
+def _plain(language: str) -> dict[str, str]:
+    return _PLAIN.get(language) or _PLAIN["zh"]
+
+
 def _bullets(lines: list[str], marker: str = "-") -> list[str]:
     return [f"{marker} {line}" for line in lines]
+
+
+def card_style(config: dict[str, Any]) -> str:
+    """Which rendering the config asks for. Unknown values fall back to plain."""
+    return str(config.get("transparency", {}).get("card_style", PLAIN))
+
+
+def band_word(value: float, language: str) -> str:
+    for upper, word in _BANDS.get(language) or _BANDS["zh"]:
+        if value < upper:
+            return word
+    return (list((_BANDS.get(language) or _BANDS["zh"]))[-1])[1]
+
+
+def _excerpt(text: str, limit: int = CLAIM_DISPLAY_LIMIT) -> str:
+    """Shorten a claim for display without pretending it is the whole span."""
+    collapsed = " ".join(str(text).split())
+    if len(collapsed) <= limit:
+        return collapsed
+    return collapsed[: limit - 1].rstrip() + "…"
+
+
+def _claim_lines(claims: dict[str, Any] | None, language: str) -> list[str]:
+    """Render the two colliding claims as the first thing a reader sees."""
+    labels = _CLAIM_LABELS.get(language) or _CLAIM_LABELS["zh"]
+    claims = claims or {}
+    a, b = claims.get("a"), claims.get("b")
+    lines: list[str] = []
+
+    a_role = (a or {}).get("role")
+    b_role = (b or {}).get("role")
+    if a_role == "evidence" and b_role == "evidence":
+        a_label, b_label = labels["evidence_1"], labels["evidence_2"]
+    else:
+        a_label = labels.get(a_role or "", labels["unknown"])
+        b_label = labels.get(b_role or "", labels["unknown"])
+
+    if a:
+        lines.append(f"观点1（{a_label}）：「{_excerpt(a['text'])}」")
+    if b:
+        lines.append(f"观点2（{b_label}）：「{_excerpt(b['text'])}」")
+    return lines
+
+
+def _technical_claim_lines(claims: dict[str, Any] | None, language: str) -> list[str]:
+    """The same two claims as the plain style, labelled with their role codes.
+
+    Both styles name the claims because *what* the conflict is, is not a
+    presentational nicety: a card carrying only an index value cannot be checked
+    against the conversation by the person reading it. The styles differ in how
+    they label the sides - a role code here, a plain phrase there - not in whether
+    they say what clashed.
+    """
+    claims = claims or {}
+    lines: list[str] = []
+    for index, key in ((1, "a"), (2, "b")):
+        side = claims.get(key)
+        if side:
+            lines.append(f"观点{index}（{side['role']}）：「{_excerpt(side['text'])}」")
+    return lines
+
+
+def _magnitude_word(tension: float, threshold: float, language: str) -> str:
+    """How far past the bar the reading sits, in words rather than decimals.
+
+    A reader given "0.69 / 0.62" has to do the subtraction to learn whether this
+    is a near miss or a clear hit, and that subtraction is the engine's job.
+    """
+    plain = _plain(language)
+    margin = tension - threshold
+    if margin < 0:
+        # Reachable on the detection card for a sub-threshold or gated event, and
+        # reachable when `numeric_cards` is off, where the word is the *only* thing
+        # the reader gets. Saying "just over the bar" there would assert the
+        # opposite of what the engine computed.
+        return plain["guard_magnitude_word_below"]
+    if margin >= 0.15:
+        return plain["guard_magnitude_word"]
+    if margin >= 0.05:
+        return plain["guard_magnitude_word_mid"]
+    return plain["guard_magnitude_word_edge"]
 
 
 def index_margin(tension: dict[str, Any]) -> tuple[float, float]:
@@ -275,8 +752,29 @@ def _margin_line(
     return f"{labels['band_tight' if tight else 'band']}：{body}"
 
 
-def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: bool | None = None) -> str:
-    """Render the detection card."""
+def _next_text(detection: dict[str, Any], config: dict[str, Any], labels: dict[str, str]) -> str:
+    action = detection["tension_result"]["next_action"]
+    text = {
+        "log_only": labels["next_log"],
+        "await_user_decision": labels["next_await"],
+        "auto_evaluate": labels["next_auto"],
+        "skip": labels["next_skip"],
+    }.get(action, labels["next_log"])
+    if detection.get("placebo"):
+        text = labels["next_placebo"]
+    if config["skill"]["mode"] == "detect_only":
+        text = labels["next_detect_only"]
+    return text
+
+
+# --------------------------------------------------------------------------
+# Technical style (v0.3.0 rendering, unchanged)
+# --------------------------------------------------------------------------
+
+
+def _technical_detect_card(
+    detection: dict[str, Any], config: dict[str, Any], numeric: bool | None = None
+) -> str:
     language = config["skill"]["language"]
     labels = _labels(language)
     show_numbers = config["skill"]["numeric_cards"] if numeric is None else numeric
@@ -289,11 +787,6 @@ def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: b
     tension = detection["tension_result"]
     conflict_type = event["conflict_type"]
     channel = tension["channel"]
-
-    # The gate caps the index for a conflict that is not dissonance. The card must
-    # say so on its face: a reader who only sees "dissonance-related tension" over a
-    # capped 0.40 cannot tell a suppressed event from a sub-threshold one, and the
-    # card would then contradict the rule that every label is reported.
     gate = event.get("gate") or {}
     gated = bool(gate.get("applied"))
 
@@ -313,9 +806,6 @@ def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: b
                 f"{labels['threshold']} {tension['threshold_alert']:.2f}"
             )
         else:
-            # When the gate fired, the printed index is the cap rather than the
-            # arithmetic the ratings produced. Showing both keeps the cap auditable
-            # instead of letting it masquerade as the measured value.
             raw_suffix = (
                 f"（计分原始值 {event['raw_index']:.2f}，已封顶）" if gated and language == "zh"
                 else f" (raw index {event['raw_index']:.2f}, capped)" if gated
@@ -329,9 +819,11 @@ def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: b
         tight = margin <= float(transparency.get("tight_margin", 0.05))
         lines.append(_margin_line(language, labels, margin, boundary, tight, gated))
 
-    lines.append(f"{labels['type']}：{_TYPE_LABELS.get(language, _TYPE_LABELS['zh']).get(conflict_type, conflict_type)}")
+    lines.append(
+        f"{labels['type']}：{_TYPE_LABELS.get(language, _TYPE_LABELS['zh']).get(conflict_type, conflict_type)}"
+    )
+    lines.extend(_technical_claim_lines(event.get("claims"), language))
     if gated:
-        # The engine's own explanation, verbatim, so the reason cannot drift from prose.
         lines.append(f"{labels['gate']}：{gate.get('detail')}")
     elif channel == "dissonance":
         lines.append(f"{labels['channel']}：{labels['channel_dissonance']}")
@@ -349,24 +841,13 @@ def detect_card(detection: dict[str, Any], config: dict[str, Any], *, numeric: b
     if consistency["flagged"]:
         lines.append(labels["consistency_only"].format(sev=f"{consistency['severity']:.2f}"))
 
-    action = tension["next_action"]
-    next_text = {
-        "log_only": labels["next_log"],
-        "await_user_decision": labels["next_await"],
-        "auto_evaluate": labels["next_auto"],
-        "skip": labels["next_skip"],
-    }.get(action, labels["next_log"])
-    if detection.get("placebo"):
-        next_text = labels["next_placebo"]
-    if config["skill"]["mode"] == "detect_only":
-        next_text = labels["next_detect_only"]
-    lines.append(f"{labels['next']}：{next_text}")
-
+    lines.append(f"{labels['next']}：{_next_text(detection, config, labels)}")
     return "\n".join(lines)
 
 
-def evaluation_card(evaluation: dict[str, Any], config: dict[str, Any], *, numeric: bool | None = None) -> str:
-    """Render the evaluation card."""
+def _technical_evaluation_card(
+    evaluation: dict[str, Any], config: dict[str, Any], numeric: bool | None = None
+) -> str:
     language = config["skill"]["language"]
     labels = _labels(language)
     strategy_labels = _STRATEGY_LABELS.get(language) or _STRATEGY_LABELS["zh"]
@@ -404,8 +885,9 @@ def evaluation_card(evaluation: dict[str, Any], config: dict[str, Any], *, numer
     return "\n".join(lines)
 
 
-def response_card(evaluation: dict[str, Any], config: dict[str, Any], *, numeric: bool | None = None) -> str:
-    """Render the response card."""
+def _technical_response_card(
+    evaluation: dict[str, Any], config: dict[str, Any], numeric: bool | None = None
+) -> str:
     language = config["skill"]["language"]
     labels = _labels(language)
     branch_labels = _BRANCH_LABELS.get(language) or _BRANCH_LABELS["zh"]
@@ -442,6 +924,424 @@ def response_card(evaluation: dict[str, Any], config: dict[str, Any], *, numeric
     lines.extend(_bullets([constraint_labels.get(code, code) for code in plan["constraints"]]))
 
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Plain style (default since v0.4.0)
+# --------------------------------------------------------------------------
+
+
+def _plain_detect_card(
+    detection: dict[str, Any], config: dict[str, Any], numeric: bool | None = None
+) -> str:
+    language = config["skill"]["language"]
+    labels = _labels(language)
+    plain = _plain(language)
+    show_numbers = config["skill"]["numeric_cards"] if numeric is None else numeric
+    transparency = config["transparency"]
+
+    if detection.get("placebo"):
+        return labels["placebo"]
+
+    event = detection["conflict_event"]
+    tension = detection["tension_result"]
+    conflict_type = event["conflict_type"]
+    channel = tension["channel"]
+    gate = event.get("gate") or {}
+    gated = bool(gate.get("applied"))
+
+    if gated:
+        headline = plain["detect_header_gated"]
+    elif channel == "indeterminacy":
+        headline = plain["detect_header_indeterminacy"]
+    else:
+        headline = plain["detect_header"]
+    lines = [f"【CDS｜{labels['detect']}】{headline}"]
+
+    lines.extend(_claim_lines(event.get("claims"), language))
+
+    type_plain = _TYPE_PLAIN.get(language) or _TYPE_PLAIN["zh"]
+    type_name, type_meaning = type_plain.get(conflict_type, (conflict_type, ""))
+    shown_value = tension["tension"]
+    shown_threshold = tension["threshold_alert"]
+    word = _magnitude_word(shown_value, shown_threshold, language)
+
+    if show_numbers and transparency["include_scores"]:
+        if gated:
+            lines.append(
+                plain["detect_size_gated"].format(
+                    value=f"{shown_value:.2f}",
+                    threshold=f"{shown_threshold:.2f}",
+                    raw=f"{event['raw_index']:.2f}",
+                )
+            )
+        else:
+            lines.append(
+                plain["detect_size"].format(
+                    value=f"{shown_value:.2f}", threshold=f"{shown_threshold:.2f}", word=word
+                )
+            )
+    else:
+        lines.append(plain["detect_size_no_number"].format(word=word))
+
+    lines.append(
+        (
+            plain["detect_channel_gated"]
+            if gated
+            else plain["detect_channel"]
+        ).format(type=type_name, meaning=type_meaning)
+    )
+
+    if gated:
+        # The engine's own explanation, verbatim, so the reason cannot drift.
+        lines.append(f"{labels['gate']}：{gate.get('detail')}")
+
+    if tension["key_points"]:
+        lines.append(plain["detect_key_points"])
+        lines.extend(_bullets(tension["key_points"]))
+    if tension["uncertainty"]:
+        lines.append(plain["detect_uncertainty"])
+        lines.extend(_bullets(tension["uncertainty"]))
+
+    consistency = detection["consistency_gate_result"]
+    if consistency["flagged"]:
+        lines.append(labels["consistency_only"].format(sev=f"{consistency['severity']:.2f}"))
+
+    if show_numbers and transparency["include_scores"]:
+        margin, boundary = index_margin(tension)
+        tight = margin <= float(transparency.get("tight_margin", 0.05))
+        if gated:
+            key = "detect_margin_capped"
+        else:
+            key = "detect_margin_tight" if tight else "detect_margin_loose"
+        lines.append(plain[key].format(margin=f"{margin:.2f}", boundary=f"{boundary:.2f}"))
+
+    lines.append(f"{labels['next']}：{_next_text(detection, config, labels)}")
+    return "\n".join(lines)
+
+
+def _plain_evaluation_card(
+    evaluation: dict[str, Any], config: dict[str, Any], numeric: bool | None = None
+) -> str:
+    """The evaluation, in the order a person deciding would ask the questions."""
+    language = config["skill"]["language"]
+    labels = _labels(language)
+    plain = _plain(language)
+    strategy_labels = _STRATEGY_LABELS.get(language) or _STRATEGY_LABELS["zh"]
+    show_numbers = config["skill"]["numeric_cards"] if numeric is None else numeric
+    show_scores = show_numbers and config["transparency"]["include_scores"]
+
+    result = evaluation["evaluation_result"]
+    strategy = result["recommended_strategy"]
+    # The reduction branch is named in the heading as well as in the body: a reader
+    # who skims only the first line of the evaluation must still learn that the
+    # branch being described is a simulation of motivated reasoning.
+    branch = (evaluation.get("response_plan") or {}).get("branch")
+    header = plain["eval_header_reduction"] if branch == "dissonance_reduction" else plain["eval_header"]
+    lines = [f"【CDS｜{labels['eval']}】{header}"]
+
+    # (1) evidence, with each rated dimension and its weight, so the reader can see
+    # the arithmetic that produced the number rather than only the number.
+    band = band_word(result["evidence_score"], language)
+    if show_scores:
+        lines.append(plain["eval_step1_weighted"].format(band=band, score=f"{result['evidence_score']:.2f}"))
+    else:
+        lines.append(plain["eval_step1"].format(band=band))
+
+    detail = result.get("evidence_detail") or {}
+    if detail:
+        names = _EVIDENCE_DIMENSION_NAMES.get(language) or _EVIDENCE_DIMENSION_NAMES["zh"]
+        items = []
+        for name, entry in detail.items():
+            if show_scores:
+                items.append(
+                    plain["eval_weight_item"].format(
+                        name=names.get(name, name),
+                        value=f"{entry['mean_raw']:.2f}",
+                        weight=f"{entry['weight'] * 100:.0f}%",
+                    )
+                )
+            else:
+                items.append(
+                    plain["eval_weight_item_no_number"].format(
+                        name=names.get(name, name), weight=f"{entry['weight'] * 100:.0f}%"
+                    )
+                )
+        lines.append(plain["eval_weights"].format(items="｜".join(items)))
+
+    # (2) the stance side: what changing would cost.
+    if show_scores:
+        lines.append(
+            plain["eval_step2_full"].format(
+                commitment=f"{result['stance_commitment']:.2f}",
+                public=f"{result['public_commitment']:.2f}",
+                volition=f"{result['volition_self']:.2f}",
+                cost=f"{result['adjustment_cost']:.2f}",
+                cost_band=band_word(result["adjustment_cost"], language),
+            )
+        )
+    else:
+        lines.append(plain["eval_step2"].format(band=band_word(result["stance_commitment"], language)))
+
+    # (3) both directions. The two scores answer different questions and are not
+    # normalised against each other, so the line compares them only in words.
+    if show_scores:
+        lines.append(
+            plain["eval_step3"].format(
+                maintain=f"{result['maintain_score']:.2f}", recalibrate=f"{result['recalibrate_score']:.2f}"
+            )
+        )
+    else:
+        delta = result["recalibrate_score"] - result["maintain_score"]
+        if delta > 0.05:
+            comparison = plain["eval_compare_recalibrate"]
+        elif delta < -0.05:
+            comparison = plain["eval_compare_maintain"]
+        else:
+            comparison = plain["eval_compare_close"]
+        lines.append(plain["eval_step3_no_number"].format(comparison=comparison))
+
+    rule = f"（命中规则 {result['fired_rule_id']}）" if config["transparency"]["include_rule_id"] else ""
+    lines.append(
+        plain["eval_step4"].format(strategy=strategy_labels.get(strategy, strategy), rule=rule)
+    )
+
+    lines.append(plain["eval_step5"])
+    lines.extend(_bullets(result["rationale"]))
+    if result["user_pressure_flag"]:
+        lines.append(plain["eval_pressure"])
+
+    return "\n".join(lines)
+
+
+def _plain_response_card(
+    evaluation: dict[str, Any], config: dict[str, Any], numeric: bool | None = None
+) -> str:
+    """What was chosen, why it reads that way, and what the reply will contain."""
+    language = config["skill"]["language"]
+    labels = _labels(language)
+    plain = _plain(language)
+    branch_plain = _BRANCH_PLAIN.get(language) or _BRANCH_PLAIN["zh"]
+    strategy_plain = _STRATEGY_PLAIN.get(language) or _STRATEGY_PLAIN["zh"]
+    strategy_labels = _STRATEGY_LABELS.get(language) or _STRATEGY_LABELS["zh"]
+    act_plain = _ACT_PLAIN.get(language) or _ACT_PLAIN["zh"]
+
+    plan = evaluation["response_plan"]
+    update = plan["stance_update"]
+    strategy = plan["strategy"]
+    withheld = bool(plan.get("acts_withheld"))
+
+    if withheld:
+        lines = [f"【CDS｜{labels['resp']}】{plain['resp_header_withheld']}"]
+        lines.append(labels["acts_withheld"])
+        lines.append(plain["resp_change_withheld"])
+        return "\n".join(lines)
+
+    if strategy == "none":
+        return f"【CDS｜{labels['resp']}】{plain['resp_header_none']}\n{plain['resp_next_none']}"
+
+    lines = [
+        f"【CDS｜{labels['resp']}】{plain['resp_header'].format(strategy=strategy_labels.get(strategy, strategy))}"
+    ]
+
+    what, summary = strategy_plain.get(strategy, ("", ""))
+    if what:
+        lines.append(plain["resp_what"].format(what=what))
+    branch_name = (_BRANCH_LABELS.get(language) or _BRANCH_LABELS["zh"]).get(plan["branch"], plan["branch"])
+    branch_meaning = branch_plain.get(plan["branch"], plan["branch"])
+    lines.append(f"{labels['branch']}：{branch_name}｜{branch_meaning}")
+
+    if plan["language_acts"]:
+        # The plan's own act list, in the plan's order, is what the card prints: a
+        # canned sentence per strategy could describe moves the plan did not route,
+        # and the card would then promise behaviour the engine never asked for.
+        lines.append(plain["resp_acts"])
+        for code in plan["language_acts"]:
+            lines.append(f"· {act_plain.get(code, code)}")
+    elif summary:
+        lines.append(plain["resp_acts"])
+        lines.append(f"· {summary}")
+
+    if update["planned_change"] and update["to"]:
+        lines.append(plain["resp_change_yes"].format(target=update["to"]))
+    else:
+        lines.append(plain["resp_change_no"])
+
+    constraint_labels = _CONSTRAINT_LABELS.get(language) or _CONSTRAINT_LABELS["zh"]
+    lines.append(plain["resp_constraints"])
+    lines.extend(_bullets([constraint_labels.get(code, code) for code in plan["constraints"]]))
+
+    lines.append(plain["resp_next"])
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# The guard card: the one surface that decides whether the rest runs
+# --------------------------------------------------------------------------
+
+
+def detect_brief(detection: dict[str, Any], config: dict[str, Any]) -> str:
+    """One line in place of the detection card.
+
+    The escalation path has already shown the user a guard card naming the two
+    claims and the conflict size. Printing a second card that repeats them is the
+    kind of duplication that makes a component feel heavy, so the model can ask for
+    a one-line confirmation instead and go straight to the evaluation card, which
+    is the part the user has not seen. Nothing is lost from the audit: the full
+    detection record is still logged and still available via ``--json``.
+    """
+    language = config["skill"]["language"]
+    tension = detection["tension_result"]
+    event_id = detection["conflict_event"]["event_id"]
+    if language == "en":
+        return (
+            f"[CDS | detection] conflict confirmed: event {event_id} | "
+            f"reading {tension['tension']:.2f} | level {tension['level']} | channel {tension['channel']}"
+        )
+    return (
+        f"【CDS｜检测】已确认冲突：事件 {event_id}｜冲突检测值 {tension['tension']:.2f}｜"
+        f"等级 {tension['level']}｜通道 {tension['channel']}"
+    )
+
+
+def guard_card(result: dict[str, Any], config: dict[str, Any], *, numeric: bool | None = None) -> str:
+    """Render the screening decision.
+
+    Returns an empty string when there is nothing for the user to see, and empty is
+    the correct rendering rather than an omission. Two cases reach it:
+
+    * **``silent``** — nothing was found worth interrupting for. A card that said
+      "nothing found" on every ordinary turn would be exactly the visible cost this
+      stage exists to remove.
+    * **``log_only``** — the arm or the policy withholds the user step. Rendering a
+      card for a path that may not show one would leave "record, never show" as a
+      documentation claim rather than a property of the code, and the `detect_only`
+      arm still produces its own detection card at the *detect* stage, so the arm
+      loses nothing by staying quiet here.
+
+    ``auto_evaluate`` does render: the guard is not asking, but the loop is about to
+    run without a decision, and the card is what tells the user that.
+    """
+    if result.get("decision") != "surface" or result.get("next_action") == "log_only":
+        return ""
+
+    language = config["skill"]["language"]
+    labels = _labels(language)
+    plain = _plain(language)
+    show_numbers = config["skill"]["numeric_cards"] if numeric is None else numeric
+    show_scores = show_numbers and config["transparency"]["include_scores"]
+
+    tension = float(result["tension"])
+    threshold = float(result["surface_threshold"])
+    word = _magnitude_word(tension, threshold, language)
+    event = (result.get("detection") or {}).get("conflict_event") or {}
+
+    if result.get("placebo"):
+        # Content-free by design: the placebo arm keeps the cadence, never the content.
+        lines = [f"【CDS｜{labels['detect']}】{plain['guard_placebo_header']}", plain["guard_placebo_body"]]
+    else:
+        channel = result["channel"]
+        if result.get("gated"):
+            headline = plain["guard_detect_header_gated"]
+        elif channel == "indeterminacy":
+            headline = plain["guard_detect_header_indeterminacy"]
+        else:
+            headline = plain["guard_header"]
+        lines = [f"【CDS｜{labels['detect']}】{headline}"]
+
+        lines.extend(_claim_lines(result.get("claims"), language))
+
+        type_plain = _TYPE_PLAIN.get(language) or _TYPE_PLAIN["zh"]
+        type_name, type_meaning = type_plain.get(result["conflict_type"], (result["conflict_type"], ""))
+
+        if show_scores:
+            lines.append(
+                plain["guard_magnitude"].format(
+                    value=f"{tension:.2f}", threshold=f"{threshold:.2f}", word=word
+                )
+            )
+        else:
+            lines.append(plain["guard_magnitude_no_number"].format(word=word))
+
+        # The gated wording is chosen here as well as on the full detection card:
+        # the guard can surface a gated event on the indeterminacy channel, and a
+        # line that called the position self-chosen would contradict the gate
+        # printed two lines below it.
+        lines.append(
+            (plain["guard_meaning_gated"] if result.get("gated") else plain["guard_meaning"]).format(
+                type=type_name, meaning=type_meaning
+            )
+        )
+
+        # The guard card is also what the user reads after consenting, so it carries
+        # the same gate-labelling rule as the full detection card.
+        gate = event.get("gate") or {}
+        if result.get("gated") and gate.get("detail"):
+            lines.append(f"{labels['gate']}：{gate.get('detail')}")
+
+        if card_style(config) == TECHNICAL:
+            raw = event.get("raw_index")
+            terms = event.get("terms") or {}
+            lines.append(
+                f"{labels['tension']}：{tension:.2f}｜{labels['threshold']} {threshold:.2f}｜"
+                f"{labels['type']}：{result['conflict_type']}｜{labels['channel']}：{result['channel']}"
+                + (f"｜原始值 {float(raw):.2f}" if isinstance(raw, (int, float)) else "")
+            )
+            if terms:
+                decomposition = " + ".join(
+                    f"{name} {float(entry['raw']):.2f}×{float(entry['weight']):.2f}"
+                    for name, entry in terms.items()
+                )
+                lines.append(f"索引分解：{decomposition}")
+
+    if result.get("asks_user"):
+        lines.extend(
+            [
+                "",
+                plain["guard_ask"],
+                plain["guard_ask_process"],
+                plain["guard_ask_ignore"],
+                plain["guard_ask_later"],
+            ]
+        )
+    elif result.get("next_action") == "auto_evaluate":
+        lines.extend(["", plain["guard_auto"]])
+    else:
+        lines.extend(["", plain["guard_log_only"]])
+
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Public entry points
+# --------------------------------------------------------------------------
+
+
+def detect_card(
+    detection: dict[str, Any], config: dict[str, Any], *, numeric: bool | None = None
+) -> str:
+    """Render the detection card in the configured style."""
+    if card_style(config) == TECHNICAL:
+        return _technical_detect_card(detection, config, numeric)
+    return _plain_detect_card(detection, config, numeric)
+
+
+def evaluation_card(
+    evaluation: dict[str, Any], config: dict[str, Any], *, numeric: bool | None = None
+) -> str:
+    """Render the evaluation card in the configured style."""
+    if card_style(config) == TECHNICAL:
+        return _technical_evaluation_card(evaluation, config, numeric)
+    return _plain_evaluation_card(evaluation, config, numeric)
+
+
+def response_card(
+    evaluation: dict[str, Any], config: dict[str, Any], *, numeric: bool | None = None
+) -> str:
+    """Render the response card in the configured style."""
+    if card_style(config) == TECHNICAL:
+        return _technical_response_card(evaluation, config, numeric)
+    return _plain_response_card(evaluation, config, numeric)
 
 
 def all_cards(detection: dict[str, Any], evaluation: dict[str, Any] | None, config: dict[str, Any]) -> str:

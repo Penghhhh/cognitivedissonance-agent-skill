@@ -3,6 +3,23 @@
 Your only job at this stage is **perception**. You rate the situation and emit one
 JSON object. You do not compute scores, judge strategies, or write the reply.
 
+## Where this packet comes from (v0.4.0)
+
+Since v0.4.0 there are two packets and this is the **full** one. The screening packet
+in [`triage.md`](triage.md) is written first, on every turn that shows a candidate
+conflict, and it carries only the terms the index consumes. This packet is written
+**only after the user has agreed to go further**, and it is normally the screening
+packet extended rather than a new one:
+
+- the six terms already rated (opposition, specificity, commitment, public commitment,
+  volition, self-relevance, novelty) are **carried over**, not re-rated;
+- each evidence item gains a verbatim `quote` and its five quality ratings;
+- add `consistency_gate`, `perception` and `relation.rationale`.
+
+Re-rating the carried-over terms would make the screening decision and the recorded
+event disagree for no reason, and the screening value is the considered one. Everything
+below describes the finished packet.
+
 ## Rules
 
 1. **Rate against `references/codebook.md` anchors.** When a case sits between two

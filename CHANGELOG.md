@@ -4,6 +4,150 @@ All notable changes to this skill are recorded here. The version appears in
 `VERSION`, in every log record, and in the `skill_version` field of every emitted
 structure, so a result can always be traced to the implementation that produced it.
 
+## [0.4.0] — 2026-09-12
+
+The usability release. v0.3.0 was correct and unusable: switched on, it charged a full
+signal packet and a three-card loop **on every turn**, including the overwhelming
+majority of turns that contain no conflict, and the cards it produced were written for
+a reviewer checking a figure rather than for a person trying to follow what happened.
+Both are design defects rather than performance complaints — a component that has to be
+switched off cannot produce the long-session data Study 2 needs, and a card nobody can
+read does not make a process transparent, it only makes it look audited. Reasoning for
+each change is in [`docs/design-rationale.md`](docs/design-rationale.md) §8.
+
+### Added
+
+- **`scripts/cds_guard.py`** — the stealth screening stage. Detection is split in two:
+  a cheap pass that decides whether the user is interrupted **at all**, and the
+  unchanged v0.3.0 loop that runs only after consent. The guard rates nothing itself —
+  it calls the same `build_detection`, so there is still one index, one volition gate
+  and one set of thresholds in the repository — and it adds only a screening policy on
+  top. It returns `surface` or `silent` with machine-readable reasons
+  (`below_surface_threshold`, `opposition_below_floor`, `gated_not_dissonance`,
+  `dismissed_by_user`, `cooldown_active`, `surface_budget_exhausted`, and others), so a
+  held-back event is explained in the log rather than merely absent from the screen.
+  50 tests.
+- **`cds.py guard`** — a screening subcommand whose default output is deliberately not
+  the card-plus-JSON every other stage prints. On the silent path the entire output is
+  one line, `CDS_GUARD silent`: one sparse packet and one command are the whole cost of
+  an ordinary turn. `--json` prints the record, `--card-only` prints the card.
+- **`schemas/guard.schema.json`** — the screening record, validated on emit. It embeds
+  the full `DetectionResult` (itself validated against `detection.schema.json`), so a
+  screening log line is self-contained: the index decomposition and the gate detail are
+  readable straight out of it. The embedded detection carries a `state` block whose
+  `from` and `to` are the same state, because screening does not transition the machine
+  and saying so is better than omitting the field.
+- **`references/prompts/triage.md`** — the screening packet: which terms it needs,
+  which parts of the codebook it does **not** need, the `type` decision tree, and how
+  to extend it into the full packet without re-rating anything.
+- **`transparency.card_style`** (`plain` | `technical`, default `plain`) — the plain
+  rendering asks the questions in the order a person asks them: how strong the evidence
+  is (with each dimension and its weight), how firmly the position is held and what
+  changing it would cost, both directions side by side, the rule outcome, and the
+  reasons. The technical rendering is the v0.3.0 field list, kept because it is the
+  artefact earlier runs were coded from and because a reviewer checking a number wants
+  the fields. **Both styles are held to the same labelling rules by the test suite**, so
+  a readability rewrite cannot silently delete a construct label.
+- **`conflict_event.claims`** — the two colliding elements, each with a `role`
+  (`stance` | `evidence` | `memory` | `current` | `user_hint`) and its claim text.
+  Before v0.4.0 a detection record carried a stance claim and a list of evidence **ids**
+  and never the evidence's own claim text, so a card could not print the second half of
+  a contradiction even in principle. Roles are derived from the conflict type, an enum,
+  rather than from an evidence `source` string, which is free text.
+- **`detect --brief`** — one line instead of the full card, for the escalation path,
+  where the user has already read the two claims and the conflict size on the guard card.
+- **`examples/triage_sparse_conflict.json`, `examples/triage_sparse_quiet.json`** — two
+  screening packets, both in the executable table in `examples/README.md` and in
+  `scripts/check_examples.py`. The second is the one that states the design: a **real**
+  conflict, above the alert threshold and on the dissonance channel, that the guard
+  still holds back because it is below the interruption bar.
+
+### Changed
+
+- **The interruption bar is no longer the recording bar.** `guard.surface_threshold`
+  (0.62) is refused at config-load time if it falls below any alert threshold, and
+  `guard.min_opposition` (0.60) is a second floor: an event can clear the index on
+  commitment and volition while the two claims barely conflict. "Is this real enough to
+  record?" and "is this clear enough to spend someone's attention on?" are different
+  questions, and answering both with one number is how a transparency feature becomes
+  an annoyance feature.
+- **Session-level inhibitors**, in the state file rather than the packet:
+  `guard.cooldown_turns`, `guard.dismiss_memory` with `guard.resurface_novelty` (a
+  dismissed conflict returns only when the evidence is genuinely new, not when the same
+  objection is restated), and `guard.max_surfaces_per_run`. Suppressed surfaces are
+  logged with their reason, so the ceiling is visible in the data rather than silent.
+- **`guard.policy`** (`ask` | `auto` | `log_only`), independent of the ablation arm:
+  `ask` screens and waits, `auto` is the v0.3.0 ambient cadence, `log_only` records
+  without ever showing. Arms override it — `detect_only` never asks, and `placebo` keeps
+  the **same cadence** as `full`, or it stops being a cadence-matched control.
+- **`skill.mode: off` makes the guard inert**, and no config check forbids the
+  combination: refusing it would make the `off` arm unconfigurable without also editing
+  an unrelated block, which is exactly the coupling an ablation design must not have.
+- **The state file gained a `guard` block** (`surfaces`, `silent`, `dismissed`,
+  `pending`, `consent`, `last_surface_turn`), and `STATE_VERSION` is now `0.3.0`. A
+  file written by v0.3.0 is **repaired in place on load** rather than rejected, because
+  a long session must survive the upgrade. `status` reports a guard summary; `重置`
+  clears it.
+- **Consent is honoured before the ambient branch** in `_dispatch`, and recorded as
+  `event.user_consent` with the conflict key. Previously only the interactive branch
+  read it, which would have dropped the consent record in the ambient arm — the arm
+  most runs use. It is single-use and expires after one turn: a consent given several
+  turns ago is not consent for the conflict in front of us now.
+- **`cds.py detect` does not advance the turn counter twice** when the guard already
+  screened that turn (`StateMachine.guard_ran_on_turn`), so the screening and the event
+  it escalated to share a turn id and "how often did a turn screen silent" stays
+  answerable from the log.
+- **`log_record.stage` gained `guard`.** Every screening is logged, including the
+  silent ones: a screening stage that logged only its hits could not report a
+  false-negative rate, and the guard runs on every turn precisely so the denominator
+  exists.
+- **`SKILL.md` is a stealth contract now** rather than a pipeline description: a silent
+  four-item check that costs no tool call, one screening command, and an escalation path
+  that runs only on consent. It also tells the model not to read the reference files in
+  order to screen — reading the codebook on every turn is part of the cost this release
+  exists to remove.
+- **`VERSION` is `0.4.0`**; `config_version` is `0.3.0`. `eval/report.md` and
+  `eval/results.csv` were regenerated: the config hash moved and nothing else did. The
+  level, channel, strategy and every `*_ok` column are identical for all 77 scenarios.
+
+### Notes
+
+- The suite is now **523 stdlib unittest tests**, up from 447.
+- The guard's surface bar, opposition floor, cooldown, budget and resurface novelty are
+  **design priors, not calibrations**. They were chosen so the component is quiet enough
+  to leave on. The false-negative rate they imply is measurable from the `guard` log
+  records and has not been measured.
+- The inter-rater protocol remains the blocking item, unchanged from v0.3.0.
+
+### Fixed
+
+- **A plain-style card could assert the opposite of what the engine computed.** With
+  `numeric_cards: false` the magnitude word is the only signal a reader gets, and a
+  capped index sitting *below* the threshold was rendered as "just over the bar". The
+  wording now has a below-the-bar case, and the gated variant is asserted not to say it.
+- **A gated detection card still asserted a self-chosen stance.** The plain card's
+  explanation of the conflict type said the judgement was one the agent had chosen and
+  stated, two lines above a gate line explaining that it had not been. The assertion is
+  now replaced rather than merely omitted when the gate fires — the same class of defect
+  the v0.3.0 headline fix addressed, reintroduced by the new rendering and caught by
+  running the old invariant against the new style.
+- **The dismissal memory read the wrong key.** `run_guard` looked for `entry["key"]`
+  while the state machine writes `conflict_key`, so a dismissed conflict was silently
+  re-surfaced. Found by a test, not by reading.
+- **An unextended screening packet produced a confident wrong strategy.** The
+  screening packet deliberately carries no evidence-quality ratings, and
+  renormalising over an empty set of dimensions yields `evidence_score = 0.0` — which
+  is not "unrated", it is the lowest possible judgement. The router read it as "the
+  evidence is worthless" and picked `maintain_with_caveat` on a fact nobody supplied.
+  `build_evaluation` now raises `UnratedEvidenceError` (a `StageError`, so the CLI
+  reports it as a stage failure) naming the five dimensions and the fix. A partially
+  rated packet still renormalises exactly as before; the refusal is about *no*
+  ratings, not about a sparse one.
+- **`detect --brief` printed the whole detection structure beside its one line.**
+  The flag exists to make the escalation path cheap, and dumping the record beside
+  the summary defeated it. It now prints the line alone; the record still goes to
+  `--out` and to the log, and `--json` still prints it on request.
+
 ## [0.3.0] — 2026-09-11
 
 The measurement release. v0.2.0 was an unusually careful engine attached to almost no

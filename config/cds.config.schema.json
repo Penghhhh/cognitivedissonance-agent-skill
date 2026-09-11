@@ -5,7 +5,7 @@
   "description": "Versioned configuration for the Cognitive Dissonance Simulation Skill (CDS-Skill). Every field that can change a reported number or a chosen strategy lives here, so that a run can be reproduced from (config_hash + index_version + skill_version).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["config_version", "skill", "index", "thresholds", "evaluator", "state", "transparency", "logging"],
+  "required": ["config_version", "skill", "guard", "index", "thresholds", "evaluator", "state", "transparency", "logging"],
   "properties": {
     "$schema": { "type": "string" },
     "config_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
@@ -35,6 +35,59 @@
         "numeric_cards": {
           "type": "boolean",
           "description": "Whether cards print the numeric index. false is a valid experimental factor so that user ratings are not anchored on a score."
+        }
+      }
+    },
+
+    "guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled", "policy", "surface_threshold", "min_opposition",
+        "cooldown_turns", "dismiss_memory", "resurface_novelty", "max_surfaces_per_run"
+      ],
+      "description": "The stealth screening stage (v0.4.0). It runs before detection on every turn, decides whether the conflict is clear enough to spend the user's attention on, and stays invisible otherwise. Separate from `skill.mode` on purpose: an arm decides which stages may run, the guard decides whether the user is interrupted, and a study needs to vary the two independently.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "false restores exact v0.3.0 behaviour: no screening, and the full loop runs whenever detect is called."
+        },
+        "policy": {
+          "type": "string",
+          "enum": ["ask", "auto", "log_only"],
+          "description": "ask = show the card and wait for 处理/忽略 before evaluating. auto = surface and evaluate without asking (the v0.3.0 ambient cadence). log_only = record the decision and never show a card."
+        },
+        "surface_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "How clear a conflict must be before the user is interrupted. Validated at load time to sit at or above every alert threshold: 'worth recording' and 'worth interrupting someone for' are different questions, and reusing the recording bar would make the skill nag about every marginal event."
+        },
+        "min_opposition": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "A floor on the opposition rating. An event can clear the index on commitment and volition while the two claims barely conflict; that is not the 'obvious contradiction' a user should be interrupted for."
+        },
+        "cooldown_turns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Turns after a surface during which the guard will not surface again. 0 disables the cooldown."
+        },
+        "dismiss_memory": {
+          "type": "boolean",
+          "description": "When the user answers 忽略, remember the conflict key so the same clash is not raised again."
+        },
+        "resurface_novelty": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "A dismissed conflict comes back when novelty reaches this value, i.e. when it is no longer the same objection restated."
+        },
+        "max_surfaces_per_run": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "A ceiling on interruptions per run, so a long session cannot accumulate prompts. 0 disables the ceiling. Every suppressed surface is still logged with its reason, so the ceiling is visible in the data rather than silent."
         }
       }
     },
@@ -251,8 +304,13 @@
     "transparency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["show_detection_card", "show_evaluation_card", "show_response_card", "include_scores", "include_rule_id", "tight_margin"],
+      "required": ["card_style", "show_detection_card", "show_evaluation_card", "show_response_card", "include_scores", "include_rule_id", "tight_margin"],
       "properties": {
+        "card_style": {
+          "type": "string",
+          "enum": ["plain", "technical"],
+          "description": "plain = question-shaped headings, the two colliding claims named in words, band words beside the decimals, no identifiers a reader has to look up. technical = the v0.3.0 field-per-line rendering. Both styles are held to the same labelling rules by the test suite; the style changes presentation, never which construct is named."
+        },
         "show_detection_card": { "type": "boolean" },
         "show_evaluation_card": { "type": "boolean" },
         "show_response_card": { "type": "boolean" },

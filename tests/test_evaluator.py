@@ -13,6 +13,7 @@ from cds_evaluator import (
     BRANCH_OF_STRATEGY,
     EVIDENCE_DIMENSIONS,
     StageError,
+    UnratedEvidenceError,
     _route,
     build_evaluation,
 )
@@ -86,6 +87,36 @@ class TestEvidenceScore(unittest.TestCase):
         result = evaluate()["evaluation_result"]
         self.assertEqual(set(result["evidence_detail"]), set(EVIDENCE_DIMENSIONS))
         self.assertEqual(result["dropped_dimensions"], [])
+
+    def test_evidence_with_no_rated_dimension_is_refused_rather_than_scored_zero(self):
+        """Renormalising over an empty set yields 0.0, which reads as a judgement.
+
+        v0.4.0 made this reachable: the screening packet deliberately carries no
+        quality ratings, so escalating one without extending it would have produced
+        a confident strategy derived from "the evidence is worthless" - a number
+        nobody supplied. The evaluator refuses instead, because the arithmetic must
+        never invent a perception.
+        """
+        packet = context.base_packet()
+        for dimension in EVIDENCE_DIMENSIONS:
+            del packet["evidence"][0][dimension]
+        with self.assertRaises(UnratedEvidenceError) as caught:
+            evaluate(packet)
+        message = str(caught.exception)
+        self.assertIn("relevance", message)
+        self.assertIn("consistency", message)
+        # Subclasses StageError so the CLI reports it as a stage failure, not a crash.
+        self.assertIsInstance(caught.exception, StageError)
+
+    def test_an_unrated_item_among_rated_ones_still_renormalises(self):
+        """The refusal is about *no* ratings, not about a partially rated packet."""
+        packet = context.base_packet()
+        for dimension in EVIDENCE_DIMENSIONS:
+            del packet["evidence"][0][dimension]
+        packet["evidence"][0]["credibility"] = 0.55
+        result = evaluate(packet)["evaluation_result"]
+        self.assertEqual(set(result["evidence_detail"]), {"credibility"})
+        self.assertAlmostEqual(result["evidence_score"], 0.55, places=9)
 
 
 class TestCostAndScores(unittest.TestCase):

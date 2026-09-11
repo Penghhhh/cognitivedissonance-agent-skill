@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Penghhhh/cognitivedissonance-agent-skill/schemas/guard.schema.json",
+  "title": "CDS-Skill GuardResult",
+  "description": "Output of `cds.py guard`, the stealth screening stage added in v0.4.0. One sparse packet goes in; one decision comes out: interrupt the user, or stay invisible. The record is deliberately kept even when the decision is 'silent', because a screening stage that logs only its hits cannot report a false-negative rate, and the whole point of a cheap gate is that it runs on every turn. The embedded `detection` is the same DetectionResult the full stage produces, so the index, the gate and both channel levels are computed once in the repository and read here rather than re-derived.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "claim_side": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["role", "text"],
+      "properties": {
+        "role": { "type": "string", "enum": ["stance", "evidence", "memory", "current", "user_hint"] },
+        "text": { "type": "string", "minLength": 1 },
+        "source": { "type": ["string", "null"] },
+        "evidence_id": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "required": [
+    "schema_version", "skill_version", "guard_version", "config_hash",
+    "run_id", "turn_id", "decision", "reasons", "policy", "next_action",
+    "asks_user", "mode", "placebo", "surface_threshold", "min_opposition",
+    "conflict_key", "conflict_type", "channel", "level", "gated",
+    "tension", "opposition", "novelty", "claims", "detection", "history"
+  ],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "skill_version": { "type": "string" },
+    "guard_version": { "type": "string", "description": "Version of the screening policy itself, separate from the skill version, because the surface bar and the index version move independently." },
+    "config_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+
+    "run_id": { "type": ["string", "null"] },
+    "turn_id": { "type": ["integer", "null"] },
+
+    "decision": {
+      "type": "string",
+      "enum": ["surface", "silent"],
+      "description": "'silent' means the component must leave no trace in the turn: no card, no question, no change to the reply. 'surface' means show the guard card and (unless the arm says otherwise) wait for the user's decision."
+    },
+    "reasons": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "For 'silent', the single condition that held the event back; for 'surface', the policy that released it. Recorded rather than inferred so a log analysis can tell 'nothing clashed' from 'something clashed and the policy suppressed it'."
+    },
+    "policy": { "type": "string", "enum": ["ask", "auto", "log_only"] },
+    "next_action": {
+      "type": "string",
+      "enum": ["log_only", "await_user_decision", "auto_evaluate"],
+      "description": "What the host model must do next. Derived from the arm and the policy, never from the model's own preference."
+    },
+    "asks_user": { "type": "boolean", "description": "True only when the guard card must be shown and the user's decision waited for." },
+    "mode": { "type": "string", "enum": ["off", "detect_only", "full", "placebo", "withhold_acts"] },
+    "placebo": { "type": "boolean", "description": "True in the placebo arm. The guard keeps the same cadence as `full`, and the card it renders carries no conflict content, while the real numbers below are still computed and logged for analysis." },
+
+    "surface_threshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "The bar for interrupting a user, which the config forces to sit at or above every alert threshold. A recording bar and an interruption bar are different questions and must not be the same number." },
+    "min_opposition": { "type": "number", "minimum": 0, "maximum": 1 },
+
+    "conflict_key": {
+      "type": "string",
+      "pattern": "^cds_key_[0-9a-f]{12}$",
+      "description": "Deterministic identity of the claim pair, used by the dismissal memory. Distinct from `event_id`, which includes the turn and therefore changes on every restatement."
+    },
+    "conflict_type": { "type": "string", "enum": ["none", "evidence_vs_stance", "evidence_vs_evidence", "user_hint_vs_stance", "memory_vs_current"] },
+    "channel": { "type": "string", "enum": ["dissonance", "indeterminacy", "none"] },
+    "level": { "type": "string", "enum": ["silent", "alert", "high"] },
+    "gated": { "type": "boolean", "description": "True when the volition floor capped the index, i.e. the event is a conflict but not dissonance." },
+
+    "tension": { "type": "number", "minimum": 0, "maximum": 1 },
+    "opposition": { "type": "number", "minimum": 0, "maximum": 1 },
+    "novelty": { "type": "number", "minimum": 0, "maximum": 1 },
+
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["a", "b"],
+      "description": "The two elements that clash, so the card can say what the conflict is instead of only how large it scored.",
+      "properties": {
+        "a": { "$ref": "#/$defs/claim_side" },
+        "b": { "$ref": "#/$defs/claim_side" }
+      }
+    },
+
+    "detection": {
+      "type": "object",
+      "description": "The full DetectionResult for this packet, validated separately against schemas/detection.schema.json by the CLI before this record is emitted. Embedded rather than recomputed so that a guard record is self-contained: a reviewer can read the index decomposition and the gate detail straight out of the screening log line."
+    },
+
+    "history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_turn", "surfaces_count", "last_surface_turn", "dismissed_before"],
+      "description": "The session facts that shaped the decision, echoed so that a suppressed event can be explained without reconstructing the state file.",
+      "properties": {
+        "current_turn": { "type": ["integer", "null"] },
+        "surfaces_count": { "type": "integer", "minimum": 0 },
+        "last_surface_turn": { "type": ["integer", "null"] },
+        "dismissed_before": { "type": "boolean" }
+      }
+    }
+  }
+}

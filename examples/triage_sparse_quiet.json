@@ -1,0 +1,27 @@
+{
+  "run_id": "example_triage_002",
+  "turn_id": 7,
+  "annotator": "example",
+  "relation": {
+    "type": "evidence_vs_stance",
+    "opposition": 0.65,
+    "specificity": 0.60
+  },
+  "stance": {
+    "id": "s1",
+    "claim": "这个接口的延迟在可接受范围内",
+    "commitment": 0.50,
+    "public_commitment": 0.40,
+    "volition": 0.75,
+    "self_relevance": 0.80
+  },
+  "evidence": [
+    {
+      "id": "e1",
+      "claim": "一份小样本测试报告了更高的延迟",
+      "novelty": 0.40
+    }
+  ],
+  "user_pressure": 0.10,
+  "evidence_conflict_unresolved": 0.10
+}

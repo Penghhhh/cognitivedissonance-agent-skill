@@ -30,7 +30,18 @@ from typing import Any
 
 from cds_config import write_text
 
-STATE_VERSION = "0.2.0"
+STATE_VERSION = "0.3.0"
+
+#: How many turns a recorded "处理" stays valid for. The consent is given before
+#: the full packet exists, so it cannot be matched against an event id; it is
+#: matched against a turn window instead, and the window is short because a consent
+#: given several turns ago is not consent for the conflict in front of us now.
+GUARD_CONSENT_TURNS = 1
+
+#: Cap on the guard history kept in the state file. The full record of every
+#: screening decision is in the JSONL log; the state file only needs enough recent
+#: history to answer the cooldown and dismissal questions.
+GUARD_HISTORY_CAP = 200
 
 STATES = (
     "IDLE",
@@ -71,6 +82,10 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "status": "当前状态如下。",
         "unknown": "无法识别的指令，状态未改变。可用指令：处理 / 忽略 / 稍后 / 详情 / 恢复 / 关闭 CDS / 开启 CDS / 状态。",
         "no_active": "当前没有待处理的事件，指令未生效。",
+        "guard_process": "好，进入评估。",
+        "guard_ignore": "已忽略该冲突；之后不再就同一处冲突打扰你。",
+        "guard_later": "已记下该冲突；出现更新的信息时再提。",
+        "guard_expired": "该确认已过期，事件按未决记录。",
         "timeout": "等待超时：本轮未收到决定，事件已记录为未决，监测继续（不会阻塞后续回合）。",
         "expired": "暂缓超时：事件已过期并记录，监测继续。",
         "resumed_by_novelty": "出现足够新的证据，暂缓事件已恢复。",
@@ -87,6 +102,10 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "status": "Current state follows.",
         "unknown": "Unrecognised command; state unchanged. Available: process / ignore / later / details / resume / off / on / status.",
         "no_active": "No pending event, so the command had no effect.",
+        "guard_process": "Understood; entering evaluation.",
+        "guard_ignore": "Conflict ignored; it will not be raised again.",
+        "guard_later": "Conflict noted; it returns if newer information arrives.",
+        "guard_expired": "That confirmation has expired; the event is recorded as undecided.",
         "timeout": "Await timed out: no decision this turn, the event is logged as undecided and monitoring continues without blocking later turns.",
         "expired": "Suspend expired: the event is logged as expired and monitoring continues.",
         "resumed_by_novelty": "Sufficiently novel evidence arrived; the suspended event has resumed.",
@@ -132,7 +151,29 @@ class StateMachine:
             "events": [],
             "history": [],
             "dropped": [],
+            "guard": self._empty_guard(),
         }
+
+    @staticmethod
+    def _empty_guard() -> dict[str, Any]:
+        """The guard's session memory.
+
+        It is kept beside the event list rather than inside it because the guard
+        runs *before* an event exists: a screening decision is not an event, it is
+        the reason there is or is not one. Storing it as a pseudo-event would have
+        put a fabricated event id into every log analysis that counted events.
+        """
+        return {"surfaces": [], "silent": [], "dismissed": [], "pending": None, "consent": None, "last_surface_turn": None}
+
+    def _guard(self) -> dict[str, Any]:
+        """The guard block, repaired in place for a state file written before v0.4.0."""
+        guard = self.data.get("guard")
+        if not isinstance(guard, dict):
+            guard = self._empty_guard()
+            self.data["guard"] = guard
+        for key, default in self._empty_guard().items():
+            guard.setdefault(key, default)
+        return guard
 
     # ---- persistence ------------------------------------------------------
 
@@ -158,6 +199,11 @@ class StateMachine:
             if run_id is None or stored.get("run_id") == run_id:
                 machine.data = stored
                 machine.loaded = True
+                # Repair a state file written before v0.4.0 added the guard block,
+                # rather than rejecting it: a long-running session must survive the
+                # upgrade, and a missing key is indistinguishable from an empty one
+                # for every question the guard asks.
+                machine._guard()
         return machine
 
     def save(self) -> None:
@@ -195,6 +241,116 @@ class StateMachine:
     def _age(self) -> None:
         for event in self.data["events"]:
             event["age_turns"] = self.data["turn"] - event["turn"]
+
+    # ---- guard memory -----------------------------------------------------
+
+    def guard_history(self) -> dict[str, Any]:
+        """The session facts the guard's screening decision reads.
+
+        A plain dict with no state-machine concepts in it, so that the decision
+        itself stays a pure function of (packet, config, history) and remains
+        testable without a state file.
+        """
+        guard = self._guard()
+        return {
+            "current_turn": self.data["turn"],
+            "surfaces_count": len(guard["surfaces"]),
+            "last_surface_turn": guard.get("last_surface_turn"),
+            "dismissed": list(guard["dismissed"]),
+        }
+
+    def guard_ran_on_turn(self, turn: int) -> bool:
+        """Whether the guard already screened this turn.
+
+        Used by ``detect`` to avoid advancing the turn a second time. The screening
+        decision and the event it escalated to belong to the same turn; splitting
+        them would make "how often did a turn screen silent" unanswerable from the
+        log, because the two stages would be keyed to different turn numbers.
+        """
+        guard = self._guard()
+        return any(
+            entry.get("turn") == turn for entry in (*guard["surfaces"], *guard["silent"])
+        )
+
+    def record_guard(self, result: dict[str, Any]) -> dict[str, Any]:
+        """File one screening decision and open a confirmation if it asked the user."""
+        guard = self._guard()
+        decision = result.get("decision")
+        entry = {
+            "turn": self.data["turn"],
+            "conflict_key": result.get("conflict_key"),
+            "decision": decision,
+            "reasons": list(result.get("reasons") or []),
+            "tension": result.get("tension"),
+        }
+        if decision == "surface":
+            guard["surfaces"].append(entry)
+            guard["last_surface_turn"] = self.data["turn"]
+            if result.get("asks_user"):
+                # A pending confirmation is what makes 处理/忽略 meaningful before
+                # any event exists. It deliberately does not move the machine out of
+                # MONITORING: the guard asked a question, it did not detect an event,
+                # and pretending otherwise would consume the one-turn await window
+                # that the real detection needs.
+                guard["pending"] = {
+                    "conflict_key": result.get("conflict_key"),
+                    "turn": self.data["turn"],
+                    "tension": result.get("tension"),
+                    "claims": result.get("claims"),
+                }
+        else:
+            guard["silent"].append(entry)
+
+        guard["surfaces"] = guard["surfaces"][-GUARD_HISTORY_CAP:]
+        guard["silent"] = guard["silent"][-GUARD_HISTORY_CAP:]
+        guard["dismissed"] = guard["dismissed"][-GUARD_HISTORY_CAP:]
+        self.save()
+        return {
+            "decision": decision,
+            "surfaces": len(guard["surfaces"]),
+            "silent": len(guard["silent"]),
+            "pending": bool(guard["pending"]),
+        }
+
+    def consume_guard_consent(self) -> dict[str, Any] | None:
+        """Take the recorded consent, if one is live. Single-use by construction."""
+        guard = self._guard()
+        consent = guard.get("consent")
+        if not consent:
+            return None
+        guard["consent"] = None
+        if self.data["turn"] - int(consent.get("turn", 0)) > GUARD_CONSENT_TURNS:
+            return None
+        return consent
+
+    def _decide_guard(self, command: str, pending: dict[str, Any]) -> dict[str, Any]:
+        """Apply a user decision made about a guard confirmation."""
+        guard = self._guard()
+        key = pending.get("conflict_key")
+        guard["pending"] = None
+        previous = self.state
+
+        if command == "process":
+            guard["consent"] = {"conflict_key": key, "turn": self.data["turn"]}
+        else:
+            # 'later' is recorded distinctly from 'ignore' because the two are
+            # different user intents, but both suppress re-asking: the resurface
+            # path is novelty-driven either way, so a genuinely new turn on the same
+            # topic still gets through.
+            guard["dismissed"].append(
+                {"conflict_key": key, "turn": self.data["turn"], "decision": command}
+            )
+        self.save()
+        return {
+            "command": command,
+            "from": previous,
+            "to": self.state,
+            "accepted": True,
+            "message": _m(self.language, f"guard_{command}"),
+            "conflict_key": key,
+            "guard_decision": command,
+            "event_id": None,
+        }
 
     # ---- lifecycle --------------------------------------------------------
 
@@ -345,6 +501,21 @@ class StateMachine:
             self.data["active_event_id"] = None
             self._set_state("MONITORING", "detect_only_logged")
             return
+        # The user already answered the guard's question for this conflict. Making
+        # them answer the same question twice - once on the screening card and again
+        # on the detection card - is the kind of friction that teaches a user to
+        # ignore the component, so the recorded consent is honoured here instead.
+        #
+        # Checked before the ambient branch, not inside the interactive one: a user
+        # who consented must be recorded as having consented whatever the arm says,
+        # and `user_consent` is a data field the analysis reads, not a UI detail.
+        consent = self.consume_guard_consent()
+        if consent is not None:
+            event["status"] = "awaiting"
+            event["user_consent"] = True
+            event["consent_conflict_key"] = consent.get("conflict_key")
+            self._set_state("EVALUATING", "guard_consent_recorded")
+            return
         if self.config["skill"]["interaction"] == "ambient":
             event["status"] = "awaiting"
             self._set_state("EVALUATING", "ambient_auto")
@@ -387,6 +558,7 @@ class StateMachine:
                 "events": [],
                 "history": [],
                 "dropped": [],
+                "guard": self._empty_guard(),
             }
             self.save()
             return {"command": command, "from": previous, "to": self.state, "accepted": True, "message": _m(key, "reset")}
@@ -404,6 +576,14 @@ class StateMachine:
             return {"command": command, "from": previous, "to": self.state, "accepted": True, "message": _m(key, "on")}
 
         active = self.active_event
+
+        # A guard confirmation is answered by the same words as an event, so the
+        # branch has to be selected before the event path: otherwise "处理" would
+        # report "no pending event" while a card is on the user's screen asking
+        # exactly that question.
+        pending = self._guard().get("pending")
+        if pending is not None and active is None and command in ("process", "ignore", "later"):
+            return self._decide_guard(command, pending)
 
         if command == "process":
             if active is None:
@@ -524,6 +704,7 @@ class StateMachine:
 
     def status(self) -> dict[str, Any]:
         self._age()
+        guard = self._guard()
         return {
             "state_version": STATE_VERSION,
             "run_id": self.data["run_id"],
@@ -535,4 +716,11 @@ class StateMachine:
             "dropped_event_ids": list(self.data["dropped"]),
             "events": list(self.data["events"]),
             "history": list(self.data["history"]),
+            "guard": {
+                "surfaces": len(guard["surfaces"]),
+                "silent_turns": len(guard["silent"]),
+                "dismissed": len(guard["dismissed"]),
+                "awaiting_confirmation": bool(guard["pending"]),
+                "last_surface_turn": guard.get("last_surface_turn"),
+            },
         }

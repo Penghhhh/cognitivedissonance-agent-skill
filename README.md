@@ -47,15 +47,19 @@ would break the log.
 ## The one idea
 
 ```
-model perceives  ──►  signal packet (JSON, rated against an anchored codebook)
-                              │
-                              ▼
+model perceives  ──►  sparse packet ──►  cds_guard.py ─┬─►  silent   ──►  stop (one line, ordinary turn)
+                                                        │
+                                                        └─►  surface  ──►  guard card ──►  user consents?
+                                                                                                    │
+                              signal packet (JSON, rated against an anchored codebook) ◄─────────────┘
+                                              │
+                                              ▼
                       cds.py computes  ──►  index · gate · evidence score · route · card · log
-                              │
-                              ▼
+                                              │
+                                              ▼
 model responds   ──►  reply text
-                              │
-                              ▼
+                                              │
+                                              ▼
                 cds_indicators codes  ──►  indicator-level agreement with the plan
 ```
 
@@ -67,12 +71,79 @@ are known to make does this agent make, and can a reader see which one it made?*
 
 | Stage | Who | Output |
 |---|---|---|
-| **Perceive** | the host model | a signal packet: rated conflict, stance, evidence, moderators |
+| **Screen** | the host model → `cds.py guard` | a **sparse** packet, then the screening decision (`surface` / `silent`), its reasons, and the guard card |
+| **Perceive** | the host model | a signal packet: rated conflict, stance, evidence, moderators (the sparse packet, extended) |
 | **Detect** | `cds.py` | Tension Index with a full term decomposition, gate, level, channel |
 | **Evaluate** | `cds.py` | evidence score, adjustment cost, routed strategy, fired rule id |
 | **Respond** | the host model | prose realising the plan's `language_acts` |
 | **Code** | `cds_indicators.py` | the reply's linguistic indicators, and where each one fired |
 | **Report** | `cds.py` | a transparency card per stage, and a JSONL audit record |
+
+The first stage is the v0.4.0 addition and the only one that runs on an ordinary turn.
+Every stage below it runs only after the user has agreed to go further; see
+[Stealth by default](#stealth-by-default-v040).
+
+## Stealth by default (v0.4.0)
+
+v0.3.0 ran the whole loop on every turn: a full packet, `detect`, `evaluate`, and three
+dense cards. Two problems came back from users, and both are about the same thing —
+a component nobody leaves switched on measures nothing. The token cost of rating a full
+packet every turn made it something to turn off; three cards at once were hard to read.
+v0.4.0 answers both by splitting detection in two and making the first tier nearly free.
+
+| Tier | Who | Cost per turn | What it decides |
+|---|---|---|---|
+| **Screening** — the guard | the host model, then `cds_guard.py` (`cds.py guard`) | one **sparse** packet, one arithmetic pass over the existing index | `surface` or `silent` |
+| **Escalation** | the v0.3.0 pipeline, unchanged | the full loop | nothing, until the user asks for it |
+
+Screening rates only the fields the decision needs — `relation.opposition`,
+`relation.specificity`, `stance.commitment`, `stance.public_commitment`,
+`stance.volition`, `stance.self_relevance`, `evidence[].novelty`, `user_pressure`,
+`evidence_conflict_unresolved` — with no verbatim quotes and no evidence-quality
+ratings. On `silent` the entire command output is one line, `CDS_GUARD silent`: no
+card, no question, nothing shown to the user, and the turn proceeds as an ordinary
+turn. The screening is still written to the JSONL log under stage `guard`, so the
+denominator exists and a false-negative rate is measurable rather than assumed.
+
+On `surface` the engine renders a short card — the two colliding claims, the conflict
+reading with its bar, what kind of problem it is — and asks the user to choose
+处理 (*"process"*) / 忽略 (*"ignore"*) / 稍后 (*"later"*). Only after the user answers
+处理 does the full packet, `detect`, `evaluate` and `respond` run. On that escalation
+path `detect --brief` prints one line of confirmation instead of a second full card,
+because the reader has already seen the two claims and the conflict size on the guard
+card. Real guard output for the same example conflict, quoted verbatim:
+
+```text
+【CDS｜检测】发现上下文矛盾冲突
+观点1（我先前的说法）：「X 在该场景下是可靠的」
+观点2（新出现的信息）：「新研究显示 X 在主要使用场景下存在重大缺陷」
+初步冲突检测大小：0.71（提示门槛 0.62，较明显）
+这是哪一类问题：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
+
+是否进入评估？
+· 回复「处理」→ 我评估证据分量、权衡要不要调整立场，并给出应对策略
+· 回复「忽略」→ 我按普通对话继续，之后不再就同一处冲突打扰你
+· 回复「稍后」→ 先记下，等出现更新的信息时再提
+```
+
+**The interruption bar is not the recording bar.** `guard.surface_threshold` (default
+0.62) is validated at config-load time to sit at or above every alert threshold —
+`thresholds.alert` is 0.55, plus the per-type overrides — so the guard can never be more
+eager than the detector it fronts: a conflict real enough to *record* is not
+automatically clear enough to *interrupt someone for*. `guard.min_opposition` (0.60)
+adds a second floor, because an event can clear the index on commitment and volition
+while the two claims barely conflict.
+
+Session-level inhibitors live in the state file and bound how often the guard may ask:
+`guard.cooldown_turns` (1), `guard.dismiss_memory` (true, with `guard.resurface_novelty`
+0.75 so a genuinely new turn on the same topic returns), and `guard.max_surfaces_per_run`
+(4). `guard.policy` is the user-facing switch, independent of the ablation arm: `ask`
+(default — screen, then wait for the user), `auto` (the v0.3.0 ambient cadence, no
+question) and `log_only` (record, never show). `guard.enabled: false` restores exact
+v0.3.0 behaviour.
+
+The guard never creates a state-machine event: a screening decision is not an event, it
+is the reason there is or is not one.
 
 ## Two channels, never merged
 
@@ -110,7 +181,7 @@ endorsing source-discounting.
 
 ## Quick start
 
-One clone and three commands. Python 3.9+ is the only requirement: no `pip install`,
+One clone and four commands. Python 3.9+ is the only requirement: no `pip install`,
 no dependency file, no network access at any point.
 
 ```bash
@@ -120,31 +191,53 @@ cd cognitivedissonance-agent-skill
 python scripts/cds.py selftest     # "selftest OK"
 python scripts/cds.py config       # the settings in force, and their hash
 python scripts/cds.py run --signals examples/packet_evidence_vs_stance.json
+python scripts/cds.py guard --signals examples/triage_sparse_conflict.json --card-only
 ```
 
-The last command pushes one prepared conflict through the whole loop and prints a card
-per stage. Real output, quoted verbatim:
+`run` pushes one prepared conflict through the whole loop and prints a card per stage.
+`guard` is the v0.4.0 screening pass: it takes a sparse packet and prints either the
+short guard card, when the conflict is clear enough to interrupt for, or the single
+line `CDS_GUARD silent` when it is not — see
+[Stealth by default](#stealth-by-default-v040). Real output of `run`, quoted verbatim:
 
 ```text
-【CDS｜检测】
-状态：认知失调相关冲突张力
-张力指数：0.71 / 阈值 0.55
-类型：证据—立场冲突
-通道：失调通道（需要自主选择的立场）
+【CDS｜检测】发现上下文矛盾冲突
+观点1（我先前的说法）：「X 在该场景下是可靠的」
+观点2（新出现的信息）：「新研究显示 X 在主要使用场景下存在重大缺陷」
+冲突检测大小：0.71（冲突门槛 0.55，明显）
+这是哪一类问题：新证据与我先前的说法相反——被冲击的是我自己选定并说过的判断。
 关键点：
 - 新证据与既有立场方向相反
 - 冲突具体且可核查
-...
+- 既有立场承诺度较高
+- 该立场由智能体自主选择，而非被指派
+- 该信息为新出现的信息，并非重复提及
+评分可动范围：±0.04（离最近的判定线 0.75 只有这么远，换个标注就可能跨过去）
+下一步：环境模式：不阻塞本轮回复，已自动进入评估。
 ```
 
 Cards come out in Chinese because `skill.language` defaults to `zh`; set it to `"en"`
 in [`config/cds.config.json`](config/cds.config.json) for an English run — every
-string has both.
+string has both. This rendering is `transparency.card_style: "plain"`, the v0.4.0
+default: question-shaped headings, the two colliding claims named in words, band words
+beside the decimals. Set it to `"technical"` for the v0.3.0 field-per-line rendering
+with the identifiers included, which is what earlier runs were coded from and what a
+reviewer checking a number wants to see. Both styles are held to the same labelling
+rules by the test suite; a style changes presentation, never which construct is
+labelled.
 
 ### Run it on your own case
 
 There are two steps, because the design is one split: **you rate the situation, the
-script does the arithmetic.**
+script does the arithmetic.** Since v0.4.0 there is usually a cheaper step in front of
+them: a *sparse packet* — only the index terms the screening decision needs, with no
+quotes and no evidence-quality ratings — decides whether the conflict is worth the full
+loop at all. Start from
+[`examples/triage_sparse_conflict.json`](examples/triage_sparse_conflict.json);
+`python scripts/cds.py guard --signals sparse.json` answers `CDS_GUARD silent` on most
+turns and shows the guard card on the few that clear the bar;
+[`references/prompts/triage.md`](references/prompts/triage.md) anchors the sparse
+fields.
 
 1. **Rate it.** Write a *signal packet* — a small JSON file scoring the conflict from
    0 to 1. Start from
@@ -163,7 +256,7 @@ python scripts/cds.py run --signals packet.json --reply-file reply.txt
 ### Verify the checkout
 
 ```bash
-python -m unittest discover -s tests -t tests   # 447 stdlib unittest tests, all green
+python -m unittest discover -s tests -t tests   # 523 stdlib unittest tests, all green
 python scripts/check_examples.py                 # do the docs still match the code?
 ```
 
@@ -219,11 +312,30 @@ Re-run with `-Force` (PowerShell) or `FORCE=1` (shell) to replace an existing in
 and use `-ProjectRoot` / `PROJECT_ROOT` to target a project other than the current
 directory.
 
+### Turning it on: user-invoked, or always on
+
+`SKILL.md` carries `disable-model-invocation: true`, so the skill is **user-invoked**:
+it does nothing until you type `/cds-skill`, and once invoked its body stays in context
+for the session. That is the intended default for a study, because "the participant
+switched it on" is a condition you want recorded rather than inferred.
+
+If you would rather have it available on every turn without switching it on, delete
+that line. DeepSeek Harness then marks the skill model-invocable and lists its
+description and `whenToUse` in the catalogue the model sees, so the model can consult
+it on its own when a contradiction appears. The trade is real and worth stating: the
+catalogue entry is a small permanent cost on every turn, and whether the model decides
+to invoke the skill becomes part of what is being measured rather than a condition you
+control.
+
+Either way the per-turn cost of the skill itself is the same, and it is the point of
+v0.4.0: nothing on a turn with no candidate conflict, one sparse packet and one command
+on a turn that is screened, and the full loop only after a user agrees to it.
+
 **No skill system at all?** The engine is an ordinary program, so any harness can call
 it directly:
 
 ```bash
-python /path/to/cds-skill/scripts/cds.py run --signals packet.json
+python /path/to/cds-skill/scripts/cds.py guard --signals triage.json --state cds-state.json --card-only
 ```
 
 Full options, and how to wire the skill into a system prompt by hand, are in
@@ -238,9 +350,10 @@ config/
   cds.config.schema.json    its JSON Schema
   lexicon.zh.json           hedges, boosters, conditionals, source cues (primary)
   lexicon.en.json           the same categories for English runs
-schemas/                    signals · detection · evaluation · log_record
+schemas/                    signals · guard · detection · evaluation · log_record
 scripts/
-  cds.py                    CLI: detect · evaluate · respond · command · status · run
+  cds.py                    CLI: guard · detect · evaluate · respond · command · status · run
+  cds_guard.py              the screening pass: one sparse packet, surface or silent
   cds_index.py              the tension index and the dissonance gate
   cds_evaluator.py          evidence scoring, adjustment cost, data-driven routing
   cds_state.py              bounded, timeout-protected event state machine
@@ -260,7 +373,7 @@ references/
   indicators.md             linguistic indicators per language act
   cards.md                  card templates and variants
   operations.md             commands, state machine, troubleshooting
-  prompts/                  detect · evaluate · respond templates
+  prompts/                  triage · detect · evaluate · respond templates
 eval/
   scenarios/                labelled corpus with formula-derived expectations
   report.md                 generated by run_scenarios.py --write-report
@@ -268,6 +381,7 @@ eval/
   arms.md                   generated by check_arms.py --write-report
   perception.md             generated by score_signals.py --write-report
 tests/                      stdlib unittest tests
+  test_guard.py             the screening stage: thresholds, inhibitors, decision matrix
 docs/
   design-rationale.md       every deliberate change from one version to the next, and why
 examples/                   worked packets and dialogues
@@ -299,17 +413,27 @@ NOTICE.md                   CC BY 4.0 for docs · responsible-use note · data p
 7. **A plan is not an observation.** Anything derived from the routed strategy is
    labelled as a plan; an observed outcome exists only when a reply was supplied and
    coded.
+8. **An interruption is gated separately from a detection.** Screening is a distinct,
+   stricter, deterministic decision, and the interruption bar is refused at config load
+   if it falls below any alert threshold — so the guard can never surface a conflict the
+   detector would have called quiet. Every event the guard holds back is logged with its
+   reason, so the silent path is auditable rather than invisible.
 
 ## Status and limitations
 
-This is a research prototype at v0.3.0. Read
-[`docs/design-rationale.md`](docs/design-rationale.md) §6 before citing anything
-from it. In short:
+This is a research prototype at v0.4.0. Read
+[`docs/design-rationale.md`](docs/design-rationale.md) §6 and §8 before citing
+anything from it. In short:
 
 - The index weights are **design priors, not calibrations**. Sensitivity to them is
   measured and reported, not assumed away. Routing does not read the index at all,
   so the strategy flip rate for index weights is zero by construction —
   `eval/sensitivity.md` now states that instead of presenting it as robustness.
+- The guard's thresholds are **design priors, not calibrations**: the surface bar (0.62),
+  the opposition floor (0.60), the cooldown, the per-run budget and `resurface_novelty`
+  were chosen so the component is quiet enough to leave on. The false-negative rate they
+  imply is measurable from the `guard` log records — every screening is written down,
+  including the ones that surfaced nothing — but it has not been measured yet.
 - Anchors reduce rater drift but do not eliminate it; the inter-rater protocol is
   specified but has not yet been run. Until it is, no index value is interpretable,
   and the rating tolerance printed on a card is the **engine's** margin to its own

@@ -104,6 +104,57 @@ def carrying_evidence(signals: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in items if item.get("carries_conflict", True)]
 
 
+def claims_of(signals: dict[str, Any]) -> dict[str, Any]:
+    """Name the two elements that clash: ``{"a": {...}, "b": {...}}``.
+
+    The user-facing card rests on this. A reader told "conflict detected, index
+    0.71" has been handed a number and still does not know what the conflict *was*;
+    a reader told "you said X, this says not-X" has been handed the thing itself.
+    Before v0.4.0 the detection record carried a stance claim and a list of
+    evidence **ids** but never the evidence's own claim text, so a card could not
+    print the second half of a contradiction even in principle.
+
+    Roles come from the conflict type, which is an enum, rather than from an
+    evidence ``source`` string, which is free text: a card that guessed the role
+    from a source name would mislabel the first packet whose source was spelled
+    unusually. A ``None`` side means the packet did not name that element, and the
+    card omits the line rather than inventing a placeholder for it.
+    """
+    relation_type = (signals.get("relation") or {}).get("type") or "none"
+    stance = signals.get("stance") or {}
+    members = carrying_evidence(signals)
+
+    def side(role: str, text: Any, **extra: Any) -> dict[str, Any] | None:
+        if not isinstance(text, str) or not text.strip():
+            return None
+        return {"role": role, "text": text.strip(), **extra}
+
+    if relation_type == "none":
+        return {"a": None, "b": None}
+
+    if relation_type == "evidence_vs_evidence":
+        first = side("evidence", members[0].get("claim"), evidence_id=members[0].get("id")) if members else None
+        second = (
+            side("evidence", members[1].get("claim"), evidence_id=members[1].get("id"))
+            if len(members) > 1
+            else None
+        )
+        return {"a": first, "b": second}
+
+    if relation_type == "memory_vs_current":
+        a_role, b_role = "memory", "current"
+    elif relation_type == "user_hint_vs_stance":
+        a_role, b_role = "stance", "user_hint"
+    else:  # evidence_vs_stance
+        a_role, b_role = "stance", "evidence"
+
+    member = members[0] if members else {}
+    return {
+        "a": side(a_role, stance.get("claim"), source=stance.get("source")),
+        "b": side(b_role, member.get("claim"), evidence_id=member.get("id")),
+    }
+
+
 def _mean(values: list[float]) -> float | None:
     return sum(values) / len(values) if values else None
 
@@ -337,6 +388,7 @@ def build_detection(signals: dict[str, Any], config: dict[str, Any]) -> dict[str
             "source": stance.get("source"),
         },
         "evidence_ids": [item.get("id", "") for item in members],
+        "claims": claims_of(signals),
         "terms": terms,
         "volition_detail": {
             "volition": volition,

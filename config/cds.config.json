@@ -1,6 +1,6 @@
 {
   "$schema": "./cds.config.schema.json",
-  "config_version": "0.2.0",
+  "config_version": "0.3.0",
 
   "skill": {
     "enabled": true,
@@ -9,6 +9,17 @@
     "profile": "adaptive",
     "language": "zh",
     "numeric_cards": true
+  },
+
+  "guard": {
+    "enabled": true,
+    "policy": "ask",
+    "surface_threshold": 0.62,
+    "min_opposition": 0.60,
+    "cooldown_turns": 1,
+    "dismiss_memory": true,
+    "resurface_novelty": 0.75,
+    "max_surfaces_per_run": 4
   },
 
   "index": {
@@ -146,6 +157,7 @@
   },
 
   "transparency": {
+    "card_style": "plain",
     "show_detection_card": true,
     "show_evaluation_card": true,
     "show_response_card": true,

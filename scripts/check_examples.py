@@ -43,6 +43,17 @@ EXPECTED: list[tuple[str, str, str, str | None]] = [
     ("packet_no_conflict.json", "silent", "none", None),
 ]
 
+# (packet, decision, reason). Mirrors the screening table in examples/README.md.
+#
+# The second row is the one worth having. It is a *real* conflict - above the alert
+# threshold, on the dissonance channel - that the guard nevertheless holds back,
+# because the interruption bar sits higher than the recording bar. If the two bars
+# ever collapse into one, that row fails and the skill has become a nagger.
+GUARD_EXPECTED: list[tuple[str, str, str]] = [
+    ("triage_sparse_conflict.json", "surface", "policy_ask_user"),
+    ("triage_sparse_quiet.json", "silent", "below_surface_threshold"),
+]
+
 
 def observe(packet: Path) -> tuple[str, str, str | None]:
     """Run one packet through the engine and read back the three labels.
@@ -69,6 +80,30 @@ def observe(packet: Path) -> tuple[str, str, str | None]:
     evaluation = payload["evaluation"]
     strategy = evaluation["evaluation_result"]["recommended_strategy"] if evaluation else None
     return tension["level"], tension["channel"], strategy
+
+
+def observe_guard(packet: Path) -> tuple[str, str]:
+    """Screen one sparse packet and read back the decision and its first reason.
+
+    Run statelessly on purpose: with no ``--state`` there is no cooldown, no
+    dismissal memory and no budget, so the documented outcome is a function of the
+    packet and the config alone. A documented example that depended on session
+    history could not be re-run by a reader.
+    """
+    completed = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "cds.py"), "guard",
+         "--signals", str(packet), "--no-log", "--json"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(f"{packet.name}: cds.py guard exited {completed.returncode}\n{completed.stderr.strip()}")
+    payload = json.loads(completed.stdout)
+    reasons = payload.get("reasons") or [""]
+    return payload["decision"], reasons[0]
 
 
 def test_count():
@@ -159,6 +194,23 @@ def main() -> int:
         else:
             print(f"ok   {name}: {rendered}")
 
+    print()
+    print(f"{len(EXPECTED)} examples match the documented table in examples/README.md")
+
+    for name, want_decision, want_reason in GUARD_EXPECTED:
+        packet = EXAMPLES / name
+        if not packet.exists():
+            print(f"FAIL {name}: file not found")
+            failures += 1
+            continue
+        got_decision, got_reason = observe_guard(packet)
+        rendered = f"{got_decision} / {got_reason}"
+        if (got_decision, got_reason) != (want_decision, want_reason):
+            print(f"FAIL {name}: expected {want_decision} / {want_reason}, got {rendered}")
+            failures += 1
+        else:
+            print(f"ok   {name}: {rendered}")
+
     if failures:
         print()
         print(f"{failures} example(s) no longer match examples/README.md.")
@@ -166,8 +218,8 @@ def main() -> int:
         print("documented table needs updating. Decide which, then re-run.")
         return 1
 
-    print()
-    print(f"{len(EXPECTED)} examples match the documented table in examples/README.md")
+    print(f"{len(GUARD_EXPECTED)} screening examples match the documented table")
+
     documented = check_documented_test_count()
     print()
     caveats = check_report_caveats()

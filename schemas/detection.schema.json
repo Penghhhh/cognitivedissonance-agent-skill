@@ -5,6 +5,19 @@
   "description": "Output of `cds.py detect`. ConflictEvent and TensionResult travel together because the detector always produces both, but they stay separate objects so that a downstream consumer can read the event without depending on the index version. The `terms` block is mandatory: every contribution to the index is named and logged, so no reported number is ever unauditable.",
   "type": "object",
   "additionalProperties": false,
+  "$defs": {
+    "claim_side": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["role", "text"],
+      "properties": {
+        "role": { "type": "string", "enum": ["stance", "evidence", "memory", "current", "user_hint"] },
+        "text": { "type": "string", "minLength": 1 },
+        "source": { "type": ["string", "null"] },
+        "evidence_id": { "type": ["string", "null"] }
+      }
+    }
+  },
   "required": ["schema_version", "skill_version", "index_version", "config_hash", "run_id", "turn_id", "conflict_event", "tension_result", "consistency_gate_result", "state"],
   "properties": {
     "schema_version": { "type": "string" },
@@ -37,6 +50,16 @@
           }
         },
         "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "claims": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["a", "b"],
+          "description": "The two elements that clash, named so that a transparency card can state the conflict itself rather than only its index value. Added in v0.4.0; optional in this schema so that a detection record stored by an earlier version still validates, and always emitted by the engine. Either side may be null when the packet did not name that element.",
+          "properties": {
+            "a": { "$ref": "#/$defs/claim_side" },
+            "b": { "$ref": "#/$defs/claim_side" }
+          }
+        },
         "terms": {
           "type": "object",
           "description": "Full additive decomposition of the index. sum(contribution) + clip adjustment == tension.",

@@ -15,10 +15,14 @@ abstract: >-
   deterministic linguistic-indicator coder over the produced reply, act-realisation
   and constraint-violation rates, a perception scorer for model-produced signal
   packets, an arm-purity check, and a withhold-acts ablation arm that separates
-  instruction-following from the model's own treatment of contradiction.
+  instruction-following from the model's own treatment of contradiction. Version
+  0.4.0 splits detection into a cheap screening stage that stays invisible unless a
+  conflict is clear enough to be worth a user's attention, and the full loop, which
+  now runs only with the user's consent; it also renders the transparency cards in a
+  plain style alongside the technical one, under the same labelling rules.
 type: software
-version: "0.3.0"
-date-released: "2026-09-10"
+version: "0.4.0"
+date-released: "2026-09-12"
 license:
   - MIT
   - CC-BY-4.0

@@ -174,6 +174,26 @@ def _check_semantics(config: dict[str, Any]) -> None:
     if floor > 1.0 or floor < 0.0:
         problems.append(f"index.gates.volition_floor out of range: {floor}")
 
+    guard = config.get("guard")
+    if guard:
+        # The interruption bar and the recording bar are different questions. If the
+        # guard could surface below every alert threshold, the skill would interrupt
+        # a user about events its own index calls silent, which is how a transparency
+        # feature turns into a nagging feature. Refused at load time rather than
+        # merely documented, in the same spirit as the non_dissonant_cap check.
+        surface_bar = float(guard["surface_threshold"])
+        if surface_bar < min(effective_alerts) - _SUM_TOLERANCE:
+            problems.append(
+                "guard.surface_threshold "
+                f"({surface_bar}) must be at or above every alert threshold (min {min(effective_alerts)}); "
+                "otherwise the guard interrupts the user about conflicts the engine itself reports as silent"
+            )
+        # No check pairs `guard.enabled` with `skill.mode`. An inert arm wins over
+        # the guard unconditionally: `run_guard` returns arm_inert before it looks
+        # at anything else. Refusing the combination instead would make the `off`
+        # arm unconfigurable without also editing an unrelated block, which is
+        # exactly the coupling an ablation design must not have.
+
     for conflict_type, value in per_type.items():
         if value > high:
             problems.append(f"thresholds_by_type.{conflict_type} ({value}) exceeds thresholds.high ({high})")

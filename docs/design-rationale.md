@@ -581,3 +581,194 @@ refusals, the schema-before-emit rule, and the `terms` decomposition asserted by
 The corpus labels for the original 67 scenarios also survived the routing change
 unchanged — the contamination was in how a *forced* arm routed, not in how the corpus's
 own configs route, which is why the recomputation changed no existing expectation.
+
+## 8. What changed in v0.4.0, and why
+
+v0.3.0 fixed what the loop measured. v0.4.0 is about whether the loop can be left
+running, and the honest answer for v0.3.0 was no. What follows is one design decision —
+screen cheaply, detect fully — and the defects that decision exposed once it was taken
+seriously.
+
+### 8.1 The component cost more than it was worth, so it could not be left on
+
+v0.3.0 was switched on by a command and then ran the *whole* loop on every turn: rate a
+full signal packet, with a verbatim quote and five evidence-quality ratings per evidence
+item, then detect, evaluate and print three dense cards. Users reported two things about
+that, and only the first is a cost complaint: token consumption exploded, so the
+component was not worth leaving on; and the cards were hard to read.
+
+The first report is a **design** failure rather than a performance one, and it is worth
+being precise about why. The data this project needs is long sessions — how the
+component behaves across a working week of conversation, marginal and resolved cases
+included. A component a user switches off after an hour cannot produce that data at all.
+Worse, the price was being paid on exactly the turns that carry no signal: the
+overwhelming majority of turns contain no conflict, and under v0.3.0 each of them cost a
+full packet and three cards to establish that nothing had happened. The skill was paying
+its maximum price to report its most common non-event.
+
+**Change.** Detection is split in two. Screening (`python scripts/cds.py guard`) takes a
+**sparse** packet — a valid signal packet with only the index terms filled in:
+`relation.opposition`, `relation.specificity`,
+`stance.{commitment, public_commitment, volition, self_relevance}`,
+`evidence[].novelty`, `user_pressure`, `evidence_conflict_unresolved` — and returns one
+decision, `surface` or `silent`, with machine-readable `reasons`. On the silent path the
+entire output is one line, `CDS_GUARD silent`; `guard_card` returns an empty string, and
+empty is the correct rendering because invisibility is the feature. The default stdout is
+deliberately *not* the card-plus-JSON that every other stage prints — the cost of the
+component on an ordinary turn is the thing being fixed — so the record goes to the JSONL
+log and comes back on request with `--json` or `--out`. Escalation is the unchanged
+v0.3.0 pipeline, except that it now prints one line from `detect --brief` instead of a
+second full detection card, because the user has already read the two claims and the
+conflict size on the guard card.
+
+The fix separates screening from detection rather than trimming the measurement. The
+guard rates nothing: it calls the existing `cds_index.build_detection`, so there is still
+one index, one volition gate and one set of thresholds in the repository, and the guard
+adds only a screening policy on top of them. The dimensions a sparse packet omits are
+genuinely absent rather than zeroed, and the evaluator treats a missing dimension as
+*unrated* and renormalises, so a screening packet that escalates is a valid evaluation
+input rather than a degraded one. Nothing v0.3.0 measured was dropped to make the
+component cheaper to leave on.
+
+Two supporting details are recorded here because they are the sort of thing that becomes
+a bug later. A screening and the event it escalated to immediately share a turn id:
+`detect` does not advance the turn counter a second time when the guard has already
+screened that turn (`StateMachine.guard_ran_on_turn`), because counting the turn twice
+would put the two stages in different turns and make "how often did a turn screen silent,
+and how often did it become an event" unanswerable from the log. And setting
+`guard.enabled` to `false` removes the screening stage, so the full loop runs whenever
+`detect` is called — the v0.3.0 cadence — which is what makes the cost argument testable
+rather than merely asserted. It does not restore the v0.3.0 card rendering;
+`transparency.card_style` does that.
+
+### 8.2 "Worth recording" and "worth interrupting someone for" were the same number
+
+In v0.3.0 one number did two jobs. `thresholds.alert` decided both whether an event was
+worth recording and whether the user was told about it. Those are different questions
+with different answers, and the conflation has a predictable failure mode: every
+marginal-but-real conflict reaches the user, so the skill nags. Nagging is not a
+cosmetic defect here. It is the mechanism by which a component gets switched off, which
+is the §8.1 failure arriving by a second route.
+
+**Change.** `guard.surface_threshold` is the interruption bar, and
+`cds_config._check_semantics` refuses at config-load time any config in which it falls
+below `thresholds.alert` or below any `thresholds_by_type` value. No legitimate config
+can therefore make the guard ask a user about an event the engine's own index calls
+silent. A marginal-but-real conflict is exactly the case that must be recorded silently:
+it is data on how often the agent's position is under pressure, and it is not yet a
+question worth spending someone's attention on. Recording it costs a log line; showing
+it costs the thing the component exists to conserve.
+
+`guard.min_opposition` is a second, narrower floor. An event can clear the index on
+commitment and volition — a firmly held, freely chosen position — while the two claims
+involved barely conflict, and the index alone will not catch that: `opposition` is the
+term that says the claims actually collide.
+
+The tension left unresolved: the two bars are now distinct questions with distinct
+numbers, which is the point, but the height of neither is calibrated. `0.62` and `0.60`
+are design priors in the sense §2.1 gave the weights, and nothing here establishes that
+0.62 is where a user's attention becomes worth spending.
+
+### 8.3 A screening decision is not an event
+
+The tempting implementation of the guard is to have it emit an event, so that a
+suppressed conflict flows through machinery that already exists: the queue, the
+transition log, the state file. That implementation is wrong twice over, and the second
+reason is the serious one. A screening decision is not an event; it is the reason there
+is or is not one. Had the guard created one, every log analysis that counts events —
+the corpus checks, the arm-purity measurement, any later count of threshold crossings —
+would have been counting a fabricated event id for each of the silent turns that make up
+the majority of the log. And in ambient mode `ingest_detection` would have dispatched
+that suppressed event straight into evaluation, so the guard's silence would have
+produced precisely the interruption it exists to prevent.
+
+**Change.** The guard writes its own stage and its own schema. A record with
+`stage: "guard"`, validated against `schemas/guard.schema.json`, is written on **every**
+screening, including the silent ones, because a screening stage that logs only its hits
+has no denominator and therefore no false-negative rate that could ever be computed from
+it. The record embeds the full `DetectionResult`, held to
+`schemas/detection.schema.json` like the one `detect` prints, so a single screening line
+is self-contained: the index decomposition, the gate detail and both channel levels are
+readable without re-running anything. Its `event_id` is `null`. Its embedded `state`
+block carries the same state in `from` and `to`, which states explicitly that screening
+does not transition the machine; an omitted block could not have been told apart from a
+bug.
+
+Session memory lives in a `guard` block beside the event list in the state file, not
+inside it, for the same reason: which conflicts the user dismissed, how recently they
+were interrupted, and how many interruptions this run has spent are facts about the
+session rather than events in it. A state file written by v0.3.0 has no `guard` block,
+and it is **repaired in place on load** rather than rejected, because a long session has
+to survive the upgrade — refusing the file would discard the session in which the data
+being studied was collected.
+
+The guard also had to answer a question the event path had already answered. 处理 / 忽略
+/ 稍后 (*process / ignore / later*) are the words a user types at an event, and the same
+three words are the answer to a screening card, so `handle_command` checks a pending
+guard confirmation before the event path; otherwise the engine would answer "no pending
+event" while a card asking exactly that question was on the user's screen. 处理 records a
+single-use consent (`GUARD_CONSENT_TURNS = 1`: a consent given several turns ago is not
+consent for the conflict in front of us now), the other two append to the dismissal
+memory with the decision recorded distinctly. The consent is honoured in `_dispatch`
+**before** the ambient branch, so a user who consented is recorded as having consented
+whatever the arm says — `event.user_consent: true` with `consent_conflict_key`, and the
+state moving to `EVALUATING` with the reason `guard_consent_recorded`. Reading the
+consent only in the interactive branch would have dropped that record silently in the
+ambient arm, which is the arm the primary condition runs.
+
+### 8.4 The card named the score and not the conflict
+
+The complaint that the cards were hard to read has a specifiable cause. The reader was
+given `0.71 / 0.55` and band words for the index, and no statement of what clashed. That
+is not a formatting detail but a data defect: before v0.4.0 the detection record carried
+a stance claim and a list of evidence **ids**, but never the evidence's own claim text,
+so a card could not print the second half of a contradiction even in principle.
+The artefact named a construct and a magnitude while leaving the reader to reconstruct
+the conflict from the rest of the conversation.
+
+**Change.** `conflict_event.claims` carries both sides — `{"a": {...}, "b": {...}}`, each
+with a `role` and the claim `text` — and the guard card and the detection card name both.
+The roles are derived from the conflict **type**, which is an enum, rather than from an
+evidence `source` string, which is free text: a source string cannot be mapped onto
+`stance` / `evidence` / `memory` / `current` / `user_hint` without inventing a rule, and
+a rule over free text is how a card starts labelling a user's own hint as evidence.
+Cards excerpt a claim at 120 characters (`CLAIM_DISPLAY_LIMIT`); the full text stays in
+the packet and in the log, so nothing is lost from the record to make a card fit.
+
+The second half of the change is `transparency.card_style`. `plain` (the default) is
+question-shaped: the two colliding claims named in words, band words beside the decimals,
+no identifiers a reader has to look up. `technical` is the v0.3.0 field-per-line
+rendering with identifiers included, and it is kept because it is the artefact earlier
+runs were coded from — dropping it would leave those codings pointing at a rendering the
+code no longer produces. The two styles are held to the **same** labelling rules: the
+channel is always named, a gated event is never reported as dissonance, and the branch is
+always named. `tests/test_cards.py` runs every one of those invariants against both
+styles, because a style is a presentation choice and never a licence to drop a construct
+label; a readability rewrite that quietly deleted the gate label is exactly the
+regression the two-style test exists to catch.
+
+The tension left unresolved: `plain` is a design argument, not a measured improvement.
+It removes the identifiers and answers the question a reader actually has, and no
+participant has read it yet. Whether it is easier to read is a Study 2 question, since
+RQ2 measures judgements of explainability and transparency and this is the surface those
+judgements are made on; until it is answered, the technical rendering has to stay.
+
+### 8.5 What did not change
+
+Everything the guard sits on top of is untouched: the index and its weights, the volition
+gate and its cap, the thresholds, the routing rules, the evaluator, the indicator coder
+and the 77-scenario corpus. `eval/results.csv` reports the same `level`, `channel` and
+`strategy` for all 77 scenarios, and only the `config_hash` column moved, because the
+config gained a `guard` block. The corpus runner calls `build_detection` directly, so it
+does not exercise the screening policy at all; the guard's own bars are covered by
+`tests/test_guard.py` rather than by the corpus.
+
+The screening bar and its inhibitors are **design priors, not calibrations**.
+`surface_threshold: 0.62`, `min_opposition: 0.60`, `cooldown_turns: 1`,
+`resurface_novelty: 0.75` and `max_surfaces_per_run: 4` are stated choices with stated
+reasons, in the same sense as the index weights in §2.1, and no annotation study stands
+behind any of them. What is different from v0.3.0 is that the denominator now exists:
+every screening is logged with its decision, its reason and the detection that produced
+it, so the distribution of held-back conflicts — and how close each of them came to the
+bar — is readable from the `guard` records. The false-negative rate that distribution
+implies has not been measured, and this document does not claim it is small.

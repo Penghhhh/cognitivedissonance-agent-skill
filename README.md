@@ -1,5 +1,7 @@
 # CDS-Skill
 
+**English** · [中文](README.zh-CN.md)
+
 CDS-Skill (Cognitive Dissonance Simulation) is a pluggable skill for LLM agent
 harnesses: DeepSeek Harness, Claude Code, or anything that scans a skills folder.
 When new information in a conversation contradicts a position the agent itself

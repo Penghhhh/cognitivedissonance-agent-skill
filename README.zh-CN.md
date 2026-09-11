@@ -1,5 +1,7 @@
 # CDS-Skill
 
+[English](README.md) · **中文**
+
 CDS-Skill（Cognitive Dissonance Simulation，认知失调模拟）是一个可插拔的 LLM agent
 技能组件，适用于 DeepSeek Harness、Claude Code，或任何会扫描 skills 目录的工具。当对话中
 新出现的信息与 agent 自己先前说过的立场相矛盾时，它会检测出这一冲突，并交给一套明确、

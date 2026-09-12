@@ -33,6 +33,7 @@ from cds_indicators import (
     lexicon_unknown_keys,
     load_lexicon,
     rate_claim_strength,
+    rate_claim_strength_with_trace,
     split_clauses,
 )
 
@@ -536,6 +537,44 @@ class TestClaimStrength(unittest.TestCase):
         docstring = rate_claim_strength.__doc__ or ""
         self.assertIn("placeholder", docstring)
         self.assertIn("calibrated", docstring)
+
+
+class TestClaimStrengthTrace(unittest.TestCase):
+    """The trace exists so a human coder can see what the placeholder counted."""
+
+    def test_trace_agrees_with_the_bare_rating(self):
+        for text in ("X 毫无疑问是可靠的。", "X 可能可靠，也许吧。", "今天把日志整理了一遍。", ""):
+            with self.subTest(text=text):
+                self.assertEqual(
+                    rate_claim_strength_with_trace(text)["value"],
+                    rate_claim_strength(text),
+                )
+
+    def test_trace_reports_the_cue_counts(self):
+        trace = rate_claim_strength_with_trace("X 毫无疑问是可靠的。")
+        self.assertEqual(trace["cues"]["boosters"], 1)
+        self.assertEqual(trace["cues"]["hedges"], 0)
+
+    def test_trace_is_always_marked_unvalidated(self):
+        for text in ("X 是可靠的。", "今天把日志整理了一遍。", ""):
+            with self.subTest(text=text):
+                self.assertTrue(rate_claim_strength_with_trace(text)["unvalidated"])
+
+    def test_a_bare_baseline_is_flagged_for_human_rating(self):
+        # A claim with no cue at all returns the bare baseline, which is a constant
+        # rather than a reading. The flag is what stops that constant being reported
+        # as though the heuristic had measured something.
+        trace = rate_claim_strength_with_trace("X 是可靠的。")
+        self.assertEqual(trace["value"], 0.5)
+        self.assertTrue(trace["needs_human_rating"])
+
+    def test_a_cued_rating_is_not_flagged(self):
+        self.assertFalse(rate_claim_strength_with_trace("X 毫无疑问是可靠的。")["needs_human_rating"])
+
+    def test_a_claim_less_text_is_flagged_and_has_no_value(self):
+        trace = rate_claim_strength_with_trace("今天把日志整理了一遍。")
+        self.assertIsNone(trace["value"])
+        self.assertTrue(trace["needs_human_rating"])
 
 
 class TestExpectedIndicators(unittest.TestCase):

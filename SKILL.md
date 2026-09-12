@@ -4,7 +4,7 @@ description: Use when information in the conversation contradicts a position the
 whenToUse: The agent has stated a position in this conversation and now faces information that opposes it, and the user wants that collision handled explicitly rather than smoothed over.
 disable-model-invocation: true
 metadata:
-  version: "0.5.1"
+  version: "0.5.2"
   license: MIT
   language: zh, en (the runtime follows the conversation; see below)
   requires: python>=3.9 (standard library only)

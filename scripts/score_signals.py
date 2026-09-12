@@ -226,6 +226,15 @@ def error_metrics(pairs: list[tuple[float, float]], tolerance: float = DEFAULT_T
     rates systematically higher than the annotator. A large bias with a small MAE is
     a calibration finding, not noise, which is why the two are reported side by side
     rather than pooled into one "accuracy".
+
+    ``within_tolerance_rate`` is the share of ratings landing inside ``tolerance``,
+    and it is named that rather than "exact agreement" on purpose. It was previously
+    published as ``exact_agreement``, which described a stricter quantity than the
+    one computed: a rating 0.05 away from gold is not an exact agreement, and a field
+    named as though it were invites a table reader to quote a stronger result than
+    the data supports. ``exact_agreement`` is kept as a deprecated alias so stored
+    JSON and older notes keep loading, but it carries the same within-tolerance value
+    and must not be reported under that name.
     """
     if not pairs:
         return {
@@ -233,6 +242,7 @@ def error_metrics(pairs: list[tuple[float, float]], tolerance: float = DEFAULT_T
             "mae": None,
             "rmse": None,
             "bias": None,
+            "within_tolerance_rate": None,
             "exact_agreement": None,
             "within_tolerance": 0,
             "max_abs_error": None,
@@ -240,12 +250,14 @@ def error_metrics(pairs: list[tuple[float, float]], tolerance: float = DEFAULT_T
     errors = [produced - gold for gold, produced in pairs]
     n = len(errors)
     within = sum(1 for error in errors if abs(error) <= tolerance)
+    rate = _round(within / n)
     return {
         "n": n,
         "mae": _round(sum(abs(error) for error in errors) / n),
         "rmse": _round(math.sqrt(sum(error * error for error in errors) / n)),
         "bias": _round(sum(errors) / n),
-        "exact_agreement": _round(within / n),
+        "within_tolerance_rate": rate,
+        "exact_agreement": rate,
         "within_tolerance": within,
         "max_abs_error": _round(max(abs(error) for error in errors)),
     }
@@ -1004,7 +1016,7 @@ def write_report(result: dict[str, Any], path: Path = REPORT_PATH, stamp: str | 
     def rating_row(name: str, metrics: dict[str, Any]) -> str:
         return (
             f"| `{name}` | {metrics['n']} | {_fmt(metrics['mae'])} | {_fmt(metrics['rmse'])} | "
-            f"{_fmt_signed(metrics['bias'])} | {_fmt(metrics['exact_agreement'])} | "
+            f"{_fmt_signed(metrics['bias'])} | {_fmt(metrics['within_tolerance_rate'])} | "
             f"{metrics['produced_unrated']} |"
         )
 
@@ -1121,7 +1133,7 @@ def print_summary(result: dict[str, Any]) -> None:
         metrics = result["ratings"].get(name) or result["evidence_ratings"][name]
         print(
             f"{name:<41}  {metrics['n']:>3}  {_fmt(metrics['mae'])}  {_fmt(metrics['rmse'])}  "
-            f"{_fmt_signed(metrics['bias']):>7}  {_fmt(metrics['exact_agreement'])}"
+            f"{_fmt_signed(metrics['bias']):>7}  {_fmt(metrics['within_tolerance_rate'])}"
         )
     print()
     categorical = result["categorical"]["relation.type"]

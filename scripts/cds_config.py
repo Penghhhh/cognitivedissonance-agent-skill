@@ -207,6 +207,26 @@ def _check_semantics(config: dict[str, Any]) -> None:
             f"got {indeterminacy['alert']} / {indeterminacy['high']}"
         )
 
+    # Both ungated channels need the same ordering check the indeterminacy channel
+    # already had. Without it, `channels.normative.alert` could be set at or above
+    # its own `high`, which makes the `high` band unreachable and silently collapses
+    # a three-band severity reading into two - a config edit that changes what a
+    # card can say without changing any code.
+    #
+    # Neither channel is covered by the `non_dissonant_cap` or `surface_threshold`
+    # invariants above, and that is deliberate rather than an omission: both are
+    # ungated by design (`build_detection` never caps them), so `non_dissonant_cap`
+    # has nothing to say about them, and the guard skips the surface bar entirely on
+    # the `normative` channel. Recorded here so the exclusion reads as a decision
+    # rather than an oversight.
+    for name in ("normative", "indeterminacy"):
+        channel = config["channels"][name]
+        if channel["alert"] >= channel["high"]:
+            problems.append(
+                f"channels.{name}.alert must be below channels.{name}.high, "
+                f"got {channel['alert']} / {channel['high']}"
+            )
+
     rules = config["evaluator"]["strategy_rules"]["rules"]
     ids = [rule["id"] for rule in rules]
     duplicates = sorted({rid for rid in ids if ids.count(rid) > 1})

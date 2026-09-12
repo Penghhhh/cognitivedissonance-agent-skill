@@ -64,6 +64,7 @@ jobs:
           python scripts/sensitivity.py --write-report
           python scripts/check_arms.py --write-report
           python scripts/score_signals.py --write-report
+          python scripts/score_responses.py --pairs examples/coding_pairs --write-report
           if ! git diff --quiet -- eval/; then
             echo "::error::eval/ reports are stale. Commit the regenerated files."
             git diff --stat -- eval/

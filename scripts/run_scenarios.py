@@ -178,7 +178,16 @@ def _score(row: dict[str, Any], expect: dict[str, Any]) -> dict[str, Any]:
 
 
 def binary_detection_metrics(rows: list[dict[str, Any]], scenarios: dict[str, dict[str, Any]]) -> dict[str, float]:
-    """Precision/recall/F1 for 'did the engine report a conflict at all?'."""
+    """Precision/recall/F1 and both error rates for 'did the engine report a conflict at all?'.
+
+    ``false_positive_rate`` and ``false_negative_rate`` are reported alongside
+    precision and recall rather than instead of them. They answer the two
+    questions precision and recall leave implicit: how often a conflict-free turn
+    is reported as a conflict, and how often a real conflict is missed. On this
+    corpus the negatives dominate (16 of 79 cases are designed to fire nothing),
+    so a false-positive rate is the more informative of the pair and was
+    previously computed and then dropped before the report was written.
+    """
     tp = fp = fn = tn = 0
     for row in rows:
         scenario = scenarios[row["scenario_id"]]
@@ -264,6 +273,10 @@ def print_summary(rows: list[dict[str, Any]], summary: dict[str, Any]) -> None:
         f"  precision={_format_rate(binary['precision'])} recall={_format_rate(binary['recall'])} "
         f"f1={_format_rate(binary['f1'])}"
     )
+    print(
+        f"  FPR={_format_rate(binary['false_positive_rate'])} "
+        f"FNR={_format_rate(binary['false_negative_rate'])}"
+    )
     print()
     print("family                       n   exact   level  strategy")
     print("---------------------------  --  ------  ------  --------")
@@ -337,10 +350,15 @@ def write_report(rows: list[dict[str, Any]], summary: dict[str, Any], base_confi
         "",
         "## Binary conflict detection",
         "",
-        "| tp | fp | fn | tn | precision | recall | f1 |",
-        "|---|---|---|---|---|---|---|",
+        "| tp | fp | fn | tn | precision | recall | f1 | FPR | FNR |",
+        "|---|---|---|---|---|---|---|---|---|",
         f"| {binary['tp']} | {binary['fp']} | {binary['fn']} | {binary['tn']} | "
-        f"{_format_rate(binary['precision'])} | {_format_rate(binary['recall'])} | {_format_rate(binary['f1'])} |",
+        f"{_format_rate(binary['precision'])} | {_format_rate(binary['recall'])} | {_format_rate(binary['f1'])} | "
+        f"{_format_rate(binary['false_positive_rate'])} | {_format_rate(binary['false_negative_rate'])} |",
+        "",
+        "FPR = fp / (fp + tn) and FNR = fn / (fn + tp). Both are properties of this",
+        "corpus, whose negatives were authored rather than sampled; they constrain the",
+        "engine's arithmetic, not its accuracy on real conversations.",
         "",
         "## Per family",
         "",

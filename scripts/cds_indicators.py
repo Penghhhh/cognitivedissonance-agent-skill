@@ -829,6 +829,60 @@ def _rate_from_parts(
     return round(min(max(score, 0.0), 1.0), 4)
 
 
+def rate_claim_strength_with_trace(
+    text: str, language: str = "zh", lexicon: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """``rate_claim_strength`` plus the cue counts that produced the number.
+
+    Exists for the human-rating protocol, not for the corpus pipeline. When a
+    double-coder rates the same claim on the codebook's commitment anchors, they
+    need to see *which* hedge, booster, conditional or softening cue the model
+    counted, and where, in order to say whether the two disagree because the model
+    is wrong or because the codebook is ambiguous. Those are different findings and
+    a single agreement coefficient cannot tell them apart.
+
+    The trace is also what makes the calibration task finite. The weights below are
+    six constants (``_STRENGTH_BASELINE`` and five steps) plus four capped counts;
+    a calibration study is therefore estimating a handful of parameters against
+    human ratings, not re-deriving a black box. ``cues`` reports the raw counts so
+    the four candidates can be fitted directly, and ``needs_human_rating`` marks the
+    cases a coder must rate first: no claim cue was found (``value`` is ``None``, the
+    honest answer) or the text carried no cue at all, so the heuristic is returning
+    the bare baseline and the number says nothing.
+
+    Returns ``{value, unvalidated, needs_human_rating, cues, basis}``.
+    """
+    value = rate_claim_strength(text, language, lexicon)
+    active = lexicon if lexicon is not None else load_lexicon(language)
+    cues: dict[str, int] = {"hedges": 0, "boosters": 0, "conditionals": 0, "softening": 0}
+    claim_present = False
+    if isinstance(text, str) and text.strip():
+        mask = _quote_mask(text, active)
+        clause_spans = _split_with_offsets(text, language, mask)
+        credited = _credit(_winning_spans(text, active, mask), active)
+        claim_hits = _cue_hits(text, _CLAIM_CUES, mask)
+        claim_present = bool(claim_hits)
+        claim_clauses = {_clause_index(clause_spans, hit[0]) for hit in claim_hits}
+        conditional_clauses = {_clause_index(clause_spans, hit[0]) for hit in credited["conditional_markers"]}
+        cues = {
+            "hedges": _scoped(credited["hedges"], clause_spans, claim_clauses),
+            "boosters": _scoped(credited["boosters"], clause_spans, claim_clauses),
+            "conditionals": len(conditional_clauses),
+            "softening": _scoped(credited["softening_cues"], clause_spans, claim_clauses),
+        }
+    no_cue = claim_present and not any(cues.values())
+    return {
+        "value": value,
+        "unvalidated": True,
+        "needs_human_rating": (value is None) or no_cue,
+        "cues": cues,
+        "basis": (
+            "placeholder: _STRENGTH_BASELINE plus four capped cue counts; "
+            "weights are design priors and are not calibrated against human ratings"
+        ),
+    }
+
+
 def rate_claim_strength(text: str, language: str = "zh", lexicon: dict[str, Any] | None = None) -> float | None:
     """Rate the commitment strength of a text's central claim on a 0-1 scale.
 

@@ -161,26 +161,26 @@ class TestErrorMetrics(unittest.TestCase):
         self.assertIsNone(metrics["mae"])
         self.assertIsNone(metrics["rmse"])
         self.assertIsNone(metrics["bias"])
-        self.assertIsNone(metrics["exact_agreement"])
+        self.assertIsNone(metrics["within_tolerance_rate"])
 
 
 class TestToleranceAgreement(unittest.TestCase):
     def test_agreement_counts_only_pairs_inside_the_tolerance(self):
         metrics = scorer.error_metrics([(0.0, 0.04), (0.5, 0.60)], tolerance=0.05)
         self.assertEqual(metrics["within_tolerance"], 1)
-        self.assertAlmostEqual(metrics["exact_agreement"], 0.5, places=9)
+        self.assertAlmostEqual(metrics["within_tolerance_rate"], 0.5, places=9)
 
     def test_tolerance_is_inclusive_at_the_boundary(self):
         metrics = scorer.error_metrics([(0.0, 0.05)], tolerance=0.05)
-        self.assertAlmostEqual(metrics["exact_agreement"], 1.0, places=9)
+        self.assertAlmostEqual(metrics["within_tolerance_rate"], 1.0, places=9)
 
     def test_a_difference_just_outside_the_tolerance_does_not_count(self):
         metrics = scorer.error_metrics([(0.0, 0.050001)], tolerance=0.05)
-        self.assertAlmostEqual(metrics["exact_agreement"], 0.0, places=9)
+        self.assertAlmostEqual(metrics["within_tolerance_rate"], 0.0, places=9)
 
     def test_the_sign_of_the_difference_is_irrelevant_to_agreement(self):
         metrics = scorer.error_metrics([(0.60, 0.55)], tolerance=0.05)
-        self.assertAlmostEqual(metrics["exact_agreement"], 1.0, places=9)
+        self.assertAlmostEqual(metrics["within_tolerance_rate"], 1.0, places=9)
 
     def test_zero_tolerance_counts_only_exact_matches(self):
         metrics = scorer.error_metrics([(0.5, 0.5), (0.5, 0.5000001)], tolerance=0.0)
@@ -188,8 +188,8 @@ class TestToleranceAgreement(unittest.TestCase):
 
     def test_a_wider_tolerance_can_only_raise_agreement(self):
         pairs = [(0.0, 0.04), (0.2, 0.30), (0.6, 0.85)]
-        narrow = scorer.error_metrics(pairs, tolerance=0.05)["exact_agreement"]
-        wide = scorer.error_metrics(pairs, tolerance=0.30)["exact_agreement"]
+        narrow = scorer.error_metrics(pairs, tolerance=0.05)["within_tolerance_rate"]
+        wide = scorer.error_metrics(pairs, tolerance=0.30)["within_tolerance_rate"]
         self.assertLessEqual(narrow, wide)
 
     def test_tolerance_does_not_change_the_mae(self):
@@ -723,7 +723,7 @@ class TestRoundTripIdentity(unittest.TestCase):
                 if metrics["n"] == 0:
                     continue
                 with self.subTest(dimension=name):
-                    self.assertEqual(metrics["exact_agreement"], 1.0, name)
+                    self.assertEqual(metrics["within_tolerance_rate"], 1.0, name)
 
     def test_bias_is_zero_everywhere(self):
         for group in ("ratings", "evidence_ratings"):
@@ -811,7 +811,7 @@ class TestPerturbationIsVisible(unittest.TestCase):
             write_packet(tmp, target["scenario_id"], packet)
             result = scorer.score(tmp, context.BASE_CONFIG, scenarios=scenarios, tolerance=0.05)
         metrics = result["ratings"]["stance.commitment"]
-        self.assertEqual(metrics["exact_agreement"], 1.0)
+        self.assertEqual(metrics["within_tolerance_rate"], 1.0)
         self.assertGreater(metrics["mae"], 0.0)
 
     def test_an_evidence_item_rated_wrongly_is_attributed_by_dimension_name(self):

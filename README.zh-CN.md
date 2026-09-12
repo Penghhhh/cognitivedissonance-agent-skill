@@ -113,7 +113,7 @@ python scripts/cds.py guard --signals examples/triage_sparse_conflict.json --sta
 验证 checkout：
 
 ```bash
-python -m unittest discover -s tests -t tests   # 576 个标准库 unittest 测试
+python -m unittest discover -s tests -t tests   # 582 个标准库 unittest 测试
 python scripts/check_examples.py
 ```
 

@@ -1,6 +1,6 @@
 {
   "$schema": "./cds.config.schema.json",
-  "config_version": "0.5.1",
+  "config_version": "0.5.2",
 
   "skill": {
     "enabled": true,

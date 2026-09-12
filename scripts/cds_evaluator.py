@@ -224,6 +224,21 @@ def build_evaluation(detection: dict[str, Any], signals: dict[str, Any], config:
     # Disjoint inputs on purpose: maintain_score answers "how defensible is
     # holding?", recalibrate_score answers "how much would revising buy?". Sharing
     # only the cost term keeps them from being each other's restatement.
+    #
+    # Both are **diagnostic intermediates, not routing inputs.** No rule in
+    # `evaluator.strategy_rules` reads either one; the router reads `e_score`,
+    # `commitment`, `user_pressure`, `evidence_conflict_unresolved` and
+    # `resolved_profile`, and nothing else. They are computed and logged so that an
+    # analyst can see which way the two pressures pointed on a case where the route
+    # looks surprising, and so that the arithmetic behind a route is inspectable
+    # rather than implied. Do not report them as decision variables, and do not
+    # interpret a route as following from them: on a case where they disagree with
+    # the fired rule, the rule is what happened.
+    #
+    # They also should not be treated as a validated two-construct pair. Both share
+    # the cost term and are functions of the same rated inputs, which is exactly the
+    # overlap `sensitivity.py` reports as Pearson r(tension, adjustment_cost) = .81
+    # for the neighbouring pair. Read them as two views of one situation.
     maintain_score = (1.0 - evidence_score) * (0.5 + 0.5 * commitment) * (0.5 + 0.5 * adjustment_cost)
     recalibrate_score = evidence_score * (1.0 - 0.5 * adjustment_cost)
 

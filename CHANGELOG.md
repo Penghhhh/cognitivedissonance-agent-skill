@@ -4,6 +4,100 @@ All notable changes to this skill are recorded here. The version appears in
 `VERSION`, in every log record, and in the `skill_version` field of every emitted
 structure, so a result can always be traced to the implementation that produced it.
 
+## [0.5.2] — 2026-09-14
+
+The measurement-honesty release. Every change here is to the *reporting* layer or to
+a config invariant, not to the arithmetic: the index, the gate, the evidence score and
+the routing rules are bit-for-bit what v0.5.1 computed. What changes is that three
+numbers the code already produced are now published, one misnamed field is renamed,
+one class of config edit can no longer be made silently, and the claim-strength
+placeholder can finally be calibrated rather than merely apologised for.
+
+### Added
+
+- **False-positive and false-negative rates in the corpus report.**
+  `binary_detection_metrics` had computed `false_positive_rate` and
+  `false_negative_rate` since v0.3.0 and then dropped both before the report was
+  written. They are now in `eval/report.md`'s binary detection table (as `FPR` and
+  `FNR`), in the console summary, and in the new CI staleness gate. They answer the
+  two questions precision and recall leave implicit — how often a conflict-free turn
+  is reported as a conflict, and how often a real conflict is missed — and on a corpus
+  whose negatives are authored rather than sampled, the false-positive rate is the
+  more informative of the pair. A note under the table says so, so the zeros are not
+  read as accuracy on real conversations.
+- **`rate_claim_strength_with_trace()`** in `scripts/cds_indicators.py`. Returns the
+  placeholder's value **plus** the four cue counts that produced it, an `unvalidated`
+  flag, and a `needs_human_rating` flag. This exists for the inter-rater protocol
+  rather than for the corpus: when a double-coder disagrees with the heuristic they
+  need to see *which* hedge, booster, conditional or softening cue was counted, and
+  where, in order to say whether the two disagree because the heuristic is wrong or
+  because the codebook is ambiguous — two different findings that one agreement
+  coefficient cannot separate. The flag also marks the case that must be rated first:
+  a claim with no cue at all returns the bare `_STRENGTH_BASELINE` of 0.50, which is a
+  constant rather than a reading, and `needs_human_rating` is what stops that constant
+  being reported as though the heuristic had measured something.
+- **Six unit tests** for the trace, including that it agrees with the bare rating and
+  that a bare-baseline result is flagged (582 tests, up from 576).
+- **`channels.normative.alert < channels.normative.high` is now checked at load
+  time.** The indeterminacy channel had this check; the normative channel did not.
+  Without it, a config edit could put `alert` at or above its own `high`, making the
+  `high` band unreachable and collapsing a three-band severity reading into two — a
+  change to what a card can say, made without touching any code.
+
+### Changed
+
+- **`error_metrics()["exact_agreement"]` is renamed `within_tolerance_rate`.** The old
+  name described a stricter quantity than the one computed: the field is the share of
+  ratings landing within ±`tolerance` (default 0.05), and a rating five hundredths away
+  from gold is not an exact agreement. A field named as though it were invites a table
+  reader to quote a stronger result than the data supports. `exact_agreement` is kept
+  as a deprecated alias carrying the same value, so stored JSON keeps loading, but it
+  must not be reported under that name. Report and console headings were already
+  "within"; only the identifier was wrong.
+- **`maintain_score` and `recalibrate_score` are documented as diagnostic
+  intermediates, not routing inputs.** No rule in `evaluator.strategy_rules` reads
+  either one, and a comment now says so at the point of computation, alongside a note
+  that the two should not be treated as a validated two-construct pair: they share the
+  cost term and are functions of the same rated inputs, which is the same overlap
+  `sensitivity.py` reports as r = .81 for the neighbouring pair. The comment exists
+  because "computed, logged and never read" is exactly the field an analyst will
+  mistake for a decision variable.
+- **`README.md` and `README.zh-CN.md` state the new test count.** `check_examples.py`
+  holds the README to the code, so this is enforced rather than maintained by hand.
+
+### Fixed
+
+- **`eval/responses.md` is now covered by the CI staleness gate.** The regeneration
+  step rebuilt `report.md`, `sensitivity.md`, `arms.md` and `perception.md` and then
+  checked `git diff --quiet -- eval/`, but it never regenerated `responses.md`. That
+  file was therefore outside the gate: a change to the indicator coder or to
+  `expected_indicators` could leave it stale and green. It is regenerated from
+  `examples/coding_pairs` on every run now, as its own documentation always said it
+  could be.
+
+### Notes
+
+- The version appears in `VERSION`, in `SKILL.md`'s frontmatter and in
+  `config/cds_config.json`'s `config_version`, so the base config hash moves with it.
+  The reports were regenerated: `eval/report.md` now names
+  `sha256:964d4d3292eaa6526d4f4f06abd40c1ca08dd8da50d530db30efb6d030880c07`.
+- **`thresholds.low` is still dead, and is now documented accurately rather than
+  removed.** v0.3.0's note called it "validated and echoed … and no decision reads
+  it", which is true but incomplete: it *is* read, as the declared floor for every
+  `thresholds_by_type` override (`cds_config.py`) and as the lower anchor of the
+  `low < alert < high` sanity check, and `build_terms` and `cds_cards.py` both read it
+  when assembling a record's threshold triple. What is dead is its use as a *level
+  boundary* — no decision compares an index against it, because the level bands are
+  `silent` / `alert` / `high`. Left in place: dropping a config key breaks saved
+  configs, and the floor role is real.
+- **What this release does not fix**, recorded so the next reader does not assume
+  otherwise: the inter-rater protocol has still never been run; the perception harness
+  still has no packets; `thresholds` remain design priors; the `strategy_set` /
+  `near_boundary` derivation is still not reproducible from the committed tree; the
+  `mixed` profile still has no arm-purity ceiling; and the normative channel is still
+  covered by exactly one scenario. These are measurement tasks, not code edits, and
+  the trace helper above is the part of that work that could be done in code.
+
 ## [0.5.1] — 2026-09-13
 
 The language release. The component has shipped every runtime string in Chinese and
@@ -495,11 +589,14 @@ have found in the meantime. Reasoning for each change is in
 - `references/indicators.md`'s constraint table is no longer aspirational: the codes
   decidable from reply text are checked by `score_responses.py`, and the ones that
   cannot be decided there report `not_checked` rather than passing.
-- `thresholds.low` is documented as dead. It is validated (`low < alert < high`) and
-  echoed into every detection record, and no decision reads it — the level bands are
-  `silent` / `alert` / `high`, decided by `alert` and `high` alone. Left in place rather
-  than removed, because dropping a config key breaks saved configs, but recorded so it
-  is not mistaken for a working threshold.
+- `thresholds.low` is documented as not being a level boundary. It is validated
+  (`low < alert < high`), it is the declared floor for every `thresholds_by_type`
+  override, and it is echoed into every detection record, but no decision compares an
+  index against it — the level bands are `silent` / `alert` / `high`, decided by
+  `alert` and `high` alone. Left in place rather than removed, because dropping a config
+  key breaks saved configs, but recorded so it is not mistaken for a working level
+  boundary. (The 0.5.2 entry refines this further; the v0.3.0 wording called the key
+  outright dead, which understated its role as the per-type override floor.)
 
 ### Notes
 

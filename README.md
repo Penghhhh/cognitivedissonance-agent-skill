@@ -128,7 +128,7 @@ python scripts/cds.py guard --signals examples/triage_sparse_conflict.json --sta
 Verify the checkout:
 
 ```bash
-python -m unittest discover -s tests -t tests   # 576 stdlib unittest tests
+python -m unittest discover -s tests -t tests   # 582 stdlib unittest tests
 python scripts/check_examples.py
 ```
 

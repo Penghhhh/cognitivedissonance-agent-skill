@@ -563,11 +563,17 @@ effect of being told; the instructed arm on its own is a manipulation check.
 - **`disclose_pressure_driver` was attached to one strategy.** An adaptive-arm reply
   driven by pressure is exactly the case the constraint exists for, and it was the one
   case that did not carry it. The code is now attached from the pressure flag.
-- **`thresholds.low` is dead.** It is validated (`low < alert < high`) and echoed into
-  every detection record, and no decision reads it: the level bands are `silent` /
-  `alert` / `high`, decided by `alert` and `high` alone. Left in place rather than
-  removed, because dropping a config key is a breaking change for saved configs, but
-  recorded here so it is not mistaken for a working threshold.
+- **`thresholds.low` is not a level boundary.** No decision compares an index against
+  it: the level bands are `silent` / `alert` / `high`, decided by `alert` and `high`
+  alone, so a conflict below `low` is reported with exactly the same `silent` label as
+  one between `low` and `alert`. It is read for two other things and the v0.3.0 note
+  below understated that. It is the **declared floor for every `thresholds_by_type`
+  override** — `_check_semantics` refuses a per-type value below it — and it is the
+  lower anchor of the `low < alert < high` sanity check. `build_terms` and
+  `cds_cards.py` also read it when assembling a record's threshold triple. Left in
+  place rather than removed, because dropping a config key is a breaking change for
+  saved configs and the floor role is real; recorded here so it is not mistaken for a
+  working level boundary. See §11.6.
 - **The validation corpus could not fail.** Every routed case declared exactly one
   correct strategy, including cases 0.001 from a decision edge, and
   `strategy_set` was never used with more than one element. See §7.3.
@@ -1031,3 +1037,117 @@ scored *in*: every scenario packet is written in Chinese, so under `auto` they a
 resolve to `zh` exactly as they did before, and `eval/results.csv` reports the same
 `level`, `channel` and `strategy` for every one of them. Only the `config_hash` column
 moved, because the config gained `language_fallback` and changed `language` to `auto`.
+
+## 11. What changed in v0.5.2, and why
+
+No arithmetic changed. The index, the gate, the evidence score, the routing rules and
+the corpus outcomes are identical to v0.5.1. This section is about the reporting and
+validation layer, where four things were wrong in the same way: **a number or a
+constraint existed, and the artifact did not say so.**
+
+### 11.1 The error rates were computed and then thrown away
+
+`run_scenarios.binary_detection_metrics` has returned `false_positive_rate` and
+`false_negative_rate` since v0.3.0. Neither reached `eval/report.md`; neither reached
+`eval/results.csv`. The report printed precision, recall and F1 and stopped.
+
+That is the worst shape for this particular omission, because precision and recall are
+the two metrics that *hide* the corpus's asymmetry. The corpus has 16 negative cases
+and 63 positive ones. Recall is computed against the 63 and is the number a reader
+naturally looks at; the false-positive rate is computed against the 16 and is the one
+that would reveal a gate that has stopped gating. On a corpus this shape, `recall =
+1.000` and `FPR = 0.000` carry very different amounts of information about whether the
+volition gate still works, and only one of them was published.
+
+**Change.** Both rates are in the binary detection table, in the console summary, and
+under the CI staleness gate. A note under the table states what they are properties
+*of*: `FPR` and `FNR` here describe the engine's arithmetic on an authored corpus, not
+its accuracy on conversations, because the negatives were written rather than sampled.
+Publishing a rate without that sentence would have swapped one misleading absence for
+one misleading presence.
+
+### 11.2 `exact_agreement` was named for a stricter quantity than it measured
+
+`score_signals.error_metrics` returned a field called `exact_agreement`, computed as
+the share of ratings landing within ±0.05 of gold. A rating five hundredths away from
+the annotator is not an exact agreement. The report's column heading already said
+"within", so the *output* was honest and only the *identifier* was not — but the
+identifier is what reaches a JSON consumer, a unit test, and the person writing the
+methods section.
+
+**Change.** Renamed to `within_tolerance_rate`, with `exact_agreement` kept as a
+deprecated alias carrying the same value so stored JSON keeps loading. The rename is
+the whole fix: no number moved, and the two are asserted equal by the existing tests.
+
+### 11.3 The placeholder could not be calibrated because its inputs were invisible
+
+§7.5 and `cds_indicators.rate_claim_strength` both say the same thing at length: the
+function is a placeholder, its weights are priors, and it must be calibrated against
+human coding before any magnitude it produces is reported. That statement has been in
+the repository since v0.3.0 and it has not helped, because **a coder cannot calibrate
+a function whose cue counts they cannot see.** "The heuristic disagrees with me" and
+"the codebook is ambiguous about this span" are different findings, and one agreement
+coefficient cannot tell them apart.
+
+**Change.** `rate_claim_strength_with_trace` returns the value, the four cue counts
+(hedges, boosters, conditionals, softening) that produced it, and two flags:
+`unvalidated` is always `true`, and `needs_human_rating` marks the cases a coder must
+rate *first* — no claim cue at all (the value is `None`, which is the honest answer)
+or a claim carrying no cue whatever, where the function returns the bare
+`_STRENGTH_BASELINE` of 0.50. That second case is the important one: a constant
+returned from a function named `rate_*` will be read as a measurement by anyone who
+does not open the file, and the flag is what makes the constant visible.
+
+The trace also makes the calibration task finite. The placeholder is a baseline plus
+four capped counts weighted by six constants, so a calibration study estimates six
+parameters against human ratings rather than re-deriving a black box. Naming the
+parameters is what turns "this is unvalidated" from an apology into a task list.
+
+### 11.4 The normative channel had no ordering check
+
+`_check_semantics` validated `channels.indeterminacy.alert < channels.indeterminacy.high`
+and did not validate the same pair for `channels.normative`. The omission mattered
+because of what the normative channel is: it is deliberately ungated, so it is
+excluded from both the `non_dissonant_cap` invariant and the `surface_threshold`
+invariant, and that leaves the ordering check as the *only* structural constraint it
+had. Without it, setting `normative.alert` at or above `normative.high` makes the
+`high` band unreachable — a config edit that changes what a card can say about a norm
+conflict without changing a line of code.
+
+**Change.** Both ungated channels are checked in one loop, and a comment records why
+they are absent from the two invariants above: not an oversight, but a consequence of
+being ungated by design.
+
+### 11.5 The staleness gate had a hole shaped like `responses.md`
+
+The CI step regenerated four reports and then asserted `git diff --quiet -- eval/`. It
+did not regenerate `eval/responses.md`. That file was therefore the one report that
+could go stale while the build stayed green, and it is the report whose inputs are the
+most volatile: the lexicon coder and the `language_acts` → expected-indicator table
+both feed it, and both are edited more often than the index. `responses.md`'s own text
+already documented that it could be regenerated from `examples/coding_pairs` without a
+model in the loop, so the gate was one line short of complete.
+
+**Change.** The regeneration step runs `score_responses.py --pairs examples/coding_pairs
+--write-report` alongside the other four. The file's content did not change — which is
+the point: the gate now *verifies* that, instead of assuming it.
+
+### 11.6 What did not change, and what is still not fixed
+
+The index, the thresholds, the routing, the gate, the arm purity, the sensitivity
+results and all 79 corpus outcomes are unchanged. The base `config_hash` moved only
+because `VERSION` and `config_version` moved with it.
+
+The measurement gaps are untouched, and it would be easy to read this release as
+progress on them when it is not. The inter-rater protocol has still never been run —
+it remains the single blocking item from §2.6 and `references/construct.md`. The
+perception harness still has no packets. The weights and the two guard bars are still
+design priors. The `strategy_set` / `near_boundary` derivation is still not
+reproducible from the committed tree. The `mixed` profile still has no arm-purity
+ceiling, so its 34/28 split is descriptive only. The normative channel is still covered
+by exactly one scenario, which is thin for the channel carrying the "a norm is not
+dissonance" argument.
+
+Those are all measurement and study-design tasks. §11.1, §11.2 and §11.5 were the
+parts of the list that were pure reporting defects, and §11.3 was the part that could
+be made *ready* in code for a task that still has to be done by hand.
